@@ -52,6 +52,19 @@ const GROUPS: Group[] = [
       { label: 'Web link',     icon: '🔗',  shortcut: '/link',     apply: '[text](https://)', cursor: -1 },
       { label: 'Image',        icon: '🖼',  shortcut: '/image',    apply: '![alt](url)', cursor: -1 },
     ]
+  },
+  {
+    title: 'Symbols',
+    items: [
+      { label: 'Right arrow', icon: '→', shortcut: '/rarr',  apply: '→' },
+      { label: 'Left arrow',  icon: '←', shortcut: '/larr',  apply: '←' },
+      { label: 'Up arrow',    icon: '↑', shortcut: '/uarr',  apply: '↑' },
+      { label: 'Down arrow',  icon: '↓', shortcut: '/darr',  apply: '↓' },
+      { label: 'Check mark',  icon: '✓', shortcut: '/tick',  apply: '✓' },
+      { label: 'Cross mark',  icon: '✗', shortcut: '/cross', apply: '✗' },
+      { label: 'Em dash',     icon: '—', shortcut: '/mdash', apply: '—' },
+      { label: 'Ellipsis',    icon: '…', shortcut: '/dots',  apply: '…' },
+    ]
   }
 ]
 

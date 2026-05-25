@@ -130,23 +130,37 @@ function makeWikilinkCompletion(filesRef: React.MutableRefObject<NoteFile[]>) {
 type SlashCmd = { label: string; detail: string; apply: string; cursor?: number }
 
 const SLASH_COMMANDS: SlashCmd[] = [
-  { label: '/h1',       detail: 'Heading 1',      apply: '# ',                         cursor: 2 },
-  { label: '/h2',       detail: 'Heading 2',      apply: '## ',                        cursor: 3 },
-  { label: '/h3',       detail: 'Heading 3',      apply: '### ',                       cursor: 4 },
-  { label: '/bold',     detail: 'Bold text',      apply: '**text**',                   cursor: -2 },
-  { label: '/italic',   detail: 'Italic text',    apply: '*text*',                     cursor: -1 },
-  { label: '/table',    detail: 'Insert table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
-  { label: '/code',     detail: 'Code block',     apply: '```\n\n```',                 cursor: -4 },
-  { label: '/inline',   detail: 'Inline code',    apply: '`code`',                     cursor: -1 },
-  { label: '/quote',    detail: 'Blockquote',     apply: '> ' },
+  // Structure
+  { label: '/h1',       detail: 'Heading 1',       apply: '# ',                                                    cursor: 2 },
+  { label: '/h2',       detail: 'Heading 2',       apply: '## ',                                                   cursor: 3 },
+  { label: '/h3',       detail: 'Heading 3',       apply: '### ',                                                  cursor: 4 },
+  { label: '/bold',     detail: 'Bold text',       apply: '**text**',                                              cursor: -2 },
+  { label: '/italic',   detail: 'Italic text',     apply: '*text*',                                                cursor: -1 },
+  { label: '/table',    detail: 'Insert table',    apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
+  { label: '/code',     detail: 'Code block',      apply: '```\n\n```',                                            cursor: -4 },
+  { label: '/inline',   detail: 'Inline code',     apply: '`code`',                                                cursor: -1 },
+  { label: '/quote',    detail: 'Blockquote',      apply: '> ' },
   { label: '/hr',       detail: 'Horizontal rule', apply: '\n---\n' },
-  { label: '/check',    detail: 'Task list',       apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
-  { label: '/list',     detail: 'Bullet list',    apply: '- ' },
-  { label: '/numlist',  detail: 'Numbered list',  apply: '1. ' },
-  { label: '/link',     detail: 'Web link',       apply: '[text](https://)',            cursor: -1 },
-  { label: '/image',    detail: 'Image',          apply: '![alt](url)',                cursor: -1 },
-  { label: '/wikilink', detail: 'Link to note',   apply: '[[',                         cursor: 0 },
-  { label: '/date',     detail: 'Today\'s date',  apply: new Date().toISOString().slice(0, 10) },
+  { label: '/check',    detail: 'Task list',       apply: '- [ ] \n- [ ] \n- [ ] ',                               cursor: -14 },
+  { label: '/list',     detail: 'Bullet list',     apply: '- ' },
+  { label: '/numlist',  detail: 'Numbered list',   apply: '1. ' },
+  { label: '/link',     detail: 'Web link',        apply: '[text](https://)',                                       cursor: -1 },
+  { label: '/image',    detail: 'Image',           apply: '![alt](url)',                                           cursor: -1 },
+  { label: '/wikilink', detail: 'Link to note',    apply: '[[',                                                    cursor: 0 },
+  { label: '/date',     detail: 'Today\'s date',   apply: new Date().toISOString().slice(0, 10) },
+  // Symbols
+  { label: '/rarr',     detail: '→  Right arrow',  apply: '→' },
+  { label: '/larr',     detail: '←  Left arrow',   apply: '←' },
+  { label: '/uarr',     detail: '↑  Up arrow',     apply: '↑' },
+  { label: '/darr',     detail: '↓  Down arrow',   apply: '↓' },
+  { label: '/harr',     detail: '↔  Both arrows',  apply: '↔' },
+  { label: '/tick',     detail: '✓  Check mark',   apply: '✓' },
+  { label: '/cross',    detail: '✗  Cross mark',   apply: '✗' },
+  { label: '/star',     detail: '★  Star',         apply: '★' },
+  { label: '/mdash',    detail: '—  Em dash',      apply: '—' },
+  { label: '/dots',     detail: '…  Ellipsis',     apply: '…' },
+  { label: '/copy',     detail: '©  Copyright',    apply: '©' },
+  { label: '/tm',       detail: '™  Trademark',    apply: '™' },
 ]
 
 function slashCompletion(context: CompletionContext): CompletionResult | null {
@@ -219,6 +233,42 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       focus: () => viewRef.current?.focus(),
       openFind: () => { if (viewRef.current) openSearchPanel(viewRef.current) }
     }))
+
+    const handleCopy = useCallback(async () => {
+      const view = viewRef.current; if (!view) return
+      const { from, to } = view.state.selection.main
+      if (from !== to) await navigator.clipboard.writeText(view.state.doc.sliceString(from, to))
+      setCtxMenu(null)
+    }, [])
+
+    const handleCut = useCallback(async () => {
+      const view = viewRef.current; if (!view) return
+      const { from, to } = view.state.selection.main
+      if (from !== to) {
+        await navigator.clipboard.writeText(view.state.doc.sliceString(from, to))
+        view.dispatch({ changes: { from, to, insert: '' } })
+        view.focus()
+      }
+      setCtxMenu(null)
+    }, [])
+
+    const handlePaste = useCallback(async () => {
+      const view = viewRef.current; if (!view) return
+      try {
+        const text = await navigator.clipboard.readText()
+        const { from, to } = view.state.selection.main
+        view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } })
+        view.focus()
+      } catch {}
+      setCtxMenu(null)
+    }, [])
+
+    const handleSelectAll = useCallback(() => {
+      const view = viewRef.current; if (!view) return
+      view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } })
+      view.focus()
+      setCtxMenu(null)
+    }, [])
 
     const wrapSelection = useCallback((before: string, after: string, placeholder = '') => {
       const view = viewRef.current
@@ -363,6 +413,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
             onClose={() => setCtxMenu(null)}
             onWrap={wrapSelection}
             onInsert={insertAtCursor}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={handlePaste}
+            onSelectAll={handleSelectAll}
           />
         )}
       </div>
@@ -380,9 +434,13 @@ interface EditorCtxProps {
   onClose: () => void
   onWrap: (before: string, after: string, placeholder?: string) => void
   onInsert: (text: string, cursorOffset?: number) => void
+  onCopy: () => void
+  onCut: () => void
+  onPaste: () => void
+  onSelectAll: () => void
 }
 
-function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: EditorCtxProps) {
+function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert, onCopy, onCut, onPaste, onSelectAll }: EditorCtxProps) {
   const today = new Date().toISOString().slice(0, 10)
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
@@ -400,9 +458,18 @@ function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: Ed
     <>
       <div className="editor-ctx-backdrop" onClick={onClose} onContextMenu={onClose} />
       <div ref={menuRef} className="context-menu editor-context-menu" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
+
+        {/* Clipboard */}
+        {hasSelection && <button onClick={onCut}><span className="ctx-icon">✂</span> Cut</button>}
+        {hasSelection && <button onClick={onCopy}><span className="ctx-icon">⎘</span> Copy</button>}
+        <button onClick={onPaste}><span className="ctx-icon">⎗</span> Paste</button>
+        <button onClick={onSelectAll}>Select All</button>
+        <hr />
+
+        {/* Format selection */}
         {hasSelection && (
           <>
-            <div className="ctx-section-label">Format selection</div>
+            <div className="ctx-section-label">Format</div>
             <button onClick={() => onWrap('**', '**', 'bold')}><span className="ctx-icon">B</span> Bold</button>
             <button onClick={() => onWrap('*', '*', 'italic')}><span className="ctx-icon ctx-italic">I</span> Italic</button>
             <button onClick={() => onWrap('~~', '~~', 'text')}><span className="ctx-icon ctx-strike">S</span> Strikethrough</button>
@@ -412,6 +479,8 @@ function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: Ed
             <hr />
           </>
         )}
+
+        {/* Insert */}
         <div className="ctx-section-label">Insert</div>
         <button onClick={() => onInsert('# ', 0)}>Heading 1</button>
         <button onClick={() => onInsert('## ', 0)}>Heading 2</button>
