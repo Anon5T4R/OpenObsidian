@@ -35,12 +35,8 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange }: 
   const html = useMemo(() => {
     const withLinks = processWikiLinks(content)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
-    return String(result)
-      // Fix empty task items: remark-gfm leaves "- [ ]" with no text as literal "[ ]" text
-      .replace(/<li>\[ \](\s*)<\/li>/g, '<li><input type="checkbox">$1</li>')
-      .replace(/<li>\[x\](\s*)<\/li>/gi, '<li><input type="checkbox" checked>$1</li>')
-      // Remove "disabled" from checkboxes so they are clickable in preview
-      .replace(/(<input\b[^>]*?) disabled/g, '$1')
+    // Remove "disabled" from checkboxes so they are clickable in preview
+    return String(result).replace(/(<input\b[^>]*?) disabled/g, '$1')
   }, [content])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
