@@ -3,8 +3,8 @@
   "version": "0.3.0",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
-    "name": "OpenObsidian Contributors",
-    "email": "openobsidian@users.noreply.github.com"
+    "name": "João Ferreira",
+    "email": "dev.joaoferreira@proton.me"
   },
   "main": "out/main/index.js",
   "scripts": {
