@@ -1,0 +1,165 @@
+.graph-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-editor);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.graph-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.graph-icon {
+  color: var(--accent);
+  font-size: 18px;
+}
+
+.graph-stats {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.graph-search-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.graph-search-wrap:focus-within { border-color: var(--accent); }
+
+.graph-search-wrap input {
+  background: none;
+  border: none;
+  outline: none;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 160px;
+}
+
+.graph-search-wrap button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px;
+}
+
+.graph-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  transition: all 0.1s;
+}
+
+.graph-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+
+.graph-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.graph-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.graph-close:hover { background: var(--hover); color: var(--text-primary); }
+
+/* Canvas */
+.graph-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-canvas svg {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.graph-canvas svg:active { cursor: grabbing; }
+
+/* Node labels: always visible for well-connected nodes */
+.graph-canvas .label-zoom {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Show labels when zoomed in enough — handled via CSS transform perspective hack */
+.graph-canvas svg .nodes .node-group:hover .label-zoom,
+.graph-canvas svg .nodes .node-group:hover .label-always {
+  opacity: 1;
+}
+.graph-canvas .label-always { opacity: 1; }
+
+.graph-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Legend */
+.graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-sidebar);
+  flex-shrink: 0;
+}
+
+/* Light theme overrides */
+[data-theme='light'] .graph-canvas svg {
+  background: #f8f8f5;
+}

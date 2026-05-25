@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); Set-Location \"C:\\\\Users\\\\joaof\\\\OneDrive\\\\Desktop\\\\OpenObsidian\"; npm create electron-vite@latest . -- --template react-ts)",
+      "PowerShell($zipPath = \"C:\\\\Users\\\\joaof\\\\AppData\\\\Local\\\\electron\\\\Cache\\\\9f924e1838254c898ce307cba65a2ef169440b28e010bbf9a68c38d69ab41137\\\\electron-v29.0.0-win32-x64.zip\"; $destPath = \"C:\\\\Users\\\\joaof\\\\OneDrive\\\\Desktop\\\\OpenObsidian\\\\node_modules\\\\electron\\\\dist\"; Expand-Archive -Path $zipPath -DestinationPath $destPath -Force; \"electron.exe\" | Set-Content \"C:\\\\Users\\\\joaof\\\\OneDrive\\\\Desktop\\\\OpenObsidian\\\\node_modules\\\\electron\\\\path.txt\" -Encoding utf8; Write-Host \"Done\"; Test-Path \"$destPath\\\\electron.exe\")"
+    ]
+  }
+}

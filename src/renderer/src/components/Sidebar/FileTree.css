@@ -1,0 +1,192 @@
+.file-tree {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-sidebar);
+  overflow: hidden;
+  transition: width 0.2s;
+}
+
+/* Collapsed state */
+.file-tree.collapsed .file-tree-header {
+  justify-content: center;
+  padding: 10px 6px;
+}
+
+.file-tree.collapsed .tree-item {
+  justify-content: center;
+  padding: 7px 0;
+}
+
+.file-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vault-name-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: default;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+  padding: 0;
+}
+
+.vault-name-btn:hover { color: var(--accent); cursor: pointer; }
+
+.file-tree-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+
+.btn-icon:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.collapse-btn { font-size: 12px; }
+
+.file-tree-search {
+  padding: 7px 8px;
+  flex-shrink: 0;
+}
+
+.file-tree-search input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.file-tree-search input:focus { border-color: var(--accent); }
+
+.file-tree-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+/* Tree items */
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  margin: 1px 5px;
+  transition: background 0.1s;
+  user-select: none;
+  min-height: 28px;
+}
+
+.tree-item:hover { background: var(--hover); color: var(--text-primary); }
+
+.tree-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tree-dir { font-weight: 500; }
+
+.tree-chevron {
+  font-size: 10px;
+  width: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tree-icon { font-size: 12px; flex-shrink: 0; }
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.file-tree-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.open-vault-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.open-vault-btn:hover { background: var(--accent-hover); }
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  min-width: 150px;
+}
+
+.context-menu hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+.context-menu button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.context-menu button:hover { background: var(--hover); }
+.context-menu button.danger { color: var(--danger); }

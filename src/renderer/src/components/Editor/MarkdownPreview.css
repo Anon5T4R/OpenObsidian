@@ -1,0 +1,85 @@
+.markdown-preview {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 32px;
+  font-size: var(--font-size-editor, 14px);
+  line-height: 1.75;
+  color: var(--text-primary);
+  background: var(--bg-editor);
+  user-select: text;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-heading);
+}
+
+.markdown-preview h1 { font-size: 1.9em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-preview h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; }
+.markdown-preview h3 { font-size: 1.2em; }
+
+.markdown-preview p { margin: 0.8em 0; }
+
+.markdown-preview a { color: var(--accent); text-decoration: none; }
+.markdown-preview a:hover { text-decoration: underline; }
+
+.markdown-preview a.wikilink {
+  color: #a78bfa;
+  border-bottom: 1px solid #a78bfa44;
+  cursor: pointer;
+}
+.markdown-preview a.wikilink:hover {
+  border-bottom-color: #a78bfa;
+  text-decoration: none;
+}
+
+[data-theme='light'] .markdown-preview a.wikilink { color: #7c3aed; border-bottom-color: #7c3aed44; }
+[data-theme='light'] .markdown-preview a.wikilink:hover { border-bottom-color: #7c3aed; }
+
+.markdown-preview code {
+  font-family: var(--editor-font, monospace);
+  background: var(--bg-code);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 0.88em;
+  color: var(--text-primary);
+}
+
+.markdown-preview pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-preview pre code { background: none; padding: 0; }
+
+.markdown-preview blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1em 0;
+  padding: 4px 16px;
+  color: var(--text-muted);
+}
+
+.markdown-preview ul, .markdown-preview ol { padding-left: 1.5em; margin: 0.5em 0; }
+.markdown-preview li { margin: 0.25em 0; }
+
+.markdown-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.markdown-preview th, .markdown-preview td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+.markdown-preview th { background: var(--bg-code); font-weight: 600; }
+
+.markdown-preview hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+
+.markdown-preview img { max-width: 100%; border-radius: 4px; }
+
+/* Checkboxes */
+.markdown-preview input[type='checkbox'] { margin-right: 6px; }

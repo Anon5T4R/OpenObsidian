@@ -1,0 +1,82 @@
+{
+  "name": "open-obsidian",
+  "version": "0.1.0",
+  "description": "Open source Obsidian-like markdown note manager",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "icons": "node scripts/generate-icons.js",
+    "predist": "node scripts/generate-icons.js",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^29.4.6",
+    "electron-builder": "^24.9.1",
+    "electron-vite": "^2.0.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.2",
+    "@codemirror/commands": "^6.3.3",
+    "@codemirror/lang-markdown": "^6.2.5",
+    "@codemirror/language": "^6.10.1",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.25.1",
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@lezer/highlight": "^1.2.0",
+    "@types/d3": "^7.4.3",
+    "chokidar": "^3.6.0",
+    "d3": "^7.9.0",
+    "flexsearch": "^0.7.43",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.0",
+    "remark-html": "^16.0.1",
+    "zustand": "^4.5.0"
+  },
+  "build": {
+    "appId": "com.openobsidian.app",
+    "productName": "OpenObsidian",
+    "icon": "resources/icon",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "resources/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "resources/icons",
+      "category": "Utility",
+      "desktop": {
+        "Name": "OpenObsidian",
+        "Comment": "Open source markdown knowledge base",
+        "Categories": "Utility;Office;TextEditor;",
+        "Keywords": "markdown;notes;wiki;knowledge;"
+      }
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "resources/icon.icns"
+    }
+  }
+}
