@@ -89,6 +89,24 @@
 
 .file-tree-search input:focus { border-color: var(--accent); }
 
+.folder-create-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  flex-shrink: 0;
+}
+.folder-create-input input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 7px;
+  outline: none;
+}
+
 .file-tree-list {
   flex: 1;
   overflow-y: auto;
@@ -273,3 +291,34 @@
 
 .tree-item[draggable='true'] { cursor: grab; }
 .tree-item[draggable='true']:active { cursor: grabbing; }
+
+/* Inline delete confirmation */
+.ctx-confirm { padding: 6px 8px 2px; }
+.ctx-confirm-msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.ctx-confirm-btns { display: flex; gap: 5px; }
+.ctx-confirm-btns button { flex: 1; font-size: 12px; padding: 4px 6px; }
+
+/* Inline rename input */
+.tree-rename-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 1px 5px;
+  outline: none;
+  min-width: 0;
+}
+
+/* Backdrop to close context menu / folder input */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react'
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useVaultStore, NoteFile, TreeNode, flattenTree } from './store/vaultStore'
 import { useSettings } from './hooks/useSettings'
 import FileTree from './components/Sidebar/FileTree'
@@ -13,6 +13,7 @@ import GraphView from './components/Graph/GraphView'
 import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
 import './styles/app.css'
+import './components/Templates/TemplateModal.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
 
@@ -24,8 +25,12 @@ export default function App() {
   const store = useVaultStore()
   const { settings, setSettings } = useSettings()
 
-  const [viewMode,         setViewMode]         = useState<ViewMode>('split')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  // True when running on Android/iOS (Capacitor). Evaluated after mount so window.api is set.
+  const isMobile = useMemo(() => typeof window.api?.listVaults === 'function', [])
+
+  const [viewMode,         setViewMode]         = useState<ViewMode>(() => isMobile ? 'edit' : 'split')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => isMobile)
+  const [vaultPickerOpen,  setVaultPickerOpen]  = useState(false)
   const [sidebarWidth,     setSidebarWidth]     = useState(settings.sidebarWidth)
   const [splitRatio,       setSplitRatio]       = useState(0.5)
   const [settingsOpen,     setSettingsOpen]     = useState(false)
@@ -43,6 +48,11 @@ export default function App() {
   const contentCacheRef = useRef<Record<string, string>>({})
   const isResizingSidebar = useRef(false)
   const isResizingSplit   = useRef(false)
+
+  // ── Navigation history ────────────────────────────────────────────────────
+  const navRef = useRef<{ history: NoteFile[]; index: number }>({ history: [], index: -1 })
+  const [navCanBack,    setNavCanBack]    = useState(false)
+  const [navCanForward, setNavCanForward] = useState(false)
 
   // Load last vault on startup
   useEffect(() => {
@@ -99,6 +109,8 @@ export default function App() {
 
   // ── Vault open ────────────────────────────────────────────────────────────
   const openVaultPath = useCallback(async (vaultPath: string) => {
+    navRef.current = { history: [], index: -1 }
+    setNavCanBack(false); setNavCanForward(false)
     const tree = await window.api.listTree(vaultPath)
     store.setVault(vaultPath, tree)
     await window.api.watchVault(vaultPath)
@@ -139,10 +151,15 @@ export default function App() {
   }, [])
 
   const handleOpenVault = useCallback(async () => {
+    if (isMobile) {
+      // On Android, openVault() returns null — show the in-app vault picker instead
+      setVaultPickerOpen(true)
+      return
+    }
     const vaultPath = await window.api.openVault()
     if (!vaultPath) return
     await openVaultPath(vaultPath)
-  }, [openVaultPath])
+  }, [openVaultPath, isMobile])
 
   const handleReopenVault = useCallback(async () => {
     if (lastVault) await openVaultPath(lastVault.path)
@@ -155,7 +172,7 @@ export default function App() {
   }, [store.vaultPath])
 
   // ── File operations ───────────────────────────────────────────────────────
-  const handleFileSelect = useCallback(async (file: NoteFile) => {
+  const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
     if (store.isDirty && store.activeFile) {
       await window.api.writeFile(store.activeFile.path, store.activeContent)
       store.setDirty(false)
@@ -165,12 +182,51 @@ export default function App() {
     if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
     store.setActiveContent(content)
     store.setDirty(false)
+
+    if (!fromNav) {
+      const { history, index } = navRef.current
+      const trimmed = history.slice(0, index + 1)
+      navRef.current = { history: [...trimmed, file], index: trimmed.length }
+      setNavCanBack(navRef.current.index > 0)
+      setNavCanForward(false)
+    }
   }, [])
+
+  const handleNavBack = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index <= 0) return
+    navRef.current = { history, index: index - 1 }
+    setNavCanBack(index - 1 > 0)
+    setNavCanForward(true)
+    await handleFileSelect(history[index - 1], true)
+  }, [handleFileSelect])
+
+  const handleNavForward = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index >= history.length - 1) return
+    navRef.current = { history, index: index + 1 }
+    setNavCanBack(true)
+    setNavCanForward(index + 1 < history.length - 1)
+    await handleFileSelect(history[index + 1], true)
+  }, [handleFileSelect])
 
   const handleFileSelectByName = useCallback(async (noteName: string) => {
     const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
     if (file) await handleFileSelect(file)
   }, [store.files, handleFileSelect])
+
+  const handleFileDeleted = useCallback((path: string) => {
+    if (store.activeFile?.path === path) {
+      store.setActiveFile(null)
+      store.setActiveContent('')
+    }
+    const { history, index } = navRef.current
+    const newHistory = history.filter((f) => f.path !== path)
+    const newIndex = Math.min(index, newHistory.length - 1)
+    navRef.current = { history: newHistory, index: newIndex }
+    setNavCanBack(newIndex > 0)
+    setNavCanForward(newIndex < newHistory.length - 1)
+  }, [store.activeFile?.path])
 
   // ── New note (uses template modal) ────────────────────────────────────────
   const handleNewNote = useCallback(async (folderPath?: string) => {
@@ -198,15 +254,13 @@ export default function App() {
     }
   }, [store.vaultPath, templateFolder])
 
-  const handleNewFolder = useCallback(async (parentPath?: string) => {
-    if (!store.vaultPath) return
-    const name = window.prompt('Folder name:')
-    if (!name) return
-    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name)
-    if (result.error) { alert(result.error); return }
+  const handleNewFolder = useCallback(async (parentPath?: string, name?: string) => {
+    if (!store.vaultPath || !name?.trim()) return
+    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
+    if (result.error) { notify(result.error); return }
     const tree = await window.api.listTree(store.vaultPath)
     store.setTree(tree)
-  }, [store.vaultPath])
+  }, [store.vaultPath, notify])
 
   const handleContentChange = useCallback((value: string) => {
     store.setActiveContent(value)
@@ -288,6 +342,16 @@ export default function App() {
     return () => { u1(); u2(); u3(); u4(); u5() }
   }, [handleOpenVault, handleNewNote, handleBackup])
 
+  // ── Mouse back/forward buttons ────────────────────────────────────────────
+  useEffect(() => {
+    const onMouse = (e: MouseEvent) => {
+      if (e.button === 3) { e.preventDefault(); handleNavBack() }
+      if (e.button === 4) { e.preventDefault(); handleNavForward() }
+    }
+    window.addEventListener('mousedown', onMouse)
+    return () => window.removeEventListener('mousedown', onMouse)
+  }, [handleNavBack, handleNavForward])
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -305,10 +369,13 @@ export default function App() {
       if (ctrl && e.key === '0')   { e.preventDefault(); setSettings({ fontSize: 14 }) }
       // Find
       if (ctrl && e.key === 'f')   { editorRef.current?.openFind() }
+      // Navigation history
+      if (e.altKey && !ctrl && e.key === 'ArrowLeft')  { e.preventDefault(); handleNavBack() }
+      if (e.altKey && !ctrl && e.key === 'ArrowRight') { e.preventDefault(); handleNavForward() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [handleNewNote, handleBackup, settings.fontSize])
+  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
 
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
   const noVault = !store.vaultPath
@@ -326,6 +393,8 @@ export default function App() {
           onNewFolder={handleNewFolder}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
           onOpenVault={handleOpenVault}
+          onNotify={notify}
+          onFileDeleted={handleFileDeleted}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
       </aside>
@@ -347,11 +416,25 @@ export default function App() {
           </div>
         ) : (
           <div className="editor-area">
-            <div className="editor-toolbar">
-              <span className="note-title">
-                {store.activeFile.name}
-                {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
-              </span>
+            <div className={`editor-toolbar${isMobile ? ' mobile' : ''}`}>
+              <div className="toolbar-left">
+                <button
+                  className="toolbar-nav-btn"
+                  onClick={handleNavBack}
+                  disabled={!navCanBack}
+                  title="Back (Alt+← or mouse button 4)"
+                >‹</button>
+                <button
+                  className="toolbar-nav-btn"
+                  onClick={handleNavForward}
+                  disabled={!navCanForward}
+                  title="Forward (Alt+→ or mouse button 5)"
+                >›</button>
+                <span className="note-title">
+                  {store.activeFile.name}
+                  {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
+                </span>
+              </div>
 
               <div className="toolbar-centre">
                 <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
@@ -388,8 +471,8 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>
-                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>
+                {!isMobile && <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>}
+                {!isMobile && <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>}
                 <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
               </div>
             </div>
@@ -420,6 +503,7 @@ export default function App() {
                     content={store.activeContent}
                     onWikiLinkClick={handleFileSelectByName}
                     onChange={handleContentChange}
+                    vaultPath={store.vaultPath}
                   />
                 </div>
               )}
@@ -442,7 +526,115 @@ export default function App() {
           folderHint={templateFolder?.split(/[/\\]/).pop()}
         />
       )}
+      {vaultPickerOpen && (
+        <VaultPickerModal
+          onSelect={async (vaultPath) => { setVaultPickerOpen(false); await openVaultPath(vaultPath) }}
+          onCancel={() => setVaultPickerOpen(false)}
+        />
+      )}
       {notification && <div className="toast">{notification}</div>}
+    </div>
+  )
+}
+
+// ── Android vault picker modal ────────────────────────────────────────────────
+function VaultPickerModal({ onSelect, onCancel }: {
+  onSelect: (vaultPath: string) => void
+  onCancel: () => void
+}) {
+  const [vaults,    setVaults]    = React.useState<import('../../../types/shared').VaultInfo[]>([])
+  const [newName,   setNewName]   = React.useState('')
+  const [creating,  setCreating]  = React.useState(false)
+  const [loading,   setLoading]   = React.useState(true)
+  const [importing, setImporting] = React.useState(false)
+  const [error,     setError]     = React.useState<string | null>(null)
+
+  const reload = React.useCallback(() => {
+    setLoading(true)
+    window.api.listVaults?.().then((v) => { setVaults(v ?? []); setLoading(false) })
+  }, [])
+
+  React.useEffect(() => { reload() }, [reload])
+
+  const handleCreate = async () => {
+    const name = newName.trim()
+    if (!name) return
+    setError(null)
+    const result = await window.api.createVault?.(name)
+    if (result) { onSelect(result) }
+    else { setError('Could not create vault. Check storage permissions.') }
+  }
+
+  const handleImportExternal = async () => {
+    if (!window.api.pickExternalVault) return
+    setImporting(true); setError(null)
+    try {
+      const result = await window.api.pickExternalVault()
+      if (result) { onSelect(result.path) } else { setImporting(false) }
+    } catch (e: any) { setError(e?.message ?? 'Failed to import folder'); setImporting(false) }
+  }
+
+  const hasExternalPicker = !!window.api.pickExternalVault
+
+  return (
+    <div className="tpl-overlay" onClick={onCancel}>
+      <div className="tpl-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="tpl-header">
+          <span className="tpl-title">Open Vault</span>
+          <button className="tpl-close" onClick={onCancel}>✕</button>
+        </div>
+        <div style={{ padding: '14px 16px' }}>
+          {loading ? (
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Loading…</p>
+          ) : (
+            <>
+              {vaults.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, marginTop: 0 }}>Vaults</p>
+                  {vaults.map((v) => (
+                    <button
+                      key={v.path} className="btn-secondary"
+                      style={{ display: 'block', width: '100%', marginBottom: 6, textAlign: 'left' }}
+                      onClick={() => onSelect(v.path)}
+                    >
+                      {v.type === 'external' ? '🔗' : '⬡'} {v.displayName}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {creating ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>New vault name (app storage)</p>
+                  <input
+                    autoFocus className="tpl-name-input" value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false) }}
+                    placeholder="My Notes"
+                  />
+                  {error && <p style={{ color: 'var(--danger, #e53e3e)', fontSize: 12, margin: 0 }}>{error}</p>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn-primary" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
+                    <button className="btn-secondary" onClick={() => { setCreating(false); setError(null) }}>Back</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => setCreating(true)}>+ New Vault</button>
+                  {hasExternalPicker && (
+                    <button className="btn-secondary" style={{ width: '100%' }} onClick={handleImportExternal} disabled={importing}>
+                      {importing ? 'Opening…' : '📁 Import Synced Folder'}
+                    </button>
+                  )}
+                  {error && <p style={{ color: 'var(--danger, #e53e3e)', fontSize: 12, margin: 0 }}>{error}</p>}
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                    "Import Synced Folder" lets you pick any folder synced by Syncthing, Google Drive, etc.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenObsidian</string>
+    <string name="title_activity_main">OpenObsidian</string>
+    <string name="package_name">com.openobsidian.app</string>
+    <string name="custom_url_scheme">com.openobsidian.app</string>
+</resources>

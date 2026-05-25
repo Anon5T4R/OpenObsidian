@@ -1,6 +1,6 @@
 {
   "name": "open-obsidian",
-  "version": "0.3.3",
+  "version": "0.3.8",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
@@ -15,9 +15,13 @@
     "predist": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "build:web": "vite build -c vite.config.web.ts",
+    "build:android": "npm run build:web && npx cap sync android",
+    "cap:open": "npx cap open android"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
@@ -29,6 +33,11 @@
     "vite": "^5.0.12"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/preferences": "^6.0.4",
+    "@capacitor/share": "^6.0.4",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.3.3",
     "@codemirror/lang-markdown": "^6.2.5",
