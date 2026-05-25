@@ -75,6 +75,44 @@
   flex-shrink: 0;
 }
 
+/* Left cluster: nav buttons + note title */
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.toolbar-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 20px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+  line-height: 1;
+  padding: 0;
+}
+
+.toolbar-nav-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.toolbar-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
 .note-title {
   font-size: 13px;
   font-weight: 600;

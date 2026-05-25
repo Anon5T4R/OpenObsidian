@@ -292,6 +292,17 @@
 .tree-item[draggable='true'] { cursor: grab; }
 .tree-item[draggable='true']:active { cursor: grabbing; }
 
+/* Inline delete confirmation */
+.ctx-confirm { padding: 6px 8px 2px; }
+.ctx-confirm-msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.ctx-confirm-btns { display: flex; gap: 5px; }
+.ctx-confirm-btns button { flex: 1; font-size: 12px; padding: 4px 6px; }
+
 /* Inline rename input */
 .tree-rename-input {
   flex: 1;

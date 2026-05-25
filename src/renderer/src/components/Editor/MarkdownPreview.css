@@ -81,6 +81,51 @@
 
 .markdown-preview img { max-width: 100%; border-radius: 4px; }
 
+/* Callouts / admonitions */
+.markdown-preview .callout {
+  margin: 1em 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--callout-color, var(--accent)) 28%, var(--border));
+  border-left: 3px solid var(--callout-color, var(--accent));
+}
+
+.markdown-preview .callout-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  font-weight: 600;
+  font-size: 0.88em;
+  color: var(--callout-color, var(--accent));
+  background: color-mix(in srgb, var(--callout-color, var(--accent)) 10%, transparent);
+  user-select: none;
+}
+
+.markdown-preview .callout-icon   { font-size: 1em; line-height: 1; flex-shrink: 0; }
+.markdown-preview .callout-title-text { flex: 1; }
+.markdown-preview .callout-fold   { font-size: 10px; opacity: 0.6; flex-shrink: 0; transition: transform 0.15s; }
+
+.markdown-preview .callout-content {
+  padding: 8px 14px;
+  font-size: 0.95em;
+}
+.markdown-preview .callout-content p:first-child { margin-top: 0; }
+.markdown-preview .callout-content p:last-child  { margin-bottom: 0; }
+
+/* Collapsible via <details> */
+.markdown-preview details.callout { border-radius: 6px; }
+.markdown-preview details.callout > summary.callout-title {
+  list-style: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.markdown-preview details.callout[open] > summary.callout-title { border-radius: 6px 6px 0 0; }
+.markdown-preview details.callout > summary.callout-title::-webkit-details-marker { display: none; }
+.markdown-preview details.callout:not([open]) > summary.callout-title .callout-fold {
+  transform: rotate(-90deg);
+}
+
 /* Checkboxes */
 .markdown-preview input[type='checkbox'] {
   margin-right: 6px;

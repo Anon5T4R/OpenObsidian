@@ -13,6 +13,7 @@ interface FileTreeProps {
   onToggleCollapse: () => void
   onOpenVault: () => void
   onNotify: (msg: string) => void
+  onFileDeleted: (path: string) => void
 }
 
 type CtxMenu = { x: number; y: number; node: TreeNode }
@@ -167,7 +168,7 @@ function flatHasMatch(node: TreeNode, query: string): boolean {
 
 export default function FileTree({
   collapsed, sort, onSortChange, onFileSelect, onNewNote, onNewFolder,
-  onToggleCollapse, onOpenVault, onNotify
+  onToggleCollapse, onOpenVault, onNotify, onFileDeleted
 }: FileTreeProps) {
   const store = useVaultStore()
   const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter, setTagFilter } = store
@@ -204,6 +205,9 @@ export default function FileTree({
     setRenaming(null)
   }, [renaming]) // refreshTree added below after definition
 
+  // ── Inline delete confirmation ────────────────────────────────────────────
+  const [confirmDelete, setConfirmDelete] = useState<TreeNode | null>(null)
+
   // ── Context menu ───────────────────────────────────────────────────────────
   const { menu, open: openCtx, close: closeCtx } = useCtxMenu()
 
@@ -233,6 +237,18 @@ export default function FileTree({
     await handleDropOnDir(src, vaultPath)
   }, [vaultPath, handleDropOnDir])
 
+  // ── Delete confirmation (inline — avoids window.confirm focus issues) ────
+  const handleDeleteConfirm = useCallback(async () => {
+    const node = confirmDelete
+    if (!node) return
+    setConfirmDelete(null)
+    if (node.type === 'file') await window.api.deleteFile(node.path)
+    else await window.api.deleteFolder(node.path)
+    onFileDeleted(node.path)
+    await refreshTree()
+    closeCtx()
+  }, [confirmDelete, onFileDeleted, refreshTree, closeCtx])
+
   // ── Context menu actions ───────────────────────────────────────────────────
   const handleRenameStart = () => {
     if (!menu) return
@@ -240,16 +256,9 @@ export default function FileTree({
     closeCtx()
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!menu) return
-    if (menu.node.type === 'file') {
-      if (!window.confirm(`Delete note "${menu.node.name}"?`)) return
-      await window.api.deleteFile(menu.node.path)
-    } else {
-      if (!window.confirm(`Delete folder "${menu.node.name}" and all its contents?`)) return
-      await window.api.deleteFolder(menu.node.path)
-    }
-    await refreshTree(); closeCtx()
+    setConfirmDelete(menu.node) // show inline confirm — never uses window.confirm
   }
 
   const handleDuplicate = async () => {
@@ -278,6 +287,7 @@ export default function FileTree({
     closeCtx()
     setFolderInput(null)
     if (renaming) setRenaming(null)
+    setConfirmDelete(null)
   }, [closeCtx, renaming])
 
   return (
@@ -435,7 +445,17 @@ export default function FileTree({
           <button onClick={() => { navigator.clipboard.writeText(menu.node.path); closeCtx() }}>📎 Copy Path</button>
           <button onClick={() => { window.api.showItemInFolder(menu.node.path); closeCtx() }}>📂 Show in File Manager</button>
           <hr />
-          <button onClick={handleDelete} className="danger">🗑 Delete</button>
+          {confirmDelete?.path === menu.node.path ? (
+            <div className="ctx-confirm">
+              <div className="ctx-confirm-msg">Delete "{menu.node.name}"?</div>
+              <div className="ctx-confirm-btns">
+                <button onClick={handleDeleteConfirm} className="danger">Delete</button>
+                <button onClick={() => setConfirmDelete(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={handleDelete} className="danger">🗑 Delete</button>
+          )}
         </div>
       )}
     </div>
