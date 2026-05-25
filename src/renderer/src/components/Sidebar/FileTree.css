@@ -291,3 +291,23 @@
 
 .tree-item[draggable='true'] { cursor: grab; }
 .tree-item[draggable='true']:active { cursor: grabbing; }
+
+/* Inline rename input */
+.tree-rename-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 1px 5px;
+  outline: none;
+  min-width: 0;
+}
+
+/* Backdrop to close context menu / folder input */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}

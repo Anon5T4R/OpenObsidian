@@ -324,6 +324,7 @@ export default function App() {
           onNewFolder={handleNewFolder}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
           onOpenVault={handleOpenVault}
+          onNotify={notify}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
       </aside>
