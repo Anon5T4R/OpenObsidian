@@ -55,6 +55,12 @@ const api = {
   exportPdf: (title: string): Promise<string | null> =>
     ipcRenderer.invoke('export:pdf', title),
 
+  // Vault index cache
+  loadIndex: (vaultPath: string): Promise<{ vaultPath: string; savedAt: number; entries: Record<string, { mtime: number; content: string }> } | null> =>
+    ipcRenderer.invoke('index:load', vaultPath),
+  saveIndex: (vaultPath: string, data: object): Promise<boolean> =>
+    ipcRenderer.invoke('index:save', vaultPath, data),
+
   // Shell
   showItemInFolder: (p: string): Promise<void> => ipcRenderer.invoke('shell:show-item', p),
 

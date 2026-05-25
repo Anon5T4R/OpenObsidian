@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import './TemplateModal.css'
 
 interface Template {
@@ -59,6 +59,20 @@ interface TemplateModalProps {
 export default function TemplateModal({ onConfirm, onCancel, folderHint }: TemplateModalProps) {
   const [name, setName] = useState('')
   const [selected, setSelected] = useState<string>('blank')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Reliable focus — autoFocus is unreliable in Electron modals
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 50)
+    return () => clearTimeout(t)
+  }, [])
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,11 +94,11 @@ export default function TemplateModal({ onConfirm, onCancel, folderHint }: Templ
         <form onSubmit={handleSubmit}>
           <div className="tpl-name-row">
             <input
+              ref={inputRef}
               className="tpl-name-input"
               placeholder="Note name…"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoFocus
             />
           </div>
 

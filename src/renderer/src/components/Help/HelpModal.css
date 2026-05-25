@@ -297,3 +297,36 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* Template grid in features tab */
+.help-tpl-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.help-tpl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.help-tpl-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.help-tpl-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.help-tpl-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

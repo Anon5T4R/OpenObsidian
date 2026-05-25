@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react'
-import { useVaultStore, NoteFile, flattenTree } from './store/vaultStore'
+import { useVaultStore, NoteFile, TreeNode, flattenTree } from './store/vaultStore'
 import { useSettings } from './hooks/useSettings'
 import FileTree from './components/Sidebar/FileTree'
 import MarkdownEditor, { MarkdownEditorHandle, EditorStats } from './components/Editor/MarkdownEditor'
@@ -104,11 +104,38 @@ export default function App() {
     await window.api.watchVault(vaultPath)
     await window.api.setLastVault(vaultPath)
     setLastVault({ path: vaultPath, name: vaultPath.split(/[/\\]/).pop() ?? vaultPath })
+
     const files = flattenTree(tree)
+    const mtimeMap = buildMtimeMap(tree)
+
+    // Load cached index — only re-read files that changed since last save
+    const cached = await window.api.loadIndex(vaultPath)
     const contents: Record<string, string> = {}
-    for (const file of files) { try { contents[file.path] = await window.api.readFile(file.path) } catch {} }
+    const needsRead: NoteFile[] = []
+
+    for (const file of files) {
+      const entry = cached?.entries?.[file.path]
+      const mtime = mtimeMap[file.path] ?? 0
+      if (entry && mtime > 0 && entry.mtime === mtime) {
+        contents[file.path] = entry.content   // cache hit
+      } else {
+        needsRead.push(file)                  // cache miss or new/changed file
+      }
+    }
+
+    for (const file of needsRead) {
+      try { contents[file.path] = await window.api.readFile(file.path) } catch {}
+    }
+
     contentCacheRef.current = contents
     store.buildBacklinks(files, contents)
+
+    // Persist updated index (fire-and-forget)
+    const entries: Record<string, { mtime: number; content: string }> = {}
+    for (const file of files) {
+      entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content: contents[file.path] ?? '' }
+    }
+    window.api.saveIndex(vaultPath, { vaultPath, savedAt: Date.now(), entries })
   }, [])
 
   const handleOpenVault = useCallback(async () => {
@@ -190,6 +217,19 @@ export default function App() {
         await window.api.writeFile(store.activeFile.path, value)
         store.setDirty(false)
         store.buildBacklinks(store.files, contentCacheRef.current)
+        // Update index cache entry for the saved file
+        if (store.vaultPath) {
+          const cached = await window.api.loadIndex(store.vaultPath)
+          if (cached) {
+            const tree = await window.api.listTree(store.vaultPath)
+            const mtimeMap = buildMtimeMap(tree)
+            cached.entries[store.activeFile.path] = {
+              mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
+              content: value
+            }
+            window.api.saveIndex(store.vaultPath, cached)
+          }
+        }
       }
     }, 800)
   }, [store.activeFile?.path, store.files])
@@ -429,4 +469,16 @@ function EmptyState({ onNewNote, onOpenGraph, hasNotes }: { onNewNote: () => voi
       </div>
     </div>
   )
+}
+
+function buildMtimeMap(nodes: TreeNode[]): Record<string, number> {
+  const map: Record<string, number> = {}
+  const walk = (ns: TreeNode[]) => {
+    for (const n of ns) {
+      if (n.type === 'file') map[n.path] = n.mtime ?? 0
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return map
 }

@@ -95,6 +95,31 @@ ipcMain.handle('app:set-last-vault', (_, vaultPath: string) => {
   writeAppSettings({ ...readAppSettings(), lastVault: vaultPath })
 })
 
+// ── Vault index cache ──────────────────────────────────────────────────────
+function vaultCacheKey(vaultPath: string): string {
+  return Buffer.from(vaultPath).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+function getIndexPath(vaultPath: string): string {
+  const dir = path.join(app.getPath('userData'), 'indices')
+  fs.mkdirSync(dir, { recursive: true })
+  return path.join(dir, `${vaultCacheKey(vaultPath)}.json`)
+}
+
+ipcMain.handle('index:load', (_, vaultPath: string) => {
+  try {
+    const file = getIndexPath(vaultPath)
+    if (!fs.existsSync(file)) return null
+    return JSON.parse(fs.readFileSync(file, 'utf-8'))
+  } catch { return null }
+})
+
+ipcMain.handle('index:save', (_, vaultPath: string, data: object) => {
+  try {
+    fs.writeFileSync(getIndexPath(vaultPath), JSON.stringify(data), 'utf-8')
+    return true
+  } catch { return false }
+})
+
 // ── Vault ──────────────────────────────────────────────────────────────────
 
 ipcMain.handle('vault:open', async () => {
