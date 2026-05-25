@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useVaultStore, NoteFile, TreeNode } from '../../store/vaultStore'
 import { SidebarSort } from '../../hooks/useSettings'
 import './FileTree.css'
@@ -9,7 +9,7 @@ interface FileTreeProps {
   onSortChange: (s: SidebarSort) => void
   onFileSelect: (file: NoteFile) => void
   onNewNote: (folderPath?: string) => void
-  onNewFolder: (parentPath?: string) => void
+  onNewFolder: (parentPath?: string, name?: string) => void
   onToggleCollapse: () => void
   onOpenVault: () => void
 }
@@ -137,7 +137,23 @@ export default function FileTree({
   const store = useVaultStore()
   const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter, setTagFilter } = store
   const [search, setSearch] = useState('')
+  const [folderInput, setFolderInput] = useState<{ parentPath?: string } | null>(null)
+  const [folderName, setFolderName] = useState('')
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const { menu, open: openCtx, close: closeCtx } = useCtxMenu()
+
+  useEffect(() => {
+    if (folderInput) {
+      setFolderName('')
+      setTimeout(() => folderInputRef.current?.focus(), 30)
+    }
+  }, [folderInput])
+
+  const commitFolderCreate = useCallback(() => {
+    const name = folderName.trim()
+    if (name) onNewFolder(folderInput?.parentPath, name)
+    setFolderInput(null)
+  }, [folderName, folderInput, onNewFolder])
 
   const refreshTree = useCallback(async () => {
     if (!vaultPath) return
@@ -145,9 +161,14 @@ export default function FileTree({
     useVaultStore.getState().setTree(newTree)
   }, [vaultPath])
 
+  // Returns the parent directory of a path
+  const parentDir = (p: string) => p.replace(/\\/g, '/').split('/').slice(0, -1).join('/')
+
   const handleDropOnDir = useCallback(async (src: string, dest: string) => {
+    // Don't move if already inside that directory
+    if (parentDir(src) === dest.replace(/\\/g, '/')) return
     const result = await window.api.moveItem(src, dest)
-    if (result.error) { alert(result.error); return }
+    if (result.error) return   // silently ignore (e.g. same name already exists)
     await refreshTree()
   }, [refreshTree])
 
@@ -155,7 +176,10 @@ export default function FileTree({
     e.preventDefault()
     if (!vaultPath) return
     const src = e.dataTransfer.getData('text/plain')
-    if (src) await handleDropOnDir(src, vaultPath)
+    if (!src) return
+    // Don't move if already at vault root
+    if (parentDir(src) === vaultPath.replace(/\\/g, '/')) return
+    await handleDropOnDir(src, vaultPath)
   }, [vaultPath, handleDropOnDir])
 
   const handleDelete = async () => {
@@ -219,7 +243,7 @@ export default function FileTree({
           {!collapsed && vaultPath && (
             <>
               <button className="btn-icon" onClick={() => onNewNote()} title="New Note (Ctrl+N)">+</button>
-              <button className="btn-icon" onClick={() => onNewFolder()} title="New Folder">📁</button>
+              <button className="btn-icon" onClick={() => setFolderInput({})} title="New Folder">📁</button>
               <select
                 className="sort-select"
                 value={sort}
@@ -241,6 +265,23 @@ export default function FileTree({
       {!collapsed && (
         <div className="file-tree-search">
           <input placeholder="Filter notes…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+      )}
+
+      {!collapsed && folderInput !== null && (
+        <div className="folder-create-input">
+          <span className="tree-icon">📁</span>
+          <input
+            ref={folderInputRef}
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitFolderCreate()
+              if (e.key === 'Escape') setFolderInput(null)
+            }}
+            onBlur={commitFolderCreate}
+            placeholder="Folder name…"
+          />
         </div>
       )}
 
@@ -316,7 +357,7 @@ export default function FileTree({
           {menu.node.type === 'directory' && (
             <>
               <button onClick={() => { onNewNote(menu.node.path); closeCtx() }}>📄 New Note Here</button>
-              <button onClick={() => { onNewFolder(menu.node.path); closeCtx() }}>📁 New Folder Here</button>
+              <button onClick={() => { setFolderInput({ parentPath: menu.node.path }); closeCtx() }}>📁 New Folder Here</button>
               <hr />
             </>
           )}

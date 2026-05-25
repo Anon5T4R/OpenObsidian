@@ -89,6 +89,24 @@
 
 .file-tree-search input:focus { border-color: var(--accent); }
 
+.folder-create-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  flex-shrink: 0;
+}
+.folder-create-input input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 7px;
+  outline: none;
+}
+
 .file-tree-list {
   flex: 1;
   overflow-y: auto;

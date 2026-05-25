@@ -198,15 +198,13 @@ export default function App() {
     }
   }, [store.vaultPath, templateFolder])
 
-  const handleNewFolder = useCallback(async (parentPath?: string) => {
-    if (!store.vaultPath) return
-    const name = window.prompt('Folder name:')
-    if (!name) return
-    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name)
-    if (result.error) { alert(result.error); return }
+  const handleNewFolder = useCallback(async (parentPath?: string, name?: string) => {
+    if (!store.vaultPath || !name?.trim()) return
+    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
+    if (result.error) { notify(result.error); return }
     const tree = await window.api.listTree(store.vaultPath)
     store.setTree(tree)
-  }, [store.vaultPath])
+  }, [store.vaultPath, notify])
 
   const handleContentChange = useCallback((value: string) => {
     store.setActiveContent(value)
