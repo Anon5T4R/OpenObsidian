@@ -14,13 +14,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
 
-      - name: Build Windows installer
-        run: npm run dist:win
+      - name: Build renderer
+        run: npm run build
+
+      - name: Package Windows installer
+        run: npx electron-builder --win --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
@@ -36,7 +39,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -54,8 +57,11 @@ jobs:
             org.freedesktop.Sdk//23.08 \
             org.electronjs.Electron2.BaseApp//23.08
 
-      - name: Build Linux packages
-        run: npm run dist:linux
+      - name: Build renderer
+        run: npm run build
+
+      - name: Package Linux packages
+        run: npx electron-builder --linux --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 

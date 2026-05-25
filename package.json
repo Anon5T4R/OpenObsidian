@@ -2,6 +2,10 @@
   "name": "open-obsidian",
   "version": "0.3.0",
   "description": "Open source Obsidian-like markdown note manager",
+  "author": {
+    "name": "OpenObsidian Contributors",
+    "email": "openobsidian@users.noreply.github.com"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
