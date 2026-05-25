@@ -416,7 +416,11 @@ export default function App() {
 
               {(viewMode === 'preview' || viewMode === 'split') && (
                 <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
-                  <MarkdownPreview content={store.activeContent} onWikiLinkClick={handleFileSelectByName} />
+                  <MarkdownPreview
+                    content={store.activeContent}
+                    onWikiLinkClick={handleFileSelectByName}
+                    onChange={handleContentChange}
+                  />
                 </div>
               )}
             </div>

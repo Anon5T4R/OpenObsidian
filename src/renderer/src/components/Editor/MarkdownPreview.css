@@ -82,4 +82,10 @@
 .markdown-preview img { max-width: 100%; border-radius: 4px; }
 
 /* Checkboxes */
-.markdown-preview input[type='checkbox'] { margin-right: 6px; }
+.markdown-preview input[type='checkbox'] {
+  margin-right: 6px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
