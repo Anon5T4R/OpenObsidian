@@ -1,6 +1,6 @@
 {
   "name": "open-obsidian",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
@@ -68,8 +68,7 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "flatpak"
+        "deb"
       ],
       "icon": "resources/icons",
       "category": "Utility",
