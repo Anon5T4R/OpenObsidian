@@ -33,7 +33,7 @@ const GROUPS: Group[] = [
       { label: 'Code block',     icon: '</>',  shortcut: '/code',    apply: '```\n\n```', cursor: -4 },
       { label: 'Blockquote',     icon: '❝',   shortcut: '/quote',   apply: '> ' },
       { label: 'Horizontal rule',icon: '—',   shortcut: '/hr',      apply: '\n---\n' },
-      { label: 'Checkbox list',  icon: '☑',   shortcut: '/check',   apply: '- [ ] ' },
+      { label: 'Task list',       icon: '✅',   shortcut: '/check',   apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
       { label: 'Bullet list',    icon: '•',   shortcut: '/list',    apply: '- ' },
     ]
   },

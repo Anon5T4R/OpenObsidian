@@ -233,6 +233,15 @@ function FeaturesTab() {
         </p>
       </Section>
 
+      <Section title="Interactive task lists">
+        <p className="help-para">
+          In <strong>Preview</strong> mode, task list checkboxes are clickable. Tick or untick any <code>- [ ]</code> item and the change is saved to the markdown source automatically — no need to switch back to the editor.
+        </p>
+        <div className="help-tip">
+          Use <kbd>/check</kbd> or the <strong>Insert → Task list</strong> menu to insert a 3-line task list at the cursor.
+        </div>
+      </Section>
+
       <Section title="Vault index cache">
         <p className="help-para">
           OpenObsidian keeps a local cache of your vault contents (<code>userData/indices/</code>). On the next open, only files that changed on disk are re-read — unchanged notes load instantly from the cache. The cache is updated automatically every time you save a note.
@@ -267,6 +276,9 @@ function MarkdownTab() {
         <Row syntax="- [ ] task" result={<>☐ Task (unchecked)</>} />
         <Row syntax="- [x] done" result={<>☑ Task (checked)</>} />
         <Row syntax="  - nested" result={<span style={{ paddingLeft: 12 }}>→ Indent with 2 spaces</span>} />
+        <div className="help-tip" style={{ marginTop: 10 }}>
+          <strong>Interactive tasks:</strong> in <strong>Preview</strong> mode, click any checkbox to check/uncheck it — the markdown source is updated automatically.
+        </div>
       </Section>
 
       <Section title="Links & media">
@@ -311,7 +323,7 @@ function MarkdownTab() {
           {[
             ['/h1', 'Heading 1'],    ['/h2', 'Heading 2'],    ['/h3', 'Heading 3'],
             ['/table', 'Table'],     ['/code', 'Code block'],  ['/quote', 'Blockquote'],
-            ['/bold', 'Bold'],       ['/italic', 'Italic'],    ['/check', 'Checkbox'],
+            ['/bold', 'Bold'],       ['/italic', 'Italic'],    ['/check', 'Task list'],
             ['/list', 'Bullet'],     ['/numlist', 'Numbered'], ['/hr', 'Divider'],
             ['/link', 'Web link'],   ['/image', 'Image'],      ['/date', 'Today\'s date'],
             ['/wikilink', 'WikiLink'],

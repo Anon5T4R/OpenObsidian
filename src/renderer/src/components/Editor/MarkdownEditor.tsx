@@ -140,7 +140,7 @@ const SLASH_COMMANDS: SlashCmd[] = [
   { label: '/inline',   detail: 'Inline code',    apply: '`code`',                     cursor: -1 },
   { label: '/quote',    detail: 'Blockquote',     apply: '> ' },
   { label: '/hr',       detail: 'Horizontal rule', apply: '\n---\n' },
-  { label: '/check',    detail: 'Checkbox list',  apply: '- [ ] ' },
+  { label: '/check',    detail: 'Task list',       apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
   { label: '/list',     detail: 'Bullet list',    apply: '- ' },
   { label: '/numlist',  detail: 'Numbered list',  apply: '1. ' },
   { label: '/link',     detail: 'Web link',       apply: '[text](https://)',            cursor: -1 },
@@ -420,7 +420,7 @@ function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: Ed
         <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>Table</button>
         <button onClick={() => onInsert('```\n\n```', -4)}>Code block</button>
         <button onClick={() => onInsert('> ', 0)}>Blockquote</button>
-        <button onClick={() => onInsert('- [ ] ', 0)}>Task list</button>
+        <button onClick={() => onInsert('- [ ] \n- [ ] \n- [ ] ', -14)}>Task list</button>
         <button onClick={() => onInsert('\n---\n', 0)}>Horizontal rule</button>
         <button onClick={() => onInsert(today, 0)}>Today's date</button>
       </div>
