@@ -30,12 +30,20 @@ export default function App() {
   const [graphOpen, setGraphOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notification, setNotification] = useState<string | null>(null)
+  const [lastVault, setLastVault] = useState<{ path: string; name: string } | null>(null)
 
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contentCacheRef = useRef<Record<string, string>>({})
   const isResizingSidebar = useRef(false)
   const isResizingSplit = useRef(false)
+
+  // Load last vault on startup
+  useEffect(() => {
+    window.api.getLastVault().then((vp) => {
+      if (vp) setLastVault({ path: vp, name: vp.split(/[/\\]/).pop() ?? vp })
+    })
+  }, [])
 
   // ── Notification helper ──────────────────────────────────────────────────
   const notify = useCallback((msg: string) => {
@@ -87,13 +95,13 @@ export default function App() {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  // ── Vault operations ─────────────────────────────────────────────────────
-  const handleOpenVault = useCallback(async () => {
-    const vaultPath = await window.api.openVault()
-    if (!vaultPath) return
+  // ── Vault open (shared logic) ────────────────────────────────────────────
+  const openVaultPath = useCallback(async (vaultPath: string) => {
     const tree = await window.api.listTree(vaultPath)
     store.setVault(vaultPath, tree)
     await window.api.watchVault(vaultPath)
+    await window.api.setLastVault(vaultPath)
+    setLastVault({ path: vaultPath, name: vaultPath.split(/[/\\]/).pop() ?? vaultPath })
 
     const files = flattenTree(tree)
     const contents: Record<string, string> = {}
@@ -103,6 +111,17 @@ export default function App() {
     contentCacheRef.current = contents
     store.buildBacklinks(files, contents)
   }, [])
+
+  const handleOpenVault = useCallback(async () => {
+    const vaultPath = await window.api.openVault()
+    if (!vaultPath) return
+    await openVaultPath(vaultPath)
+  }, [openVaultPath])
+
+  const handleReopenVault = useCallback(async () => {
+    if (!lastVault) return
+    await openVaultPath(lastVault.path)
+  }, [lastVault, openVaultPath])
 
   const handleBackup = useCallback(async () => {
     if (!store.vaultPath) { notify('No vault open'); return }
@@ -248,7 +267,12 @@ export default function App() {
             onClose={() => store.setSearchOpen(false)}
           />
         ) : noVault ? (
-          <WelcomeScreen onOpenVault={handleOpenVault} onHelp={() => setHelpOpen(true)} />
+          <WelcomeScreen
+            onOpenVault={handleOpenVault}
+            onHelp={() => setHelpOpen(true)}
+            lastVault={lastVault}
+            onReopenVault={handleReopenVault}
+          />
         ) : !store.activeFile ? (
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
             {graphOpen
@@ -265,7 +289,7 @@ export default function App() {
                 {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
               </span>
 
-              {/* Centre-left: insert + view toggle */}
+              {/* Centre: insert + view toggle */}
               <div className="toolbar-centre">
                 <InsertMenu
                   onInsert={(text, offset) => editorRef.current?.insertText(text, offset)}
@@ -327,6 +351,7 @@ export default function App() {
                     onWikiLinkClick={handleFileSelectByName}
                     vaultPath={store.vaultPath}
                     files={store.files}
+                    theme={settings.theme}
                   />
                 </div>
               )}
@@ -365,14 +390,36 @@ export default function App() {
   )
 }
 
-function WelcomeScreen({ onOpenVault, onHelp }: { onOpenVault: () => void; onHelp?: () => void }) {
+function WelcomeScreen({
+  onOpenVault,
+  onHelp,
+  lastVault,
+  onReopenVault
+}: {
+  onOpenVault: () => void
+  onHelp?: () => void
+  lastVault: { path: string; name: string } | null
+  onReopenVault: () => void
+}) {
   return (
     <div className="welcome-screen">
       <div className="welcome-logo">⬡</div>
       <h1>OpenObsidian</h1>
       <p>Open source markdown knowledge base</p>
-      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-        <button className="btn-primary" onClick={onOpenVault}>Open Vault Folder</button>
+
+      {lastVault && (
+        <div className="welcome-last-vault">
+          <button className="btn-primary" onClick={onReopenVault}>
+            Open "{lastVault.name}"
+          </button>
+          <div className="welcome-last-vault-path">{lastVault.path}</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: lastVault ? 4 : 8 }}>
+        <button className="btn-secondary" onClick={onOpenVault}>
+          {lastVault ? 'Open Other Vault…' : 'Open Vault Folder'}
+        </button>
         {onHelp && (
           <button className="btn-secondary" onClick={onHelp} title="F1">? Help</button>
         )}

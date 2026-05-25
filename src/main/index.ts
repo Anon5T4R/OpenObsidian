@@ -101,6 +101,26 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+// ── App settings (last vault, etc.) ───────────────────────────────────────
+
+function getAppSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'app-settings.json')
+}
+
+function readAppSettings(): Record<string, any> {
+  try { return JSON.parse(fs.readFileSync(getAppSettingsPath(), 'utf-8')) } catch { return {} }
+}
+
+function writeAppSettings(data: Record<string, any>): void {
+  try { fs.writeFileSync(getAppSettingsPath(), JSON.stringify(data, null, 2), 'utf-8') } catch {}
+}
+
+ipcMain.handle('app:get-last-vault', () => readAppSettings().lastVault ?? null)
+
+ipcMain.handle('app:set-last-vault', (_, vaultPath: string) => {
+  writeAppSettings({ ...readAppSettings(), lastVault: vaultPath })
+})
+
 // ── Vault ──────────────────────────────────────────────────────────────────
 
 ipcMain.handle('vault:open', async () => {
@@ -208,6 +228,17 @@ ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   return newPath
 })
 
+ipcMain.handle('file:duplicate', async (_, filePath: string) => {
+  const dir = path.dirname(filePath)
+  const ext = path.extname(filePath)
+  const base = path.basename(filePath, ext)
+  let dest = path.join(dir, `${base} copy${ext}`)
+  let i = 2
+  while (fs.existsSync(dest)) { dest = path.join(dir, `${base} copy ${i}${ext}`); i++ }
+  fs.copyFileSync(filePath, dest)
+  return { path: dest }
+})
+
 // ── Folders ────────────────────────────────────────────────────────────────
 
 ipcMain.handle('folder:create', async (_, parentPath: string, folderName: string) => {
@@ -228,6 +259,16 @@ ipcMain.handle('folder:rename', async (_, oldPath: string, newName: string) => {
   return newPath
 })
 
+// ── Move (file or folder to a new parent directory) ────────────────────────
+
+ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string) => {
+  const name = path.basename(sourcePath)
+  const dest = path.join(targetDirPath, name)
+  if (fs.existsSync(dest)) return { error: 'An item with this name already exists in the destination' }
+  fs.renameSync(sourcePath, dest)
+  return { path: dest }
+})
+
 // ── Images ─────────────────────────────────────────────────────────────────
 
 ipcMain.handle('image:save', async (_, vaultPath: string, fileName: string, base64: string) => {
@@ -236,6 +277,12 @@ ipcMain.handle('image:save', async (_, vaultPath: string, fileName: string, base
   const filePath = path.join(attachDir, fileName)
   fs.writeFileSync(filePath, Buffer.from(base64, 'base64'))
   return `_attachments/${fileName}`
+})
+
+// ── Shell ──────────────────────────────────────────────────────────────────
+
+ipcMain.handle('shell:show-item', async (_, itemPath: string) => {
+  shell.showItemInFolder(itemPath)
 })
 
 // ── App lifecycle ──────────────────────────────────────────────────────────

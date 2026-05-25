@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { EditorState, Extension } from '@codemirror/state'
+import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react'
+import { EditorState, Extension, Compartment } from '@codemirror/state'
 import { EditorView, keymap, ViewUpdate, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -15,6 +15,7 @@ import {
   closeBracketsKeymap
 } from '@codemirror/autocomplete'
 import { NoteFile } from '../../store/vaultStore'
+import { Theme } from '../../hooks/useSettings'
 import './MarkdownEditor.css'
 
 export interface MarkdownEditorHandle {
@@ -46,17 +47,48 @@ const wikilinkPlugin = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations }
 )
 
-// ── Markdown highlight ─────────────────────────────────────────────────────
+// ── Themes ────────────────────────────────────────────────────────────────
 
-const markdownHighlight = HighlightStyle.define([
+const markdownHighlightDark = HighlightStyle.define([
   { tag: tags.heading1, fontSize: '1.6em', fontWeight: 'bold' },
   { tag: tags.heading2, fontSize: '1.4em', fontWeight: 'bold' },
   { tag: tags.heading3, fontSize: '1.2em', fontWeight: 'bold' },
-  { tag: tags.strong, fontWeight: 'bold' },
+  { tag: tags.strong,   fontWeight: 'bold' },
   { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.link, color: '#7ab3f5', textDecoration: 'underline' },
+  { tag: tags.link,     color: '#a78bfa', textDecoration: 'underline' },
   { tag: tags.monospace, fontFamily: 'var(--editor-font, monospace)' }
 ])
+
+const markdownHighlightLight = HighlightStyle.define([
+  { tag: tags.heading1, fontSize: '1.6em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.heading2, fontSize: '1.4em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.heading3, fontSize: '1.2em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.strong,   fontWeight: 'bold' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.link,     color: '#6d28d9', textDecoration: 'underline' },
+  { tag: tags.monospace, fontFamily: 'var(--editor-font, monospace)', color: '#6d28d9' },
+  { tag: tags.string,   color: '#059669' },
+  { tag: tags.comment,  color: '#6b7280', fontStyle: 'italic' }
+])
+
+const lightEditorTheme = EditorView.theme({
+  '&': { background: 'transparent', color: 'var(--text-primary)' },
+  '.cm-content': { caretColor: 'var(--text-primary)' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text-primary)' },
+  '& .cm-selectionBackground': { background: 'rgba(109,40,217,0.15) !important' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+    background: 'rgba(109,40,217,0.2)'
+  },
+  '.cm-activeLine': { background: 'rgba(0,0,0,0.04)' },
+  '.cm-gutters': { background: 'transparent', border: 'none', color: '#9ca3af' },
+}, { dark: false })
+
+function buildThemeExtensions(theme: Theme): Extension[] {
+  if (theme === 'dark') {
+    return [oneDark, syntaxHighlighting(markdownHighlightDark)]
+  }
+  return [lightEditorTheme, syntaxHighlighting(markdownHighlightLight)]
+}
 
 // ── WikiLink autocomplete ──────────────────────────────────────────────────
 
@@ -108,7 +140,6 @@ const SLASH_COMMANDS: SlashCmd[] = [
 function slashCompletion(context: CompletionContext): CompletionResult | null {
   const match = context.matchBefore(/\/\w*/)
   if (!match) return null
-  // Only trigger at start of line or after whitespace
   const before = context.state.doc.sliceString(Math.max(0, match.from - 1), match.from)
   if (match.from > 0 && !/[\s\n]/.test(before)) return null
 
@@ -138,21 +169,33 @@ interface MarkdownEditorProps {
   onWikiLinkClick: (noteName: string) => void
   vaultPath: string | null
   files: NoteFile[]
+  theme: Theme
 }
 
+type CtxMenuState = { x: number; y: number; hasSelection: boolean } | null
+
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  ({ content, onChange, onWikiLinkClick, vaultPath, files }, ref) => {
-    const editorRef = useRef<HTMLDivElement>(null)
-    const viewRef = useRef<EditorView | null>(null)
-    const onChangeRef = useRef(onChange)
-    const onWikiLinkClickRef = useRef(onWikiLinkClick)
-    const vaultPathRef = useRef(vaultPath)
-    const filesRef = useRef(files)
+  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme }, ref) => {
+    const editorRef      = useRef<HTMLDivElement>(null)
+    const viewRef        = useRef<EditorView | null>(null)
+    const onChangeRef    = useRef(onChange)
+    const onWikiLinkRef  = useRef(onWikiLinkClick)
+    const vaultPathRef   = useRef(vaultPath)
+    const filesRef       = useRef(files)
+    const themeCompartment = useRef(new Compartment())
+    const [ctxMenu, setCtxMenu] = useState<CtxMenuState>(null)
 
     useEffect(() => { onChangeRef.current = onChange }, [onChange])
-    useEffect(() => { onWikiLinkClickRef.current = onWikiLinkClick }, [onWikiLinkClick])
+    useEffect(() => { onWikiLinkRef.current = onWikiLinkClick }, [onWikiLinkClick])
     useEffect(() => { vaultPathRef.current = vaultPath }, [vaultPath])
     useEffect(() => { filesRef.current = files }, [files])
+
+    // Swap theme without recreating the editor
+    useEffect(() => {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({ effects: themeCompartment.current.reconfigure(buildThemeExtensions(theme)) })
+    }, [theme])
 
     useImperativeHandle(ref, () => ({
       insertText: (text: string, cursorOffset = 0) => {
@@ -167,6 +210,36 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       },
       focus: () => viewRef.current?.focus()
     }))
+
+    // Wrap selection (or insert placeholder) with before/after markers
+    const wrapSelection = useCallback((before: string, after: string, placeholder = '') => {
+      const view = viewRef.current
+      if (!view) return
+      const { from, to } = view.state.selection.main
+      const selected = view.state.doc.sliceString(from, to)
+      const text = selected ? `${before}${selected}${after}` : `${before}${placeholder}${after}`
+      const cursorPos = selected
+        ? from + text.length
+        : from + before.length + placeholder.length
+      view.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: cursorPos }
+      })
+      view.focus()
+      setCtxMenu(null)
+    }, [])
+
+    const insertAtCursor = useCallback((text: string, cursorOffset = 0) => {
+      const view = viewRef.current
+      if (!view) return
+      const { from, to } = view.state.selection.main
+      view.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from + text.length + cursorOffset }
+      })
+      view.focus()
+      setCtxMenu(null)
+    }, [])
 
     const handleImageFile = useCallback(async (file: File) => {
       if (!vaultPathRef.current) return
@@ -188,7 +261,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       const target = e.target as HTMLElement
       if (target.classList.contains('cm-wikilink')) {
         const noteName = (target.textContent ?? '').replace(/^\[\[|\]\]$/g, '').split('|')[0].trim()
-        if (e.ctrlKey || e.metaKey) onWikiLinkClickRef.current(noteName)
+        if (e.ctrlKey || e.metaKey) onWikiLinkRef.current(noteName)
       }
     }, [])
 
@@ -200,8 +273,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap]),
         closeBrackets(),
         markdown({ base: markdownLanguage }),
-        oneDark,
-        syntaxHighlighting(markdownHighlight),
+        themeCompartment.current.of(buildThemeExtensions(theme)),
         wikilinkPlugin,
         EditorView.lineWrapping,
         autocompletion({
@@ -220,7 +292,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
           '.cm-focused': { outline: 'none' },
           '.cm-wikilink': { color: '#a78bfa', cursor: 'pointer', textDecoration: 'underline' },
           '.cm-line': { lineHeight: '1.7' },
-          // Autocomplete popup
           '.cm-tooltip-autocomplete': { background: 'var(--bg-floating)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', fontSize: '13px' },
           '.cm-tooltip-autocomplete ul li': { padding: '5px 12px', color: 'var(--text-secondary)' },
           '.cm-tooltip-autocomplete ul li[aria-selected]': { background: 'var(--accent-bg)', color: 'var(--text-primary)' },
@@ -255,13 +326,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         }
       }
 
+      const onContextMenu = (e: MouseEvent) => {
+        e.preventDefault()
+        const hasSelection = !view.state.selection.main.empty
+        setCtxMenu({ x: e.clientX, y: e.clientY, hasSelection })
+      }
+
       editorRef.current.addEventListener('paste', onPaste)
       editorRef.current.addEventListener('drop', onDrop)
+      editorRef.current.addEventListener('contextmenu', onContextMenu)
 
       return () => {
         editorRef.current?.removeEventListener('click', handleClick)
         editorRef.current?.removeEventListener('paste', onPaste)
         editorRef.current?.removeEventListener('drop', onDrop)
+        editorRef.current?.removeEventListener('contextmenu', onContextMenu)
         view.destroy()
       }
     }, [])
@@ -275,9 +354,102 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       }
     }, [content])
 
-    return <div ref={editorRef} className="markdown-editor" />
+    return (
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex' }}>
+        <div ref={editorRef} className="markdown-editor" />
+
+        {ctxMenu && (
+          <EditorContextMenu
+            x={ctxMenu.x}
+            y={ctxMenu.y}
+            hasSelection={ctxMenu.hasSelection}
+            onClose={() => setCtxMenu(null)}
+            onWrap={wrapSelection}
+            onInsert={insertAtCursor}
+          />
+        )}
+      </div>
+    )
   }
 )
 
 MarkdownEditor.displayName = 'MarkdownEditor'
 export default MarkdownEditor
+
+// ── Editor context menu ───────────────────────────────────────────────────
+
+interface EditorCtxProps {
+  x: number
+  y: number
+  hasSelection: boolean
+  onClose: () => void
+  onWrap: (before: string, after: string, placeholder?: string) => void
+  onInsert: (text: string, cursorOffset?: number) => void
+}
+
+function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: EditorCtxProps) {
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Keep menu inside viewport
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x, y })
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const nx = x + rect.width > window.innerWidth  ? x - rect.width  : x
+    const ny = y + rect.height > window.innerHeight ? y - rect.height : y
+    setPos({ x: Math.max(0, nx), y: Math.max(0, ny) })
+  }, [x, y])
+
+  return (
+    <>
+      <div className="editor-ctx-backdrop" onClick={onClose} onContextMenu={onClose} />
+      <div
+        ref={menuRef}
+        className="context-menu editor-context-menu"
+        style={{ left: pos.x, top: pos.y }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {hasSelection && (
+          <>
+            <div className="ctx-section-label">Format selection</div>
+            <button onClick={() => onWrap('**', '**', 'bold')}>
+              <span className="ctx-icon">B</span> Bold
+              <span className="ctx-hint">Ctrl+B</span>
+            </button>
+            <button onClick={() => onWrap('*', '*', 'italic')}>
+              <span className="ctx-icon ctx-italic">I</span> Italic
+              <span className="ctx-hint">Ctrl+I</span>
+            </button>
+            <button onClick={() => onWrap('~~', '~~', 'text')}>
+              <span className="ctx-icon ctx-strike">S</span> Strikethrough
+            </button>
+            <button onClick={() => onWrap('`', '`', 'code')}>
+              <span className="ctx-icon">&lt;/&gt;</span> Inline code
+            </button>
+            <button onClick={() => onWrap('[', '](https://)', 'text')}>
+              <span className="ctx-icon">🔗</span> Link
+            </button>
+            <button onClick={() => onWrap('[[', ']]', '')}>
+              <span className="ctx-icon">⬡</span> WikiLink
+            </button>
+            <hr />
+          </>
+        )}
+
+        <div className="ctx-section-label">Insert</div>
+        <button onClick={() => onInsert('# ', 0)}>Heading 1</button>
+        <button onClick={() => onInsert('## ', 0)}>Heading 2</button>
+        <button onClick={() => onInsert('### ', 0)}>Heading 3</button>
+        <hr />
+        <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>Table</button>
+        <button onClick={() => onInsert('```\n\n```', -4)}>Code block</button>
+        <button onClick={() => onInsert('> ', 0)}>Blockquote</button>
+        <button onClick={() => onInsert('- [ ] ', 0)}>Task</button>
+        <button onClick={() => onInsert('\n---\n', 0)}>Horizontal rule</button>
+        <button onClick={() => onInsert(today, 0)}>Today's date</button>
+      </div>
+    </>
+  )
+}

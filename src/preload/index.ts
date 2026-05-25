@@ -14,6 +14,10 @@ export type TreeNode = {
 }
 
 const api = {
+  // App settings
+  getLastVault: (): Promise<string | null> => ipcRenderer.invoke('app:get-last-vault'),
+  setLastVault: (vaultPath: string): Promise<void> => ipcRenderer.invoke('app:set-last-vault', vaultPath),
+
   // Vault
   openVault: (): Promise<string | null> => ipcRenderer.invoke('vault:open'),
   listTree: (vaultPath: string): Promise<TreeNode[]> => ipcRenderer.invoke('vault:list-tree', vaultPath),
@@ -28,6 +32,8 @@ const api = {
     ipcRenderer.invoke('file:create', vaultPath, noteName, folderPath),
   deleteFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke('file:delete', filePath),
   renameFile: (oldPath: string, newName: string): Promise<string> => ipcRenderer.invoke('file:rename', oldPath, newName),
+  duplicateFile: (filePath: string): Promise<{ path?: string; error?: string }> =>
+    ipcRenderer.invoke('file:duplicate', filePath),
 
   // Folders
   createFolder: (parentPath: string, folderName: string): Promise<{ path?: string; error?: string }> =>
@@ -35,9 +41,16 @@ const api = {
   deleteFolder: (folderPath: string): Promise<boolean> => ipcRenderer.invoke('folder:delete', folderPath),
   renameFolder: (oldPath: string, newName: string): Promise<string> => ipcRenderer.invoke('folder:rename', oldPath, newName),
 
+  // Move (file or folder to new parent)
+  moveItem: (sourcePath: string, targetDirPath: string): Promise<{ path?: string; error?: string }> =>
+    ipcRenderer.invoke('item:move', sourcePath, targetDirPath),
+
   // Images
   saveImage: (vaultPath: string, fileName: string, base64: string): Promise<string> =>
     ipcRenderer.invoke('image:save', vaultPath, fileName, base64),
+
+  // Shell
+  showItemInFolder: (itemPath: string): Promise<void> => ipcRenderer.invoke('shell:show-item', itemPath),
 
   // Menu events
   onMenuOpenVault: (cb: () => void) => { ipcRenderer.on('menu:open-vault', cb); return () => ipcRenderer.removeListener('menu:open-vault', cb) },

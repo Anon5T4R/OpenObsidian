@@ -8,3 +8,51 @@
 .markdown-editor .cm-editor {
   height: 100%;
 }
+
+/* ── Editor context menu ────────────────────────────────────────────────── */
+
+.editor-ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.editor-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 190px;
+}
+
+.ctx-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px 3px;
+}
+
+.ctx-icon {
+  display: inline-block;
+  font-weight: 700;
+  width: 18px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.ctx-italic { font-style: italic; }
+.ctx-strike { text-decoration: line-through; }
+
+.ctx-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-left: 16px;
+}
+
+.editor-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}

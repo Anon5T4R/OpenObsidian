@@ -190,3 +190,13 @@
 
 .context-menu button:hover { background: var(--hover); }
 .context-menu button.danger { color: var(--danger); }
+
+/* Drag-over highlight */
+.tree-item.drag-over {
+  background: var(--accent-bg);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tree-item[draggable='true'] { cursor: grab; }
+.tree-item[draggable='true']:active { cursor: grabbing; }
