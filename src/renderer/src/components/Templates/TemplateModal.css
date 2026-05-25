@@ -1,0 +1,119 @@
+.tpl-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tpl-modal {
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  width: 480px;
+  max-width: 96vw;
+  overflow: hidden;
+}
+
+.tpl-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tpl-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+  flex: 1;
+}
+
+.tpl-folder {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.tpl-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.tpl-close:hover { background: var(--hover); color: var(--text-primary); }
+
+.tpl-name-row {
+  padding: 14px 16px 10px;
+}
+
+.tpl-name-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+.tpl-name-input:focus { border-color: var(--accent); }
+
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+.tpl-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.tpl-item:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.tpl-item.selected {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.tpl-item-icon { font-size: 22px; }
+
+.tpl-item-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.tpl-item.selected .tpl-item-name { color: var(--accent); }
+
+.tpl-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+}

@@ -12,6 +12,7 @@ export type TreeNode = {
   name: string
   path: string
   type: 'file' | 'directory'
+  mtime?: number
   children?: TreeNode[]
 }
 
@@ -48,22 +49,10 @@ function buildMenu(): void {
     {
       label: 'File',
       submenu: [
-        {
-          label: 'Open Vault…',
-          accelerator: 'CmdOrCtrl+Shift+O',
-          click: () => mainWindow.webContents.send('menu:open-vault')
-        },
-        {
-          label: 'New Note',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => mainWindow.webContents.send('menu:new-note')
-        },
+        { label: 'Open Vault…', accelerator: 'CmdOrCtrl+Shift+O', click: () => mainWindow.webContents.send('menu:open-vault') },
+        { label: 'New Note',    accelerator: 'CmdOrCtrl+N',        click: () => mainWindow.webContents.send('menu:new-note') },
         { type: 'separator' },
-        {
-          label: 'Backup Vault…',
-          accelerator: 'CmdOrCtrl+Shift+B',
-          click: () => mainWindow.webContents.send('menu:backup')
-        },
+        { label: 'Backup Vault…', accelerator: 'CmdOrCtrl+Shift+B', click: () => mainWindow.webContents.send('menu:backup') },
         { type: 'separator' },
         { role: 'quit' }
       ]
@@ -71,52 +60,37 @@ function buildMenu(): void {
     {
       label: 'Edit',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        { role: 'undo' }, { role: 'redo' },
         { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' }
+        { role: 'cut' }, { role: 'copy' }, { role: 'paste' }
       ]
     },
     {
       label: 'View',
       submenu: [
-        {
-          label: 'Toggle Sidebar',
-          accelerator: 'CmdOrCtrl+\\',
-          click: () => mainWindow.webContents.send('menu:toggle-sidebar')
-        },
-        {
-          label: 'Search',
-          accelerator: 'CmdOrCtrl+Shift+F',
-          click: () => mainWindow.webContents.send('menu:toggle-search')
-        },
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => mainWindow.webContents.send('menu:toggle-sidebar') },
+        { label: 'Search',         accelerator: 'CmdOrCtrl+Shift+F', click: () => mainWindow.webContents.send('menu:toggle-search') },
         { type: 'separator' },
-        { role: 'toggleDevTools' },
-        { role: 'reload' }
+        { role: 'toggleDevTools' }, { role: 'reload' }
       ]
     }
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-// ── App settings (last vault, etc.) ───────────────────────────────────────
+// ── App settings ───────────────────────────────────────────────────────────
 
 function getAppSettingsPath(): string {
   return path.join(app.getPath('userData'), 'app-settings.json')
 }
-
 function readAppSettings(): Record<string, any> {
   try { return JSON.parse(fs.readFileSync(getAppSettingsPath(), 'utf-8')) } catch { return {} }
 }
-
 function writeAppSettings(data: Record<string, any>): void {
   try { fs.writeFileSync(getAppSettingsPath(), JSON.stringify(data, null, 2), 'utf-8') } catch {}
 }
 
 ipcMain.handle('app:get-last-vault', () => readAppSettings().lastVault ?? null)
-
 ipcMain.handle('app:set-last-vault', (_, vaultPath: string) => {
   writeAppSettings({ ...readAppSettings(), lastVault: vaultPath })
 })
@@ -124,30 +98,27 @@ ipcMain.handle('app:set-last-vault', (_, vaultPath: string) => {
 // ── Vault ──────────────────────────────────────────────────────────────────
 
 ipcMain.handle('vault:open', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select your vault folder'
-  })
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], title: 'Select your vault folder' })
   if (result.canceled || result.filePaths.length === 0) return null
   return result.filePaths[0]
 })
 
 function walkTree(dir: string): TreeNode[] {
   let entries: fs.Dirent[]
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return []
-  }
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return [] }
+
   const nodes: TreeNode[] = []
-  const dirs = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+  const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
   const files = entries.filter((e) => e.isFile() && e.name.endsWith('.md') && !e.name.startsWith('.'))
+
   for (const d of dirs) {
     const fullPath = path.join(dir, d.name)
     nodes.push({ name: d.name, path: fullPath, type: 'directory', children: walkTree(fullPath) })
   }
   for (const f of files) {
-    nodes.push({ name: f.name.replace(/\.md$/, ''), path: path.join(dir, f.name), type: 'file' })
+    const fullPath = path.join(dir, f.name)
+    const mtime = fs.statSync(fullPath).mtimeMs
+    nodes.push({ name: f.name.replace(/\.md$/, ''), path: fullPath, type: 'file', mtime })
   }
   return nodes
 }
@@ -174,25 +145,20 @@ ipcMain.handle('vault:watch', async (_, vaultPath: string) => {
   if (vaultWatcher) { await vaultWatcher.close(); vaultWatcher = null }
   vaultWatcher = chokidar.watch(vaultPath, { ignored: /(^|[/\\])\./, persistent: true, ignoreInitial: true })
   vaultWatcher
-    .on('add', (p) => mainWindow.webContents.send('vault:file-added', p))
-    .on('unlink', (p) => mainWindow.webContents.send('vault:file-removed', p))
-    .on('change', (p) => mainWindow.webContents.send('vault:file-changed', p))
-    .on('addDir', (p) => mainWindow.webContents.send('vault:dir-added', p))
-    .on('unlinkDir', (p) => mainWindow.webContents.send('vault:dir-removed', p))
+    .on('add',      (p) => mainWindow.webContents.send('vault:file-added', p))
+    .on('unlink',   (p) => mainWindow.webContents.send('vault:file-removed', p))
+    .on('change',   (p) => mainWindow.webContents.send('vault:file-changed', p))
+    .on('addDir',   (p) => mainWindow.webContents.send('vault:dir-added', p))
+    .on('unlinkDir',(p) => mainWindow.webContents.send('vault:dir-removed', p))
   return true
 })
 
 ipcMain.handle('vault:backup', async (_, vaultPath: string) => {
-  const dest = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select backup destination folder'
-  })
+  const dest = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], title: 'Select backup destination folder' })
   if (dest.canceled || dest.filePaths.length === 0) return null
-
   const vaultName = path.basename(vaultPath)
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
   const backupDest = path.join(dest.filePaths[0], `${vaultName}-backup-${ts}`)
-
   fs.cpSync(vaultPath, backupDest, { recursive: true })
   return backupDest
 })
@@ -216,10 +182,7 @@ ipcMain.handle('file:create', async (_, vaultPath: string, noteName: string, fol
   return { path: filePath }
 })
 
-ipcMain.handle('file:delete', async (_, filePath: string) => {
-  fs.unlinkSync(filePath)
-  return true
-})
+ipcMain.handle('file:delete',    async (_, filePath: string) => { fs.unlinkSync(filePath); return true })
 
 ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const dir = path.dirname(oldPath)
@@ -229,8 +192,8 @@ ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
 })
 
 ipcMain.handle('file:duplicate', async (_, filePath: string) => {
-  const dir = path.dirname(filePath)
-  const ext = path.extname(filePath)
+  const dir  = path.dirname(filePath)
+  const ext  = path.extname(filePath)
   const base = path.basename(filePath, ext)
   let dest = path.join(dir, `${base} copy${ext}`)
   let i = 2
@@ -249,8 +212,7 @@ ipcMain.handle('folder:create', async (_, parentPath: string, folderName: string
 })
 
 ipcMain.handle('folder:delete', async (_, folderPath: string) => {
-  fs.rmSync(folderPath, { recursive: true, force: true })
-  return true
+  fs.rmSync(folderPath, { recursive: true, force: true }); return true
 })
 
 ipcMain.handle('folder:rename', async (_, oldPath: string, newName: string) => {
@@ -259,7 +221,7 @@ ipcMain.handle('folder:rename', async (_, oldPath: string, newName: string) => {
   return newPath
 })
 
-// ── Move (file or folder to a new parent directory) ────────────────────────
+// ── Move ───────────────────────────────────────────────────────────────────
 
 ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string) => {
   const name = path.basename(sourcePath)
@@ -277,6 +239,57 @@ ipcMain.handle('image:save', async (_, vaultPath: string, fileName: string, base
   const filePath = path.join(attachDir, fileName)
   fs.writeFileSync(filePath, Buffer.from(base64, 'base64'))
   return `_attachments/${fileName}`
+})
+
+// ── Export ─────────────────────────────────────────────────────────────────
+
+ipcMain.handle('export:html', async (_, noteTitle: string, htmlContent: string) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: `${noteTitle}.html`,
+    filters: [{ name: 'HTML', extensions: ['html'] }],
+    title: 'Export as HTML'
+  })
+  if (result.canceled || !result.filePath) return null
+
+  const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${noteTitle}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.7; color: #1a1a2e; }
+  h1,h2,h3,h4 { margin-top: 1.5em; margin-bottom: 0.5em; }
+  code { background: #f0f0ee; padding: 2px 6px; border-radius: 3px; font-size: 0.88em; font-family: monospace; }
+  pre { background: #f0f0ee; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 3px solid #7c3aed; margin: 0; padding-left: 16px; color: #555; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  td, th { border: 1px solid #d1d1c8; padding: 8px 12px; }
+  th { background: #f0f0ee; font-weight: 600; }
+  a { color: #6d28d9; }
+  img { max-width: 100%; border-radius: 4px; }
+  input[type=checkbox] { margin-right: 6px; }
+</style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`
+  fs.writeFileSync(result.filePath, fullHtml, 'utf-8')
+  return result.filePath
+})
+
+ipcMain.handle('export:pdf', async (_, noteTitle: string) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: `${noteTitle}.pdf`,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    title: 'Export as PDF'
+  })
+  if (result.canceled || !result.filePath) return null
+  const pdfData = await mainWindow.webContents.printToPDF({ pageSize: 'A4', printBackground: false })
+  fs.writeFileSync(result.filePath, pdfData)
+  return result.filePath
 })
 
 // ── Shell ──────────────────────────────────────────────────────────────────

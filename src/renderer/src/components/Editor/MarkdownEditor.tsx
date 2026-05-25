@@ -7,12 +7,10 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { RangeSetBuilder } from '@codemirror/state'
+import { search, searchKeymap, openSearchPanel } from '@codemirror/search'
 import {
-  autocompletion,
-  CompletionContext,
-  CompletionResult,
-  closeBrackets,
-  closeBracketsKeymap
+  autocompletion, CompletionContext, CompletionResult,
+  closeBrackets, closeBracketsKeymap
 } from '@codemirror/autocomplete'
 import { NoteFile } from '../../store/vaultStore'
 import { Theme } from '../../hooks/useSettings'
@@ -21,6 +19,14 @@ import './MarkdownEditor.css'
 export interface MarkdownEditorHandle {
   insertText: (text: string, cursorOffset?: number) => void
   focus: () => void
+  openFind: () => void
+}
+
+export interface EditorStats {
+  words: number
+  chars: number
+  line: number
+  col: number
 }
 
 // ── WikiLink decoration ────────────────────────────────────────────────────
@@ -50,25 +56,25 @@ const wikilinkPlugin = ViewPlugin.fromClass(
 // ── Themes ────────────────────────────────────────────────────────────────
 
 const markdownHighlightDark = HighlightStyle.define([
-  { tag: tags.heading1, fontSize: '1.6em', fontWeight: 'bold' },
-  { tag: tags.heading2, fontSize: '1.4em', fontWeight: 'bold' },
-  { tag: tags.heading3, fontSize: '1.2em', fontWeight: 'bold' },
-  { tag: tags.strong,   fontWeight: 'bold' },
-  { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.link,     color: '#a78bfa', textDecoration: 'underline' },
+  { tag: tags.heading1,  fontSize: '1.6em', fontWeight: 'bold' },
+  { tag: tags.heading2,  fontSize: '1.4em', fontWeight: 'bold' },
+  { tag: tags.heading3,  fontSize: '1.2em', fontWeight: 'bold' },
+  { tag: tags.strong,    fontWeight: 'bold' },
+  { tag: tags.emphasis,  fontStyle: 'italic' },
+  { tag: tags.link,      color: '#a78bfa', textDecoration: 'underline' },
   { tag: tags.monospace, fontFamily: 'var(--editor-font, monospace)' }
 ])
 
 const markdownHighlightLight = HighlightStyle.define([
-  { tag: tags.heading1, fontSize: '1.6em', fontWeight: 'bold', color: '#1e1b4b' },
-  { tag: tags.heading2, fontSize: '1.4em', fontWeight: 'bold', color: '#1e1b4b' },
-  { tag: tags.heading3, fontSize: '1.2em', fontWeight: 'bold', color: '#1e1b4b' },
-  { tag: tags.strong,   fontWeight: 'bold' },
-  { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.link,     color: '#6d28d9', textDecoration: 'underline' },
+  { tag: tags.heading1,  fontSize: '1.6em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.heading2,  fontSize: '1.4em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.heading3,  fontSize: '1.2em', fontWeight: 'bold', color: '#1e1b4b' },
+  { tag: tags.strong,    fontWeight: 'bold' },
+  { tag: tags.emphasis,  fontStyle: 'italic' },
+  { tag: tags.link,      color: '#6d28d9', textDecoration: 'underline' },
   { tag: tags.monospace, fontFamily: 'var(--editor-font, monospace)', color: '#6d28d9' },
-  { tag: tags.string,   color: '#059669' },
-  { tag: tags.comment,  color: '#6b7280', fontStyle: 'italic' }
+  { tag: tags.string,    color: '#059669' },
+  { tag: tags.comment,   color: '#6b7280', fontStyle: 'italic' }
 ])
 
 const lightEditorTheme = EditorView.theme({
@@ -76,17 +82,24 @@ const lightEditorTheme = EditorView.theme({
   '.cm-content': { caretColor: 'var(--text-primary)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text-primary)' },
   '& .cm-selectionBackground': { background: 'rgba(109,40,217,0.15) !important' },
-  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
-    background: 'rgba(109,40,217,0.2)'
-  },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { background: 'rgba(109,40,217,0.2)' },
   '.cm-activeLine': { background: 'rgba(0,0,0,0.04)' },
   '.cm-gutters': { background: 'transparent', border: 'none', color: '#9ca3af' },
+  '.cm-panels': { background: 'var(--bg-sidebar)', borderTop: '1px solid var(--border)' },
+  '.cm-search': { padding: '6px 10px' },
+  '.cm-search input': { background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-primary)', padding: '3px 7px' },
+  '.cm-button': { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer' },
 }, { dark: false })
 
+const darkSearchTheme = EditorView.theme({
+  '.cm-panels': { background: 'var(--bg-sidebar)', borderTop: '1px solid var(--border)' },
+  '.cm-search': { padding: '6px 10px' },
+  '.cm-search input': { background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-primary)', padding: '3px 7px' },
+  '.cm-button': { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer' },
+})
+
 function buildThemeExtensions(theme: Theme): Extension[] {
-  if (theme === 'dark') {
-    return [oneDark, syntaxHighlighting(markdownHighlightDark)]
-  }
+  if (theme === 'dark') return [oneDark, darkSearchTheme, syntaxHighlighting(markdownHighlightDark)]
   return [lightEditorTheme, syntaxHighlighting(markdownHighlightLight)]
 }
 
@@ -105,36 +118,35 @@ function makeWikilinkCompletion(filesRef: React.MutableRefObject<NoteFile[]>) {
         apply: `${f.name}]]`,
         type: 'text',
         detail: f.relativePath.includes('/') || f.relativePath.includes('\\')
-          ? f.relativePath.split(/[/\\]/)[0]
-          : 'note',
+          ? f.relativePath.split(/[/\\]/)[0] : 'note',
         boost: f.name.toLowerCase().startsWith(query.toLowerCase()) ? 1 : 0
       }))
     return { from: match.from + 2, options, filter: false }
   }
 }
 
-// ── Slash commands ────────────────────────────────────────────────────────
+// ── Slash commands ─────────────────────────────────────────────────────────
 
 type SlashCmd = { label: string; detail: string; apply: string; cursor?: number }
 
 const SLASH_COMMANDS: SlashCmd[] = [
-  { label: '/h1',        detail: 'Heading 1',      apply: '# ',                         cursor: 2 },
-  { label: '/h2',        detail: 'Heading 2',      apply: '## ',                        cursor: 3 },
-  { label: '/h3',        detail: 'Heading 3',      apply: '### ',                       cursor: 4 },
-  { label: '/bold',      detail: 'Bold text',      apply: '**text**',                   cursor: -2 },
-  { label: '/italic',    detail: 'Italic text',    apply: '*text*',                     cursor: -1 },
-  { label: '/table',     detail: 'Insert table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
-  { label: '/code',      detail: 'Code block',     apply: '```\n\n```',                 cursor: -4 },
-  { label: '/inline',    detail: 'Inline code',    apply: '`code`',                     cursor: -1 },
-  { label: '/quote',     detail: 'Blockquote',     apply: '> ' },
-  { label: '/hr',        detail: 'Horizontal rule', apply: '\n---\n' },
-  { label: '/check',     detail: 'Checkbox list',  apply: '- [ ] ' },
-  { label: '/list',      detail: 'Bullet list',    apply: '- ' },
-  { label: '/numlist',   detail: 'Numbered list',  apply: '1. ' },
-  { label: '/link',      detail: 'Web link',       apply: '[text](https://)',            cursor: -1 },
-  { label: '/image',     detail: 'Image',          apply: '![alt](url)',                cursor: -1 },
-  { label: '/wikilink',  detail: 'Link to note',   apply: '[[',                         cursor: 0 },
-  { label: '/date',      detail: 'Today\'s date',  apply: new Date().toISOString().slice(0, 10) },
+  { label: '/h1',       detail: 'Heading 1',      apply: '# ',                         cursor: 2 },
+  { label: '/h2',       detail: 'Heading 2',      apply: '## ',                        cursor: 3 },
+  { label: '/h3',       detail: 'Heading 3',      apply: '### ',                       cursor: 4 },
+  { label: '/bold',     detail: 'Bold text',      apply: '**text**',                   cursor: -2 },
+  { label: '/italic',   detail: 'Italic text',    apply: '*text*',                     cursor: -1 },
+  { label: '/table',    detail: 'Insert table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
+  { label: '/code',     detail: 'Code block',     apply: '```\n\n```',                 cursor: -4 },
+  { label: '/inline',   detail: 'Inline code',    apply: '`code`',                     cursor: -1 },
+  { label: '/quote',    detail: 'Blockquote',     apply: '> ' },
+  { label: '/hr',       detail: 'Horizontal rule', apply: '\n---\n' },
+  { label: '/check',    detail: 'Checkbox list',  apply: '- [ ] ' },
+  { label: '/list',     detail: 'Bullet list',    apply: '- ' },
+  { label: '/numlist',  detail: 'Numbered list',  apply: '1. ' },
+  { label: '/link',     detail: 'Web link',       apply: '[text](https://)',            cursor: -1 },
+  { label: '/image',    detail: 'Image',          apply: '![alt](url)',                cursor: -1 },
+  { label: '/wikilink', detail: 'Link to note',   apply: '[[',                         cursor: 0 },
+  { label: '/date',     detail: 'Today\'s date',  apply: new Date().toISOString().slice(0, 10) },
 ]
 
 function slashCompletion(context: CompletionContext): CompletionResult | null {
@@ -142,15 +154,12 @@ function slashCompletion(context: CompletionContext): CompletionResult | null {
   if (!match) return null
   const before = context.state.doc.sliceString(Math.max(0, match.from - 1), match.from)
   if (match.from > 0 && !/[\s\n]/.test(before)) return null
-
   const query = match.text.slice(1).toLowerCase()
   const options = SLASH_COMMANDS
     .filter((c) => c.label.slice(1).startsWith(query) || c.detail.toLowerCase().includes(query))
     .map((c) => ({
-      label: c.label,
-      detail: c.detail,
-      type: 'keyword',
-      apply: (view: EditorView, _completion: any, from: number, to: number) => {
+      label: c.label, detail: c.detail, type: 'keyword',
+      apply: (view: EditorView, _: any, from: number, to: number) => {
         const text = c.apply
         view.dispatch({
           changes: { from, to, insert: text },
@@ -161,7 +170,7 @@ function slashCompletion(context: CompletionContext): CompletionResult | null {
   return { from: match.from, options, filter: false }
 }
 
-// ── Component ────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────
 
 interface MarkdownEditorProps {
   content: string
@@ -170,27 +179,29 @@ interface MarkdownEditorProps {
   vaultPath: string | null
   files: NoteFile[]
   theme: Theme
+  onStatsChange?: (stats: EditorStats) => void
 }
 
 type CtxMenuState = { x: number; y: number; hasSelection: boolean } | null
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme }, ref) => {
-    const editorRef      = useRef<HTMLDivElement>(null)
-    const viewRef        = useRef<EditorView | null>(null)
-    const onChangeRef    = useRef(onChange)
-    const onWikiLinkRef  = useRef(onWikiLinkClick)
-    const vaultPathRef   = useRef(vaultPath)
-    const filesRef       = useRef(files)
+  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme, onStatsChange }, ref) => {
+    const editorRef       = useRef<HTMLDivElement>(null)
+    const viewRef         = useRef<EditorView | null>(null)
+    const onChangeRef     = useRef(onChange)
+    const onWikiLinkRef   = useRef(onWikiLinkClick)
+    const vaultPathRef    = useRef(vaultPath)
+    const filesRef        = useRef(files)
+    const onStatsRef      = useRef(onStatsChange)
     const themeCompartment = useRef(new Compartment())
     const [ctxMenu, setCtxMenu] = useState<CtxMenuState>(null)
 
-    useEffect(() => { onChangeRef.current = onChange }, [onChange])
-    useEffect(() => { onWikiLinkRef.current = onWikiLinkClick }, [onWikiLinkClick])
-    useEffect(() => { vaultPathRef.current = vaultPath }, [vaultPath])
-    useEffect(() => { filesRef.current = files }, [files])
+    useEffect(() => { onChangeRef.current = onChange },         [onChange])
+    useEffect(() => { onWikiLinkRef.current = onWikiLinkClick },[onWikiLinkClick])
+    useEffect(() => { vaultPathRef.current = vaultPath },       [vaultPath])
+    useEffect(() => { filesRef.current = files },               [files])
+    useEffect(() => { onStatsRef.current = onStatsChange },     [onStatsChange])
 
-    // Swap theme without recreating the editor
     useEffect(() => {
       const view = viewRef.current
       if (!view) return
@@ -202,29 +213,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         const view = viewRef.current
         if (!view) return
         const { from, to } = view.state.selection.main
-        view.dispatch({
-          changes: { from, to, insert: text },
-          selection: { anchor: from + text.length + cursorOffset }
-        })
+        view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length + cursorOffset } })
         view.focus()
       },
-      focus: () => viewRef.current?.focus()
+      focus: () => viewRef.current?.focus(),
+      openFind: () => { if (viewRef.current) openSearchPanel(viewRef.current) }
     }))
 
-    // Wrap selection (or insert placeholder) with before/after markers
     const wrapSelection = useCallback((before: string, after: string, placeholder = '') => {
       const view = viewRef.current
       if (!view) return
       const { from, to } = view.state.selection.main
       const selected = view.state.doc.sliceString(from, to)
       const text = selected ? `${before}${selected}${after}` : `${before}${placeholder}${after}`
-      const cursorPos = selected
-        ? from + text.length
-        : from + before.length + placeholder.length
-      view.dispatch({
-        changes: { from, to, insert: text },
-        selection: { anchor: cursorPos }
-      })
+      const cursorPos = selected ? from + text.length : from + before.length + placeholder.length
+      view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: cursorPos } })
       view.focus()
       setCtxMenu(null)
     }, [])
@@ -233,10 +236,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       const view = viewRef.current
       if (!view) return
       const { from, to } = view.state.selection.main
-      view.dispatch({
-        changes: { from, to, insert: text },
-        selection: { anchor: from + text.length + cursorOffset }
-      })
+      view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length + cursorOffset } })
       view.focus()
       setCtxMenu(null)
     }, [])
@@ -246,7 +246,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       const reader = new FileReader()
       reader.onload = async (e) => {
         const base64 = (e.target?.result as string).split(',')[1]
-        const ext = file.name.split('.').pop() ?? 'png'
+        const ext  = file.name.split('.').pop() ?? 'png'
         const name = `${Date.now()}.${ext}`
         const relPath = await window.api.saveImage(vaultPathRef.current!, name, base64)
         const view = viewRef.current
@@ -268,11 +268,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     useEffect(() => {
       if (!editorRef.current) return
 
+      const emitStats = (state: EditorState) => {
+        if (!onStatsRef.current) return
+        const text    = state.doc.toString()
+        const words   = text.trim() ? text.trim().split(/\s+/).length : 0
+        const mainSel = state.selection.main
+        const lineObj = state.doc.lineAt(mainSel.head)
+        onStatsRef.current({ words, chars: text.length, line: lineObj.number, col: mainSel.head - lineObj.from + 1 })
+      }
+
       const extensions: Extension[] = [
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap]),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap, ...searchKeymap]),
         closeBrackets(),
         markdown({ base: markdownLanguage }),
+        search({ top: false }),
         themeCompartment.current.of(buildThemeExtensions(theme)),
         wikilinkPlugin,
         EditorView.lineWrapping,
@@ -284,6 +294,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         }),
         EditorView.updateListener.of((update: ViewUpdate) => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString())
+          if (update.docChanged || update.selectionSet) emitStats(update.state)
         }),
         EditorView.theme({
           '&': { height: '100%', fontSize: 'var(--font-size-editor, 14px)' },
@@ -303,33 +314,24 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       const state = EditorState.create({ doc: content, extensions })
       const view = new EditorView({ state, parent: editorRef.current })
       viewRef.current = view
+      emitStats(state)
 
       editorRef.current.addEventListener('click', handleClick)
 
       const onPaste = (e: ClipboardEvent) => {
-        const items = e.clipboardData?.items
-        if (!items) return
-        for (const item of Array.from(items)) {
-          if (item.type.startsWith('image/')) {
-            e.preventDefault()
-            const file = item.getAsFile()
-            if (file) { handleImageFile(file); break }
-          }
+        if (!e.clipboardData?.items) return
+        for (const item of Array.from(e.clipboardData.items)) {
+          if (item.type.startsWith('image/')) { e.preventDefault(); const f = item.getAsFile(); if (f) { handleImageFile(f); break } }
         }
       }
-
       const onDrop = (e: DragEvent) => {
-        const droppedFiles = e.dataTransfer?.files
-        if (!droppedFiles) return
-        for (const file of Array.from(droppedFiles)) {
-          if (file.type.startsWith('image/')) { e.preventDefault(); handleImageFile(file) }
-        }
+        const dropped = e.dataTransfer?.files
+        if (!dropped) return
+        for (const file of Array.from(dropped)) { if (file.type.startsWith('image/')) { e.preventDefault(); handleImageFile(file) } }
       }
-
       const onContextMenu = (e: MouseEvent) => {
         e.preventDefault()
-        const hasSelection = !view.state.selection.main.empty
-        setCtxMenu({ x: e.clientX, y: e.clientY, hasSelection })
+        setCtxMenu({ x: e.clientX, y: e.clientY, hasSelection: !view.state.selection.main.empty })
       }
 
       editorRef.current.addEventListener('paste', onPaste)
@@ -349,20 +351,15 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       const view = viewRef.current
       if (!view) return
       const current = view.state.doc.toString()
-      if (current !== content) {
-        view.dispatch({ changes: { from: 0, to: current.length, insert: content } })
-      }
+      if (current !== content) view.dispatch({ changes: { from: 0, to: current.length, insert: content } })
     }, [content])
 
     return (
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex' }}>
         <div ref={editorRef} className="markdown-editor" />
-
         {ctxMenu && (
           <EditorContextMenu
-            x={ctxMenu.x}
-            y={ctxMenu.y}
-            hasSelection={ctxMenu.hasSelection}
+            x={ctxMenu.x} y={ctxMenu.y} hasSelection={ctxMenu.hasSelection}
             onClose={() => setCtxMenu(null)}
             onWrap={wrapSelection}
             onInsert={insertAtCursor}
@@ -379,9 +376,7 @@ export default MarkdownEditor
 // ── Editor context menu ───────────────────────────────────────────────────
 
 interface EditorCtxProps {
-  x: number
-  y: number
-  hasSelection: boolean
+  x: number; y: number; hasSelection: boolean
   onClose: () => void
   onWrap: (before: string, after: string, placeholder?: string) => void
   onInsert: (text: string, cursorOffset?: number) => void
@@ -389,55 +384,34 @@ interface EditorCtxProps {
 
 function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: EditorCtxProps) {
   const today = new Date().toISOString().slice(0, 10)
-
-  // Keep menu inside viewport
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
   useEffect(() => {
     const el = menuRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const nx = x + rect.width > window.innerWidth  ? x - rect.width  : x
-    const ny = y + rect.height > window.innerHeight ? y - rect.height : y
-    setPos({ x: Math.max(0, nx), y: Math.max(0, ny) })
+    setPos({
+      x: Math.max(0, x + rect.width  > window.innerWidth  ? x - rect.width  : x),
+      y: Math.max(0, y + rect.height > window.innerHeight ? y - rect.height : y)
+    })
   }, [x, y])
 
   return (
     <>
       <div className="editor-ctx-backdrop" onClick={onClose} onContextMenu={onClose} />
-      <div
-        ref={menuRef}
-        className="context-menu editor-context-menu"
-        style={{ left: pos.x, top: pos.y }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div ref={menuRef} className="context-menu editor-context-menu" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
         {hasSelection && (
           <>
             <div className="ctx-section-label">Format selection</div>
-            <button onClick={() => onWrap('**', '**', 'bold')}>
-              <span className="ctx-icon">B</span> Bold
-              <span className="ctx-hint">Ctrl+B</span>
-            </button>
-            <button onClick={() => onWrap('*', '*', 'italic')}>
-              <span className="ctx-icon ctx-italic">I</span> Italic
-              <span className="ctx-hint">Ctrl+I</span>
-            </button>
-            <button onClick={() => onWrap('~~', '~~', 'text')}>
-              <span className="ctx-icon ctx-strike">S</span> Strikethrough
-            </button>
-            <button onClick={() => onWrap('`', '`', 'code')}>
-              <span className="ctx-icon">&lt;/&gt;</span> Inline code
-            </button>
-            <button onClick={() => onWrap('[', '](https://)', 'text')}>
-              <span className="ctx-icon">🔗</span> Link
-            </button>
-            <button onClick={() => onWrap('[[', ']]', '')}>
-              <span className="ctx-icon">⬡</span> WikiLink
-            </button>
+            <button onClick={() => onWrap('**', '**', 'bold')}><span className="ctx-icon">B</span> Bold</button>
+            <button onClick={() => onWrap('*', '*', 'italic')}><span className="ctx-icon ctx-italic">I</span> Italic</button>
+            <button onClick={() => onWrap('~~', '~~', 'text')}><span className="ctx-icon ctx-strike">S</span> Strikethrough</button>
+            <button onClick={() => onWrap('`', '`', 'code')}><span className="ctx-icon">&lt;/&gt;</span> Inline code</button>
+            <button onClick={() => onWrap('[', '](https://)', 'text')}><span className="ctx-icon">🔗</span> Link</button>
+            <button onClick={() => onWrap('[[', ']]', '')}><span className="ctx-icon">⬡</span> WikiLink</button>
             <hr />
           </>
         )}
-
         <div className="ctx-section-label">Insert</div>
         <button onClick={() => onInsert('# ', 0)}>Heading 1</button>
         <button onClick={() => onInsert('## ', 0)}>Heading 2</button>
@@ -446,7 +420,7 @@ function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert }: Ed
         <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>Table</button>
         <button onClick={() => onInsert('```\n\n```', -4)}>Code block</button>
         <button onClick={() => onInsert('> ', 0)}>Blockquote</button>
-        <button onClick={() => onInsert('- [ ] ', 0)}>Task</button>
+        <button onClick={() => onInsert('- [ ] ', 0)}>Task list</button>
         <button onClick={() => onInsert('\n---\n', 0)}>Horizontal rule</button>
         <button onClick={() => onInsert(today, 0)}>Today's date</button>
       </div>

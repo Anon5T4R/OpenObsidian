@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 
 export type Theme = 'dark' | 'light'
+export type SidebarSort = 'name' | 'name-desc' | 'modified'
 
 export interface Settings {
   theme: Theme
   fontSize: number
   editorFont: string
   sidebarWidth: number
+  sidebarSort: SidebarSort
 }
 
 const DEFAULTS: Settings = {
   theme: 'dark',
   fontSize: 14,
   editorFont: 'JetBrains Mono, Fira Code, monospace',
-  sidebarWidth: 240
+  sidebarWidth: 240,
+  sidebarSort: 'name'
 }
 
 function load(): Settings {

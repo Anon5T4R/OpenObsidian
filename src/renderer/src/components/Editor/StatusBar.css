@@ -1,0 +1,44 @@
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 24px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.status-left  { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.status-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.status-filename {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-item { white-space: nowrap; }
+
+.status-sep { color: var(--border); }
+
+.status-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.status-btn:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
