@@ -399,6 +399,7 @@ export default function App() {
           onNotify={notify}
           onFileDeleted={handleFileDeleted}
           onOpenSearch={store.toggleSearch}
+          mobile={isMobile}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
       </aside>

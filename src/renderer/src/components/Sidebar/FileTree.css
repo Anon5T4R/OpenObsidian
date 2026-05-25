@@ -322,3 +322,28 @@
   inset: 0;
   z-index: 999;
 }
+
+/* ── Mobile touch targets ───────────────────────────────────────────────── */
+.file-tree.mobile .btn-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.file-tree.mobile .collapse-btn {
+  font-size: 16px;
+}
+
+.file-tree.mobile .file-tree-header {
+  padding: 6px 8px;
+  gap: 4px;
+}
+
+.file-tree.mobile .file-tree-actions {
+  gap: 4px;
+}
