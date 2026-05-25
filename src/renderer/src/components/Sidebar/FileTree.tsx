@@ -312,6 +312,7 @@ export default function FileTree({
             <>
               <button className="btn-icon" onClick={() => onNewNote()} title="New Note (Ctrl+N)">+</button>
               <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setFolderInput({}) }} title="New Folder">📁</button>
+              <button className="btn-icon" onClick={() => useVaultStore.getState().toggleSearch()} title="Search notes (Ctrl+Shift+F)">🔍</button>
               <select
                 className="sort-select"
                 value={sort}
