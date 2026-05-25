@@ -361,6 +361,14 @@ export default function App() {
                       {m === 'edit' ? 'Edit' : m === 'split' ? 'Split' : 'Preview'}
                     </button>
                   ))}
+                  <span className="view-toggle-sep" />
+                  <button
+                    className="view-toggle-find"
+                    onClick={() => editorRef.current?.openFind()}
+                    title="Find & Replace (Ctrl+F)"
+                  >
+                    🔍
+                  </button>
                 </div>
               </div>
 

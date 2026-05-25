@@ -128,6 +128,27 @@
 .view-toggle button:hover { color: var(--text-primary); }
 .view-toggle button.active { background: var(--accent); color: white; }
 
+.view-toggle-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.view-toggle-find {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: background 0.1s, color 0.1s;
+}
+.view-toggle-find:hover { background: var(--hover); color: var(--text-primary); }
+
 /* Right cluster: icon buttons */
 .toolbar-right {
   display: flex;
