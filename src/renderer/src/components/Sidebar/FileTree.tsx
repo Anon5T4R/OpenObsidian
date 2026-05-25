@@ -278,8 +278,8 @@ export default function FileTree({
             onKeyDown={(e) => {
               if (e.key === 'Enter') commitFolderCreate()
               if (e.key === 'Escape') setFolderInput(null)
+              e.stopPropagation()
             }}
-            onBlur={commitFolderCreate}
             placeholder="Folder name…"
           />
         </div>
