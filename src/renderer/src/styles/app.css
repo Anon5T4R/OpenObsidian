@@ -316,6 +316,54 @@
   color: var(--accent);
 }
 
+/* ── Mobile in-note find bar ────────────────────────────────────────── */
+.mobile-find-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--bg-floating);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.mobile-find-bar input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 6px 10px;
+  outline: none;
+}
+
+.mobile-find-bar input:focus { border-color: var(--accent); }
+
+.mfb-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-size: 16px;
+  width: 38px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mfb-btn:disabled { opacity: 0.35; cursor: default; }
+.mfb-btn:not(:disabled):active { background: var(--hover); }
+.mfb-close { color: var(--text-muted); }
+
+.view-toggle-find.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 /* ── Export dropdown ────────────────────────────────────────────────── */
 .export-dropdown {
   position: absolute;
@@ -370,6 +418,11 @@
 
 .editor-toolbar.mobile .toolbar-centre {
   gap: 4px;
+}
+
+.editor-toolbar.mobile .view-toggle-find {
+  font-size: 16px;
+  padding: 6px 10px;
 }
 
 /* ── Toast notification ─────────────────────────────────────────────── */

@@ -7,7 +7,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { RangeSetBuilder } from '@codemirror/state'
-import { search, searchKeymap, openSearchPanel } from '@codemirror/search'
+import { search, searchKeymap, openSearchPanel, SearchQuery, setSearchQuery, findNext as cmFindNext, findPrevious as cmFindPrev } from '@codemirror/search'
 import {
   autocompletion, CompletionContext, CompletionResult,
   closeBrackets, closeBracketsKeymap
@@ -20,6 +20,11 @@ export interface MarkdownEditorHandle {
   insertText: (text: string, cursorOffset?: number) => void
   focus: () => void
   openFind: () => void
+  // Mobile find bar support
+  applySearch: (query: string) => void
+  findNextMatch: () => void
+  findPrevMatch: () => void
+  clearSearch: () => void
 }
 
 export interface EditorStats {
@@ -231,7 +236,19 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         view.focus()
       },
       focus: () => viewRef.current?.focus(),
-      openFind: () => { if (viewRef.current) openSearchPanel(viewRef.current) }
+      openFind: () => { if (viewRef.current) openSearchPanel(viewRef.current) },
+      applySearch: (query: string) => {
+        const view = viewRef.current; if (!view) return
+        const sq = new SearchQuery({ search: query, caseSensitive: false, regexp: false })
+        view.dispatch({ effects: setSearchQuery.of(sq) })
+        if (query) cmFindNext(view)
+      },
+      findNextMatch: () => { if (viewRef.current) cmFindNext(viewRef.current) },
+      findPrevMatch: () => { if (viewRef.current) cmFindPrev(viewRef.current) },
+      clearSearch: () => {
+        const view = viewRef.current; if (!view) return
+        view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) })
+      }
     }))
 
     const handleCopy = useCallback(async () => {

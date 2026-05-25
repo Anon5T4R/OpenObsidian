@@ -14,6 +14,7 @@ interface FileTreeProps {
   onOpenVault: () => void
   onNotify: (msg: string) => void
   onFileDeleted: (path: string) => void
+  onOpenSearch: () => void
 }
 
 type CtxMenu = { x: number; y: number; node: TreeNode }
@@ -168,7 +169,7 @@ function flatHasMatch(node: TreeNode, query: string): boolean {
 
 export default function FileTree({
   collapsed, sort, onSortChange, onFileSelect, onNewNote, onNewFolder,
-  onToggleCollapse, onOpenVault, onNotify, onFileDeleted
+  onToggleCollapse, onOpenVault, onNotify, onFileDeleted, onOpenSearch
 }: FileTreeProps) {
   const store = useVaultStore()
   const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter, setTagFilter } = store
@@ -323,6 +324,9 @@ export default function FileTree({
                 <option value="modified">Recent</option>
               </select>
             </>
+          )}
+          {vaultPath && (
+            <button className="btn-icon" onClick={onOpenSearch} title="Search all notes (Ctrl+Shift+F)">⌕</button>
           )}
           <button className="btn-icon collapse-btn" onClick={onToggleCollapse} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar (Ctrl+\\)'}>
             {collapsed ? '→' : '←'}

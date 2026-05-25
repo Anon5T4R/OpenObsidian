@@ -42,6 +42,8 @@ export default function App() {
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [templateFolder,   setTemplateFolder]   = useState<string | undefined>(undefined)
   const [templateOpen,     setTemplateOpen]     = useState(false)
+  const [mobileFindOpen,   setMobileFindOpen]   = useState(false)
+  const [mobileFindQuery,  setMobileFindQuery]  = useState('')
 
   const editorRef       = useRef<MarkdownEditorHandle>(null)
   const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -182,6 +184,7 @@ export default function App() {
     if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
     store.setActiveContent(content)
     store.setDirty(false)
+    setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
 
     if (!fromNav) {
       const { history, index } = navRef.current
@@ -395,6 +398,7 @@ export default function App() {
           onOpenVault={handleOpenVault}
           onNotify={notify}
           onFileDeleted={handleFileDeleted}
+          onOpenSearch={store.toggleSearch}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
       </aside>
@@ -446,9 +450,19 @@ export default function App() {
                   ))}
                   <span className="view-toggle-sep" />
                   <button
-                    className="view-toggle-find"
-                    onClick={() => editorRef.current?.openFind()}
-                    title="Find & Replace (Ctrl+F)"
+                    className={`view-toggle-find${mobileFindOpen ? ' active' : ''}`}
+                    onClick={() => {
+                      if (isMobile) {
+                        if (mobileFindOpen) {
+                          setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
+                        } else {
+                          setMobileFindOpen(true)
+                        }
+                      } else {
+                        editorRef.current?.openFind()
+                      }
+                    }}
+                    title="Find in note (Ctrl+F)"
                   >
                     🔍
                   </button>
@@ -471,11 +485,22 @@ export default function App() {
                     </div>
                   )}
                 </div>
+                {isMobile && <button className="toolbar-icon-btn" onClick={() => store.setSearchOpen(true)} title="Search all notes">⌕</button>}
                 {!isMobile && <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>}
                 {!isMobile && <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>}
                 <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
               </div>
             </div>
+
+            {isMobile && mobileFindOpen && (
+              <MobileFindBar
+                query={mobileFindQuery}
+                onChange={(q) => { setMobileFindQuery(q); editorRef.current?.applySearch(q) }}
+                onNext={() => editorRef.current?.findNextMatch()}
+                onPrev={() => editorRef.current?.findPrevMatch()}
+                onClose={() => { setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch() }}
+              />
+            )}
 
             <div className="editor-content" style={{ position: 'relative' }}>
               {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
@@ -533,6 +558,29 @@ export default function App() {
         />
       )}
       {notification && <div className="toast">{notification}</div>}
+    </div>
+  )
+}
+
+// ── Mobile in-note find bar ───────────────────────────────────────────────────
+function MobileFindBar({ query, onChange, onNext, onPrev, onClose }: {
+  query: string; onChange: (q: string) => void
+  onNext: () => void; onPrev: () => void; onClose: () => void
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50) }, [])
+  return (
+    <div className="mobile-find-bar">
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Buscar na nota…"
+        onKeyDown={(e) => { if (e.key === 'Enter') onNext(); if (e.key === 'Escape') onClose() }}
+      />
+      <button onClick={onPrev}  disabled={!query} className="mfb-btn">↑</button>
+      <button onClick={onNext}  disabled={!query} className="mfb-btn">↓</button>
+      <button onClick={onClose} className="mfb-btn mfb-close">✕</button>
     </div>
   )
 }
