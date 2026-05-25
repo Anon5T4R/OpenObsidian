@@ -420,6 +420,7 @@ export default function App() {
                     content={store.activeContent}
                     onWikiLinkClick={handleFileSelectByName}
                     onChange={handleContentChange}
+                    vaultPath={store.vaultPath}
                   />
                 </div>
               )}

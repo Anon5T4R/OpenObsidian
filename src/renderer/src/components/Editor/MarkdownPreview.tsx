@@ -8,6 +8,7 @@ interface MarkdownPreviewProps {
   content: string
   onWikiLinkClick: (noteName: string) => void
   onChange?: (content: string) => void
+  vaultPath?: string | null
 }
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
@@ -31,13 +32,22 @@ function toggleCheckbox(markdown: string, index: number): string {
   })
 }
 
-export default function MarkdownPreview({ content, onWikiLinkClick, onChange }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath }: MarkdownPreviewProps) {
   const html = useMemo(() => {
     const withLinks = processWikiLinks(content)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
-    // Remove "disabled" from checkboxes so they are clickable in preview
-    return String(result).replace(/(<input\b[^>]*?) disabled/g, '$1')
-  }, [content])
+    let html = String(result)
+      // Remove "disabled" from checkboxes so they are clickable in preview
+      .replace(/(<input\b[^>]*?) disabled/g, '$1')
+    // Resolve relative image paths to absolute file:// URLs so Electron can load them
+    if (vaultPath) {
+      const base = 'file:///' + vaultPath.replace(/\\/g, '/')
+      html = html.replace(/src="(?!https?:\/\/|data:|file:\/\/)([^"]+)"/g, (_, rel) => {
+        return `src="${base}/${rel}"`
+      })
+    }
+    return html
+  }, [content, vaultPath])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
