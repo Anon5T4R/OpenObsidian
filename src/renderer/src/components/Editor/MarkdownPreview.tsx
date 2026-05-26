@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react'
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
@@ -122,6 +122,23 @@ function toggleCheckbox(markdown: string, index: number): string {
 export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // ── Mermaid zoom modal ────────────────────────────────────────────────────
+  type ZoomModal = { html: string; w: number; h: number }
+  const [zoomModal, setZoomModal] = useState<ZoomModal | null>(null)
+  const [zoom, setZoom]           = useState(1)
+
+  useEffect(() => {
+    if (!zoomModal) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomModal(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomModal])
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    setZoom((z) => Math.max(0.2, Math.min(6, z - e.deltaY * 0.0008)))
+  }, [])
+
   const html = useMemo(() => {
     const withLinks = processWikiLinks(content)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
@@ -158,6 +175,18 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
 
+    // Mermaid diagram zoom
+    const mermaidBlock = target.closest?.('.mermaid-block') as HTMLElement | null
+    if (mermaidBlock) {
+      const svg = mermaidBlock.querySelector('svg')
+      if (svg) {
+        const rect = svg.getBoundingClientRect()
+        setZoomModal({ html: svg.outerHTML, w: rect.width || 800, h: rect.height || 600 })
+        setZoom(1)
+        return
+      }
+    }
+
     // Interactive checkbox
     if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
       e.preventDefault() // don't let the browser toggle visually before re-render
@@ -178,11 +207,37 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="markdown-preview"
-      onClick={handleClick}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        className="markdown-preview"
+        onClick={handleClick}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+
+      {zoomModal && (
+        <div className="mermaid-zoom-overlay" onClick={() => setZoomModal(null)}>
+          <div className="mermaid-zoom-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="mermaid-zoom-toolbar">
+              <button onClick={() => setZoom((z) => Math.min(6, z + 0.25))}>+</button>
+              <span className="mermaid-zoom-pct">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))}>−</button>
+              <button onClick={() => setZoom(1)}>Reset</button>
+              <span className="mermaid-zoom-hint">scroll wheel to zoom · drag to scroll</span>
+              <button className="mermaid-zoom-close" onClick={() => setZoomModal(null)} title="Close (Esc)">✕</button>
+            </div>
+            <div className="mermaid-zoom-view" onWheel={handleWheel}>
+              {/* Outer div grows with zoom so overflow:auto scrollbars work */}
+              <div style={{ width: zoomModal.w * zoom, height: zoomModal.h * zoom, position: 'relative', flexShrink: 0 }}>
+                <div
+                  style={{ position: 'absolute', top: 0, left: 0, transformOrigin: 'top left', transform: `scale(${zoom})` }}
+                  dangerouslySetInnerHTML={{ __html: zoomModal.html }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

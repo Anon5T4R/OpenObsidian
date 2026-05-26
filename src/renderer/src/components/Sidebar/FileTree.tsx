@@ -371,24 +371,7 @@ export default function FileTree({
         </div>
       )}
 
-      {/* Tags filter */}
-      {!collapsed && tagList.length > 0 && (
-        <div className="tag-strip">
-          {tagFilter && (
-            <button className="tag-chip tag-chip-clear" onClick={() => setTagFilter(null)} title="Clear filter">✕</button>
-          )}
-          {tagList.map((tag) => (
-            <button
-              key={tag}
-              className={`tag-chip ${tagFilter === tag ? 'active' : ''}`}
-              onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-              title={`${tags[tag].length} note${tags[tag].length !== 1 ? 's' : ''}`}
-            >
-              #{tag}
-            </button>
-          ))}
-        </div>
-      )}
+
 
       <div
         className="file-tree-list"
