@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
+import mammoth from 'mammoth'
 
 let mainWindow: BrowserWindow
 let vaultWatcher: FSWatcher | null = null
@@ -134,7 +135,9 @@ function walkTree(dir: string): TreeNode[] {
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-  const files = entries.filter((e) => e.isFile() && (e.name.endsWith('.md') || e.name.endsWith('.pdf')) && !e.name.startsWith('.'))
+  const BINARY_EXTS = ['.pdf', '.docx']
+  const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.') &&
+    (e.name.endsWith('.md') || BINARY_EXTS.some((x) => e.name.endsWith(x))))
 
   for (const d of dirs) {
     const fullPath = path.join(dir, d.name)
@@ -143,7 +146,8 @@ function walkTree(dir: string): TreeNode[] {
   for (const f of files) {
     const fullPath = path.join(dir, f.name)
     const mtime = fs.statSync(fullPath).mtimeMs
-    const name = f.name.endsWith('.pdf') ? f.name : f.name.replace(/\.md$/, '')
+    const isBinary = BINARY_EXTS.some((x) => f.name.endsWith(x))
+    const name = isBinary ? f.name : f.name.replace(/\.md$/, '')
     nodes.push({ name, path: fullPath, type: 'file', mtime })
   }
   return nodes
@@ -319,6 +323,26 @@ ipcMain.handle('export:pdf', async (_, noteTitle: string) => {
   const pdfData = await mainWindow.webContents.printToPDF({ pageSize: 'A4', printBackground: false })
   fs.writeFileSync(result.filePath, pdfData)
   return result.filePath
+})
+
+// ── DOCX conversion (mammoth) ──────────────────────────────────────────────
+
+ipcMain.handle('docx:to-html', async (_, filePath: string) => {
+  try {
+    const result = await mammoth.convertToHtml({ path: filePath })
+    return { html: result.value, warnings: result.messages.map((m) => m.message) }
+  } catch (e) {
+    return { html: '', warnings: [], error: String(e) }
+  }
+})
+
+ipcMain.handle('docx:to-markdown', async (_, filePath: string) => {
+  try {
+    const result = await mammoth.convertToMarkdown({ path: filePath })
+    return { markdown: result.value, warnings: result.messages.map((m) => m.message) }
+  } catch (e) {
+    return { markdown: '', warnings: [], error: String(e) }
+  }
 })
 
 // ── Shell ──────────────────────────────────────────────────────────────────

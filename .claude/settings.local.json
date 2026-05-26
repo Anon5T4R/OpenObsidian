@@ -12,7 +12,9 @@
       "Bash(git tag *)",
       "Bash(git commit *)",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(gh run *)",
+      "Bash(npm list *)"
     ]
   }
 }

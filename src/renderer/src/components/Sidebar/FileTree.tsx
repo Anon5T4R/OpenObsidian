@@ -99,7 +99,7 @@ function TreeNodeRow({
     if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return null
     const isActive = activeFilePath === node.path
     const file: NoteFile = { name: node.name, path: node.path, relativePath: node.path }
-    const fileIcon = node.path.endsWith('.pdf') ? '📕' : '📄'
+    const fileIcon = node.path.endsWith('.pdf') ? '📕' : node.path.endsWith('.docx') ? '📝' : '📄'
     return (
       <div
         className={`tree-item ${isActive ? 'active' : ''}`}

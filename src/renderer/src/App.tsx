@@ -13,6 +13,7 @@ import GraphView from './components/Graph/GraphView'
 import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
 import PdfViewer from './components/Pdf/PdfViewer'
+import DocxViewer from './components/Docx/DocxViewer'
 import TocPanel from './components/Toc/TocPanel'
 import './styles/app.css'
 
@@ -40,6 +41,7 @@ export default function App() {
   const [templateFolder,   setTemplateFolder]   = useState<string | undefined>(undefined)
   const [templateOpen,     setTemplateOpen]     = useState(false)
   const [tocOpen,          setTocOpen]          = useState(false)
+  const [isConverting,     setIsConverting]     = useState(false)
 
   const editorRef       = useRef<MarkdownEditorHandle>(null)
   const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -165,19 +167,20 @@ export default function App() {
   }, [store.vaultPath])
 
   // ── File operations ───────────────────────────────────────────────────────
+  const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
+
   const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
-    const isPdf = file.path.endsWith('.pdf')
-    if (store.isDirty && store.activeFile && !store.activeFile.path.endsWith('.pdf')) {
+    if (store.isDirty && store.activeFile && !isDocumentFile(store.activeFile.path)) {
       await window.api.writeFile(store.activeFile.path, store.activeContent)
       store.setDirty(false)
     }
     store.setActiveFile(file)
-    if (!isPdf) {
+    if (!isDocumentFile(file.path)) {
       let content = contentCacheRef.current[file.path]
       if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
       store.setActiveContent(content)
     } else {
-      store.setActiveContent('') // PDF: no markdown content to load
+      store.setActiveContent('') // binary document — no markdown content
     }
     store.setDirty(false)
 
@@ -254,13 +257,13 @@ export default function App() {
     }
   }, [store.vaultPath, store.files, handleFileSelect, notify])
 
-  // ── PDF companion notes ───────────────────────────────────────────────────
-  const handleOpenPdfNote = useCallback(async () => {
+  // ── Companion notes (PDF, DOCX) ───────────────────────────────────────────
+  const handleOpenCompanionNote = useCallback(async () => {
     if (!store.activeFile || !store.vaultPath) return
-    const baseName = store.activeFile.name.replace(/\.pdf$/i, '')
+    const baseName = store.activeFile.name.replace(/\.[^.]+$/, '')
     const noteName = `${baseName} - Notes`
-    const pdfPath = store.activeFile.path
-    const dir = pdfPath.substring(0, Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\')))
+    const srcPath = store.activeFile.path
+    const dir = srcPath.substring(0, Math.max(srcPath.lastIndexOf('/'), srcPath.lastIndexOf('\\')))
     const existing = store.files.find((f) => f.name === noteName)
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, noteName, dir || store.vaultPath)
@@ -274,6 +277,44 @@ export default function App() {
       contentCacheRef.current[newFile.path] = initialContent
       await window.api.writeFile(newFile.path, initialContent)
       await handleFileSelect(newFile)
+    }
+  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
+
+  // ── DOCX → Markdown conversion ────────────────────────────────────────────
+  const handleConvertToMd = useCallback(async () => {
+    if (!store.activeFile || !store.vaultPath) return
+    const baseName = store.activeFile.name.replace(/\.docx$/i, '')
+    const srcPath = store.activeFile.path
+    const dir = srcPath.substring(0, Math.max(srcPath.lastIndexOf('/'), srcPath.lastIndexOf('\\')))
+
+    // If .md already exists, just open it
+    const existing = store.files.find((f) => f.name === baseName)
+    if (existing) {
+      notify(`Opening existing note: ${baseName}`)
+      await handleFileSelect(existing)
+      return
+    }
+
+    setIsConverting(true)
+    try {
+      const { markdown, error } = await window.api.docxToMarkdown(srcPath)
+      if (error) { notify(`Conversion failed: ${error}`); return }
+
+      const result = await window.api.createFile(store.vaultPath, baseName, dir || store.vaultPath)
+      if (result.error && !result.path) { notify(result.error); return }
+      await window.api.writeFile(result.path!, markdown)
+
+      const tree = await window.api.listTree(store.vaultPath)
+      store.setTree(tree)
+      const files = flattenTree(tree)
+      const newFile = files.find((f) => f.path === result.path)
+      if (newFile) {
+        contentCacheRef.current[newFile.path] = markdown
+        await handleFileSelect(newFile)
+        notify(`Converted to ${baseName}.md`)
+      }
+    } finally {
+      setIsConverting(false)
     }
   }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
 
@@ -371,7 +412,7 @@ export default function App() {
     const u3 = window.api.onDirAdded(reload)
     const u4 = window.api.onDirRemoved(reload)
     const u5 = window.api.onFileChanged(async (p) => {
-      if (store.activeFile?.path === p && !store.isDirty && !p.endsWith('.pdf')) {
+      if (store.activeFile?.path === p && !store.isDirty && !isDocumentFile(p)) {
         const content = await window.api.readFile(p)
         contentCacheRef.current[p] = content
         store.setActiveContent(content)
@@ -427,8 +468,10 @@ export default function App() {
   }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
 
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
-  const noVault = !store.vaultPath
-  const isPdf   = store.activeFile?.path.endsWith('.pdf') ?? false
+  const noVault  = !store.vaultPath
+  const isPdf    = store.activeFile?.path.endsWith('.pdf')  ?? false
+  const isDocx   = store.activeFile?.path.endsWith('.docx') ?? false
+  const isDoc    = isPdf || isDocx
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -486,7 +529,7 @@ export default function App() {
                 </span>
               </div>
 
-              {!isPdf && (
+              {!isDoc && (
                 <div className="toolbar-centre">
                   <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
                   <div className="view-toggle">
@@ -513,14 +556,14 @@ export default function App() {
                   onClick={handleDailyNote}
                   title="Daily Note (today)"
                 >📅</button>
-                {!isPdf && (
+                {!isDoc && (
                   <button
                     className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`}
                     onClick={() => setTocOpen((o) => !o)}
                     title="Table of Contents"
                   >≡</button>
                 )}
-                {!isPdf && (
+                {!isDoc && (
                   <div style={{ position: 'relative' }}>
                     <button
                       className="toolbar-icon-btn"
@@ -547,7 +590,14 @@ export default function App() {
               {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
 
               {isPdf ? (
-                <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenPdfNote} />
+                <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
+              ) : isDocx ? (
+                <DocxViewer
+                  filePath={store.activeFile.path}
+                  onOpenNotes={handleOpenCompanionNote}
+                  onConvertToMd={handleConvertToMd}
+                  isConverting={isConverting}
+                />
               ) : (
                 <>
                   <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
