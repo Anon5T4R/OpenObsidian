@@ -3,12 +3,12 @@ import './DocxViewer.css'
 
 interface DocxViewerProps {
   filePath: string
-  onOpenNotes: () => void
+  onOpenInApp: () => void
   onConvertToMd: () => void
   isConverting: boolean
 }
 
-export default function DocxViewer({ filePath, onOpenNotes, onConvertToMd, isConverting }: DocxViewerProps) {
+export default function DocxViewer({ filePath, onOpenInApp, onConvertToMd, isConverting }: DocxViewerProps) {
   const [html,    setHtml]    = useState('')
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
@@ -32,10 +32,10 @@ export default function DocxViewer({ filePath, onOpenNotes, onConvertToMd, isCon
         <span className="docx-title">📝 {fileName}</span>
         <button
           className="docx-btn"
-          onClick={onOpenNotes}
-          title="Open companion notes for this document"
+          onClick={onOpenInApp}
+          title="Open in Word, LibreOffice or system default app"
         >
-          📄 Open Notes
+          ↗ Open in App
         </button>
         <button
           className="docx-btn docx-btn-primary"

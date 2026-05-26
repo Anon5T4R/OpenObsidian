@@ -280,7 +280,7 @@ export default function App() {
     }
   }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
 
-  // ── DOCX → Markdown conversion ────────────────────────────────────────────
+  // ── DOCX → Markdown conversion (mammoth HTML + turndown) ─────────────────
   const handleConvertToMd = useCallback(async () => {
     if (!store.activeFile || !store.vaultPath) return
     const baseName = store.activeFile.name.replace(/\.docx$/i, '')
@@ -297,8 +297,13 @@ export default function App() {
 
     setIsConverting(true)
     try {
-      const { markdown, error } = await window.api.docxToMarkdown(srcPath)
+      const { html, error } = await window.api.docxToHtml(srcPath)
       if (error) { notify(`Conversion failed: ${error}`); return }
+
+      // Use turndown for better HTML→Markdown (preserves headings, tables, lists)
+      const TurndownService = (await import('turndown')).default
+      const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced', hr: '---' })
+      const markdown = td.turndown(html)
 
       const result = await window.api.createFile(store.vaultPath, baseName, dir || store.vaultPath)
       if (result.error && !result.path) { notify(result.error); return }
@@ -317,6 +322,13 @@ export default function App() {
       setIsConverting(false)
     }
   }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
+
+  // ── Open document in system default app ───────────────────────────────────
+  const handleOpenInApp = useCallback(async () => {
+    if (!store.activeFile) return
+    const err = await window.api.openInApp(store.activeFile.path)
+    if (err) notify(`Could not open: ${err}`)
+  }, [store.activeFile, notify])
 
   // ── New note (uses template modal) ────────────────────────────────────────
   const handleNewNote = useCallback(async (folderPath?: string) => {
@@ -594,7 +606,7 @@ export default function App() {
               ) : isDocx ? (
                 <DocxViewer
                   filePath={store.activeFile.path}
-                  onOpenNotes={handleOpenCompanionNote}
+                  onOpenInApp={handleOpenInApp}
                   onConvertToMd={handleConvertToMd}
                   isConverting={isConverting}
                 />

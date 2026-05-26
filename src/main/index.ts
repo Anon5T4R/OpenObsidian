@@ -351,6 +351,10 @@ ipcMain.handle('shell:show-item', async (_, itemPath: string) => {
   shell.showItemInFolder(itemPath)
 })
 
+ipcMain.handle('shell:open-path', async (_, itemPath: string) => {
+  return await shell.openPath(itemPath) // '' = success, message = error
+})
+
 // ── App lifecycle ──────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
