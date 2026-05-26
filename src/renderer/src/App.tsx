@@ -12,6 +12,8 @@ import SettingsModal from './components/Settings/SettingsModal'
 import GraphView from './components/Graph/GraphView'
 import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
+import PdfViewer from './components/Pdf/PdfViewer'
+import TocPanel from './components/Toc/TocPanel'
 import './styles/app.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
@@ -37,6 +39,7 @@ export default function App() {
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [templateFolder,   setTemplateFolder]   = useState<string | undefined>(undefined)
   const [templateOpen,     setTemplateOpen]     = useState(false)
+  const [tocOpen,          setTocOpen]          = useState(false)
 
   const editorRef       = useRef<MarkdownEditorHandle>(null)
   const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -163,14 +166,19 @@ export default function App() {
 
   // ── File operations ───────────────────────────────────────────────────────
   const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
-    if (store.isDirty && store.activeFile) {
+    const isPdf = file.path.endsWith('.pdf')
+    if (store.isDirty && store.activeFile && !store.activeFile.path.endsWith('.pdf')) {
       await window.api.writeFile(store.activeFile.path, store.activeContent)
       store.setDirty(false)
     }
     store.setActiveFile(file)
-    let content = contentCacheRef.current[file.path]
-    if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
-    store.setActiveContent(content)
+    if (!isPdf) {
+      let content = contentCacheRef.current[file.path]
+      if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
+      store.setActiveContent(content)
+    } else {
+      store.setActiveContent('') // PDF: no markdown content to load
+    }
     store.setDirty(false)
 
     if (!fromNav) {
@@ -217,6 +225,57 @@ export default function App() {
     setNavCanBack(newIndex > 0)
     setNavCanForward(newIndex < newHistory.length - 1)
   }, [store.activeFile?.path])
+
+  // ── TOC jump ──────────────────────────────────────────────────────────────
+  const handleTocJump = useCallback((id: string) => {
+    const preview = document.querySelector('.markdown-preview')
+    if (!preview) return
+    const target = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  // ── Daily note ────────────────────────────────────────────────────────────
+  const handleDailyNote = useCallback(async () => {
+    if (!store.vaultPath) { notify('Open a vault first'); return }
+    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    const existing = store.files.find((f) => f.name === today)
+    if (existing) { await handleFileSelect(existing); return }
+    const result = await window.api.createFile(store.vaultPath, today)
+    if (result.error && !result.path) { notify(result.error); return }
+    const tree = await window.api.listTree(store.vaultPath)
+    store.setTree(tree)
+    const files = flattenTree(tree)
+    const newFile = files.find((f) => f.path === result.path)
+    if (newFile) {
+      const initialContent = `# ${today}\n\n`
+      contentCacheRef.current[newFile.path] = initialContent
+      await window.api.writeFile(newFile.path, initialContent)
+      await handleFileSelect(newFile)
+    }
+  }, [store.vaultPath, store.files, handleFileSelect, notify])
+
+  // ── PDF companion notes ───────────────────────────────────────────────────
+  const handleOpenPdfNote = useCallback(async () => {
+    if (!store.activeFile || !store.vaultPath) return
+    const baseName = store.activeFile.name.replace(/\.pdf$/i, '')
+    const noteName = `${baseName} - Notes`
+    const pdfPath = store.activeFile.path
+    const dir = pdfPath.substring(0, Math.max(pdfPath.lastIndexOf('/'), pdfPath.lastIndexOf('\\')))
+    const existing = store.files.find((f) => f.name === noteName)
+    if (existing) { await handleFileSelect(existing); return }
+    const result = await window.api.createFile(store.vaultPath, noteName, dir || store.vaultPath)
+    if (result.error && !result.path) { notify(result.error); return }
+    const tree = await window.api.listTree(store.vaultPath)
+    store.setTree(tree)
+    const files = flattenTree(tree)
+    const newFile = files.find((f) => f.path === result.path)
+    if (newFile) {
+      const initialContent = `# Notes: ${baseName}\n\n`
+      contentCacheRef.current[newFile.path] = initialContent
+      await window.api.writeFile(newFile.path, initialContent)
+      await handleFileSelect(newFile)
+    }
+  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
 
   // ── New note (uses template modal) ────────────────────────────────────────
   const handleNewNote = useCallback(async (folderPath?: string) => {
@@ -312,7 +371,7 @@ export default function App() {
     const u3 = window.api.onDirAdded(reload)
     const u4 = window.api.onDirRemoved(reload)
     const u5 = window.api.onFileChanged(async (p) => {
-      if (store.activeFile?.path === p && !store.isDirty) {
+      if (store.activeFile?.path === p && !store.isDirty && !p.endsWith('.pdf')) {
         const content = await window.api.readFile(p)
         contentCacheRef.current[p] = content
         store.setActiveContent(content)
@@ -369,6 +428,7 @@ export default function App() {
 
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
   const noVault = !store.vaultPath
+  const isPdf   = store.activeFile?.path.endsWith('.pdf') ?? false
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -426,41 +486,57 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="toolbar-centre">
-                <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
-                <div className="view-toggle">
-                  {(['edit', 'split', 'preview'] as ViewMode[]).map((m) => (
-                    <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
-                      {m === 'edit' ? 'Edit' : m === 'split' ? 'Split' : 'Preview'}
+              {!isPdf && (
+                <div className="toolbar-centre">
+                  <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
+                  <div className="view-toggle">
+                    {(['edit', 'split', 'preview'] as ViewMode[]).map((m) => (
+                      <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
+                        {m === 'edit' ? 'Edit' : m === 'split' ? 'Split' : 'Preview'}
+                      </button>
+                    ))}
+                    <span className="view-toggle-sep" />
+                    <button
+                      className="view-toggle-find"
+                      onClick={() => editorRef.current?.openFind()}
+                      title="Find & Replace (Ctrl+F)"
+                    >
+                      🔍
                     </button>
-                  ))}
-                  <span className="view-toggle-sep" />
-                  <button
-                    className="view-toggle-find"
-                    onClick={() => editorRef.current?.openFind()}
-                    title="Find & Replace (Ctrl+F)"
-                  >
-                    🔍
-                  </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="toolbar-right">
-                <div style={{ position: 'relative' }}>
+                <button
+                  className="toolbar-icon-btn"
+                  onClick={handleDailyNote}
+                  title="Daily Note (today)"
+                >📅</button>
+                {!isPdf && (
                   <button
-                    className="toolbar-icon-btn"
-                    onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }}
-                    title="Export note"
-                  >
-                    ↓
-                  </button>
-                  {exportMenuOpen && (
-                    <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={handleExportHTML}>Export as HTML</button>
-                      <button onClick={handleExportPDF}>Export as PDF</button>
-                    </div>
-                  )}
-                </div>
+                    className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`}
+                    onClick={() => setTocOpen((o) => !o)}
+                    title="Table of Contents"
+                  >≡</button>
+                )}
+                {!isPdf && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      className="toolbar-icon-btn"
+                      onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }}
+                      title="Export note"
+                    >
+                      ↓
+                    </button>
+                    {exportMenuOpen && (
+                      <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={handleExportHTML}>Export as HTML</button>
+                        <button onClick={handleExportPDF}>Export as PDF</button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>
                 <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>
                 <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
@@ -470,32 +546,48 @@ export default function App() {
             <div className="editor-content" style={{ position: 'relative' }}>
               {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
 
-              {(viewMode === 'edit' || viewMode === 'split') && (
-                <div className="editor-pane" style={viewMode === 'split' ? { flex: splitRatio } : { flex: 1 }}>
-                  <MarkdownEditor
-                    ref={editorRef}
-                    content={store.activeContent}
-                    onChange={handleContentChange}
-                    onWikiLinkClick={handleFileSelectByName}
-                    vaultPath={store.vaultPath}
-                    files={store.files}
-                    theme={settings.theme}
-                    onStatsChange={setEditorStats}
-                  />
-                </div>
-              )}
+              {isPdf ? (
+                <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenPdfNote} />
+              ) : (
+                <>
+                  <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+                    {(viewMode === 'edit' || viewMode === 'split') && (
+                      <div className="editor-pane" style={viewMode === 'split' ? { flex: splitRatio } : { flex: 1 }}>
+                        <MarkdownEditor
+                          ref={editorRef}
+                          content={store.activeContent}
+                          onChange={handleContentChange}
+                          onWikiLinkClick={handleFileSelectByName}
+                          vaultPath={store.vaultPath}
+                          files={store.files}
+                          theme={settings.theme}
+                          onStatsChange={setEditorStats}
+                        />
+                      </div>
+                    )}
 
-              {viewMode === 'split' && <div className="resize-handle-split" onMouseDown={onSplitResizeStart} />}
+                    {viewMode === 'split' && <div className="resize-handle-split" onMouseDown={onSplitResizeStart} />}
 
-              {(viewMode === 'preview' || viewMode === 'split') && (
-                <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
-                  <MarkdownPreview
-                    content={store.activeContent}
-                    onWikiLinkClick={handleFileSelectByName}
-                    onChange={handleContentChange}
-                    vaultPath={store.vaultPath}
-                  />
-                </div>
+                    {(viewMode === 'preview' || viewMode === 'split') && (
+                      <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
+                        <MarkdownPreview
+                          content={store.activeContent}
+                          onWikiLinkClick={handleFileSelectByName}
+                          onChange={handleContentChange}
+                          vaultPath={store.vaultPath}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {tocOpen && (
+                    <TocPanel
+                      content={store.activeContent}
+                      onJump={handleTocJump}
+                      onClose={() => setTocOpen(false)}
+                    />
+                  )}
+                </>
               )}
             </div>
 

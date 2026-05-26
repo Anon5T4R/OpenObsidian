@@ -17,7 +17,7 @@ export default defineConfig({
     },
     plugins: [react()],
     optimizeDeps: {
-      include: ['mermaid']
+      include: ['mermaid', 'katex']
     }
   }
 })

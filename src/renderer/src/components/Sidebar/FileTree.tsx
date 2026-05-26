@@ -99,6 +99,7 @@ function TreeNodeRow({
     if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return null
     const isActive = activeFilePath === node.path
     const file: NoteFile = { name: node.name, path: node.path, relativePath: node.path }
+    const fileIcon = node.path.endsWith('.pdf') ? '📕' : '📄'
     return (
       <div
         className={`tree-item ${isActive ? 'active' : ''}`}
@@ -109,9 +110,9 @@ function TreeNodeRow({
         draggable={!isRenaming}
         onDragStart={handleDragStart}
       >
-        {collapsed ? <span className="tree-icon">📄</span> : (
+        {collapsed ? <span className="tree-icon">{fileIcon}</span> : (
           <>
-            <span className="tree-icon">📄</span>
+            <span className="tree-icon">{fileIcon}</span>
             {isRenaming ? renameInput : <span className="tree-label">{node.name}</span>}
             {!isRenaming && isPinned && <span className="tree-pin-dot" title="Pinned">📌</span>}
           </>

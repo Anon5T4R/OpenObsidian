@@ -3,10 +3,11 @@ import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
 import mermaid from 'mermaid'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 import './MarkdownPreview.css'
 
 // ── Callout / admonition support ───────────────────────────────────────────
-// Renders Obsidian-style > [!type] callouts used by many AI tools.
 
 const CALLOUT_META: Record<string, { icon: string; color: string }> = {
   info:      { icon: 'ℹ️',  color: '#3b82f6' },
@@ -38,8 +39,6 @@ const CALLOUT_META: Record<string, { icon: string; color: string }> = {
   todo:      { icon: '☑️',  color: '#6366f1' },
 }
 
-// Matches blockquotes whose first <p> starts with [!type](fold)? title
-// Groups: type, fold ('-'|'+'|undefined), titleRest, bodyInP, bodyExtra
 const CALLOUT_RE = /<blockquote>\n?<p>\[!(\w+)\]([-+])?([^\n<]*)(?:\n([\s\S]*?))?<\/p>([\s\S]*?)<\/blockquote>/g
 
 function processCallouts(html: string): string {
@@ -71,6 +70,65 @@ ${bodyHtml}</details>`
     return `<div class="callout callout-${t}" ${style}>
 <div class="callout-title"><span class="callout-icon">${meta.icon}</span><span class="callout-title-text">${title}</span></div>
 ${bodyHtml}</div>`
+  })
+}
+
+// ── Math (KaTeX) ───────────────────────────────────────────────────────────
+
+// Split on code blocks so math inside ``` is never processed
+const CODE_BLOCK_RE = /(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/g
+
+function processMath(html: string): string {
+  const parts = html.split(CODE_BLOCK_RE)
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part // inside a code block — skip
+    // Block math: $$...$$ and \[...\]
+    part = part.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+      try {
+        return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`
+      } catch { return `<span class="math-error">$$${tex}$$</span>` }
+    })
+    part = part.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => {
+      try {
+        return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`
+      } catch { return `<span class="math-error">\\[${tex}\\]</span>` }
+    })
+    // Inline math: $...$ (requires non-space after opening $)
+    part = part.replace(/\$(?!\s)([^$\n<>]+?)(?<!\s)\$/g, (_, tex) => {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })
+      } catch { return `<span class="math-error">$${tex}$</span>` }
+    })
+    // Inline math: \(...\)
+    part = part.replace(/\\\((.+?)\\\)/g, (_, tex) => {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })
+      } catch { return `<span class="math-error">\\(${tex}\\)</span>` }
+    })
+    return part
+  }).join('')
+}
+
+// ── Highlight syntax ==text== ─────────────────────────────────────────────
+
+function processHighlights(html: string): string {
+  const parts = html.split(CODE_BLOCK_RE)
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part
+    return part.replace(/==([^=\n]+)==/g, '<mark>$1</mark>')
+  }).join('')
+}
+
+// ── Heading IDs for TOC anchor scrolling ─────────────────────────────────
+
+function addHeadingIds(html: string): string {
+  const counts: Record<string, number> = {}
+  return html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_, level, inner) => {
+    const text = inner.replace(/<[^>]+>/g, '')
+    let id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/--+/g, '-').trim()
+    if (counts[id] !== undefined) { counts[id]++; id = `${id}-${counts[id]}` }
+    else counts[id] = 0
+    return `<h${level} id="${id}">${inner}</h${level}>`
   })
 }
 
@@ -142,24 +200,26 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   const html = useMemo(() => {
     const withLinks = processWikiLinks(content)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
-    let html = String(result)
+    let h = String(result)
       // Remove "disabled" from checkboxes so they are clickable in preview
       .replace(/(<input\b[^>]*?) disabled/g, '$1')
-    // Render Obsidian-style callouts ([!type])
-    html = processCallouts(html)
-    // Wrap mermaid code blocks so the useEffect can find and render them
-    html = html.replace(
+    h = processCallouts(h)
+    h = processHighlights(h)
+    h = processMath(h)
+    h = addHeadingIds(h)
+    // Wrap mermaid code blocks
+    h = h.replace(
       /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
       (_, code) => `<div class="mermaid-block"><pre class="mermaid">${decodeMermaidCode(code)}</pre></div>`
     )
-    // Resolve relative image paths to absolute file:// URLs so Electron can load them
+    // Resolve relative image paths to absolute file:// URLs
     if (vaultPath) {
       const base = 'file:///' + vaultPath.replace(/\\/g, '/')
-      html = html.replace(/src="(?!https?:\/\/|data:|file:\/\/)([^"]+)"/g, (_, rel) => {
+      h = h.replace(/src="(?!https?:\/\/|data:|file:\/\/)([^"]+)"/g, (_, rel) => {
         return `src="${base}/${rel}"`
       })
     }
-    return html
+    return h
   }, [content, vaultPath])
 
   // Render mermaid diagrams after HTML is injected into the DOM
@@ -189,7 +249,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
 
     // Interactive checkbox
     if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
-      e.preventDefault() // don't let the browser toggle visually before re-render
+      e.preventDefault()
       if (!onChange) return
       const container = e.currentTarget
       const all = Array.from(container.querySelectorAll('input[type="checkbox"]'))
@@ -227,7 +287,6 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
               <button className="mermaid-zoom-close" onClick={() => setZoomModal(null)} title="Close (Esc)">✕</button>
             </div>
             <div className="mermaid-zoom-view" onWheel={handleWheel}>
-              {/* Outer div grows with zoom so overflow:auto scrollbars work */}
               <div style={{ width: zoomModal.w * zoom, height: zoomModal.h * zoom, position: 'relative', flexShrink: 0 }}>
                 <div
                   style={{ position: 'absolute', top: 0, left: 0, transformOrigin: 'top left', transform: `scale(${zoom})` }}

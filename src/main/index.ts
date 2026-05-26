@@ -134,7 +134,7 @@ function walkTree(dir: string): TreeNode[] {
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-  const files = entries.filter((e) => e.isFile() && e.name.endsWith('.md') && !e.name.startsWith('.'))
+  const files = entries.filter((e) => e.isFile() && (e.name.endsWith('.md') || e.name.endsWith('.pdf')) && !e.name.startsWith('.'))
 
   for (const d of dirs) {
     const fullPath = path.join(dir, d.name)
@@ -143,7 +143,8 @@ function walkTree(dir: string): TreeNode[] {
   for (const f of files) {
     const fullPath = path.join(dir, f.name)
     const mtime = fs.statSync(fullPath).mtimeMs
-    nodes.push({ name: f.name.replace(/\.md$/, ''), path: fullPath, type: 'file', mtime })
+    const name = f.name.endsWith('.pdf') ? f.name : f.name.replace(/\.md$/, '')
+    nodes.push({ name, path: fullPath, type: 'file', mtime })
   }
   return nodes
 }
@@ -211,7 +212,10 @@ ipcMain.handle('file:delete',    async (_, filePath: string) => { fs.unlinkSync(
 
 ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const dir = path.dirname(oldPath)
-  const newPath = path.join(dir, `${newName}.md`)
+  const ext = path.extname(oldPath)
+  const hasExt = path.extname(newName) !== ''
+  const finalName = hasExt ? newName : `${newName}${ext}`
+  const newPath = path.join(dir, finalName)
   fs.renameSync(oldPath, newPath)
   return newPath
 })
