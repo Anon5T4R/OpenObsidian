@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useEffect } from 'react'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
+import mermaid from 'mermaid'
 import './MarkdownPreview.css'
 
 // ── Callout / admonition support ───────────────────────────────────────────
@@ -73,6 +74,23 @@ ${bodyHtml}</div>`
   })
 }
 
+// ── Mermaid diagram support ────────────────────────────────────────────────
+
+function getMermaidTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'default' : 'dark'
+}
+
+// remark-html HTML-escapes code block content; decode before passing to mermaid
+function decodeMermaidCode(code: string): string {
+  return code
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+}
+
 interface MarkdownPreviewProps {
   content: string
   onWikiLinkClick: (noteName: string) => void
@@ -102,6 +120,8 @@ function toggleCheckbox(markdown: string, index: number): string {
 }
 
 export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath }: MarkdownPreviewProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   const html = useMemo(() => {
     const withLinks = processWikiLinks(content)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
@@ -110,6 +130,11 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       .replace(/(<input\b[^>]*?) disabled/g, '$1')
     // Render Obsidian-style callouts ([!type])
     html = processCallouts(html)
+    // Wrap mermaid code blocks so the useEffect can find and render them
+    html = html.replace(
+      /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
+      (_, code) => `<div class="mermaid-block"><pre class="mermaid">${decodeMermaidCode(code)}</pre></div>`
+    )
     // Resolve relative image paths to absolute file:// URLs so Electron can load them
     if (vaultPath) {
       const base = 'file:///' + vaultPath.replace(/\\/g, '/')
@@ -119,6 +144,16 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
     }
     return html
   }, [content, vaultPath])
+
+  // Render mermaid diagrams after HTML is injected into the DOM
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const nodes = Array.from(el.querySelectorAll<HTMLElement>('pre.mermaid'))
+    if (nodes.length === 0) return
+    mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme(), securityLevel: 'loose' })
+    mermaid.run({ nodes }).catch(console.error)
+  }, [html])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
@@ -144,6 +179,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
 
   return (
     <div
+      ref={containerRef}
       className="markdown-preview"
       onClick={handleClick}
       dangerouslySetInnerHTML={{ __html: html }}
