@@ -6,7 +6,9 @@ import type { AppAPI, FileInfo, TreeNode, VaultInfo } from '../../../../types/sh
 
 // ── SAF path encoding ─────────────────────────────────────────────────────────
 //
-// Internal vault path : "VaultName"           (relative to Directory.Data — app private storage)
+// Internal vault path : "VaultName"           (relative to Directory.External — getExternalFilesDir()
+//                                              = /storage/emulated/0/Android/data/<pkg>/files/
+//                                              no permissions needed, user-visible via file manager)
 // Internal file path  : "VaultName/dir/f.md"
 // SAF vault path      : "content://..."       (tree URI from ACTION_OPEN_DOCUMENT_TREE)
 // SAF file path       : "content://...||dir/f.md"  (treeUri + "||" + relative path)
@@ -100,9 +102,9 @@ async function safListFiles(treeUri: string): Promise<FileInfo[]> {
 async function walkTree(dirPath: string, topLevel = false): Promise<TreeNode[]> {
   let result: Awaited<ReturnType<typeof Filesystem.readdir>>
   try {
-    result = await Filesystem.readdir({ path: dirPath, directory: Directory.Data })
+    result = await Filesystem.readdir({ path: dirPath, directory: Directory.External })
   } catch (e: any) {
-    if (topLevel) throw new Error(`Cannot access vault "${dirPath}". It may have been deleted. (${e?.message ?? e})`)
+    if (topLevel) throw new Error(`Cannot access vault "${dirPath}". (${e?.message ?? e})`)
     return []
   }
   const nodes: TreeNode[] = []
@@ -124,7 +126,7 @@ async function walkFiles(vaultPath: string): Promise<FileInfo[]> {
   const files: FileInfo[] = []
   async function walk(dirPath: string) {
     let result: Awaited<ReturnType<typeof Filesystem.readdir>>
-    try { result = await Filesystem.readdir({ path: dirPath, directory: Directory.Data }) } catch { return }
+    try { result = await Filesystem.readdir({ path: dirPath, directory: Directory.External }) } catch { return }
     for (const entry of result.files) {
       if (entry.name.startsWith('.')) continue
       const fullPath = vp.join(dirPath, entry.name)
@@ -186,10 +188,10 @@ export const capacitorApi: AppAPI = {
   },
 
   async listVaults(): Promise<VaultInfo[]> {
-    // Internal vaults (app-private data folder — Directory.Data = getFilesDir())
+    // Internal vaults — Directory.External = getExternalFilesDir() = no permissions needed
     let internal: VaultInfo[] = []
     try {
-      const result = await Filesystem.readdir({ path: '', directory: Directory.Data })
+      const result = await Filesystem.readdir({ path: '', directory: Directory.External })
       internal = result.files
         .filter((f) =>
           f.type === 'directory' &&
@@ -227,7 +229,7 @@ export const capacitorApi: AppAPI = {
 
   async createVault(name) {
     try {
-      await Filesystem.mkdir({ path: name, directory: Directory.Data, recursive: true })
+      await Filesystem.mkdir({ path: name, directory: Directory.External, recursive: true })
       return name
     } catch {
       return null
@@ -270,7 +272,7 @@ export const capacitorApi: AppAPI = {
       if (!isSaf(vaultPath)) {
         await Filesystem.copy({
           from: vaultPath, to: backupPath,
-          directory: Directory.Data, toDirectory: Directory.Data,
+          directory: Directory.External, toDirectory: Directory.External,
         })
         return backupPath
       }
@@ -287,7 +289,7 @@ export const capacitorApi: AppAPI = {
       const r = await SafPlugin.readFile({ uri, path: rel })
       return r.data
     }
-    const r = await Filesystem.readFile({ path: filePath, directory: Directory.Data, encoding: Encoding.UTF8 })
+    const r = await Filesystem.readFile({ path: filePath, directory: Directory.External, encoding: Encoding.UTF8 })
     return r.data as string
   },
 
@@ -297,7 +299,7 @@ export const capacitorApi: AppAPI = {
         const { uri, rel } = parseSaf(filePath)
         await SafPlugin.writeFile({ uri, path: rel, data: content })
       } else {
-        await Filesystem.writeFile({ path: filePath, data: content, directory: Directory.Data, encoding: Encoding.UTF8, recursive: true })
+        await Filesystem.writeFile({ path: filePath, data: content, directory: Directory.External, encoding: Encoding.UTF8, recursive: true })
       }
       return true
     } catch {
@@ -320,7 +322,7 @@ export const capacitorApi: AppAPI = {
           const s = await SafPlugin.stat({ uri, path: rel })
           if (s.exists) return { error: 'File already exists', path: filePath }
         } else {
-          await Filesystem.stat({ path: filePath, directory: Directory.Data })
+          await Filesystem.stat({ path: filePath, directory: Directory.External })
           return { error: 'File already exists', path: filePath }
         }
       } catch {}
@@ -330,7 +332,7 @@ export const capacitorApi: AppAPI = {
         const { uri, rel } = parseSaf(filePath)
         await SafPlugin.writeFile({ uri, path: rel, data: initialContent })
       } else {
-        await Filesystem.writeFile({ path: filePath, data: initialContent, directory: Directory.Data, encoding: Encoding.UTF8, recursive: true })
+        await Filesystem.writeFile({ path: filePath, data: initialContent, directory: Directory.External, encoding: Encoding.UTF8, recursive: true })
       }
       return { path: filePath }
     } catch (e: any) {
@@ -344,7 +346,7 @@ export const capacitorApi: AppAPI = {
         const { uri, rel } = parseSaf(filePath)
         await SafPlugin.deleteEntry({ uri, path: rel })
       } else {
-        await Filesystem.deleteFile({ path: filePath, directory: Directory.Data })
+        await Filesystem.deleteFile({ path: filePath, directory: Directory.External })
       }
       return true
     } catch { return false }
@@ -358,7 +360,7 @@ export const capacitorApi: AppAPI = {
     }
     const dir     = vp.dirname(oldPath)
     const newPath = vp.join(dir, `${newName}.md`)
-    await Filesystem.rename({ from: oldPath, to: newPath, directory: Directory.Data, toDirectory: Directory.Data })
+    await Filesystem.rename({ from: oldPath, to: newPath, directory: Directory.External, toDirectory: Directory.External })
     return newPath
   },
 
@@ -383,10 +385,10 @@ export const capacitorApi: AppAPI = {
       let dest   = vp.join(dir, `${base} copy.md`)
       let i = 2
       while (true) {
-        try { await Filesystem.stat({ path: dest, directory: Directory.Data }); dest = vp.join(dir, `${base} copy ${i}.md`); i++ }
+        try { await Filesystem.stat({ path: dest, directory: Directory.External }); dest = vp.join(dir, `${base} copy ${i}.md`); i++ }
         catch { break }
       }
-      await Filesystem.copy({ from: filePath, to: dest, directory: Directory.Data, toDirectory: Directory.Data })
+      await Filesystem.copy({ from: filePath, to: dest, directory: Directory.External, toDirectory: Directory.External })
       return { path: dest }
     } catch (e: any) { return { error: e?.message ?? 'Failed to duplicate' } }
   },
@@ -404,8 +406,8 @@ export const capacitorApi: AppAPI = {
         return { path: safFile(uri, newRel) }
       }
       const fullPath = vp.join(parentPath, folderName)
-      try { await Filesystem.stat({ path: fullPath, directory: Directory.Data }); return { error: 'Folder already exists', path: fullPath } } catch {}
-      await Filesystem.mkdir({ path: fullPath, directory: Directory.Data, recursive: true })
+      try { await Filesystem.stat({ path: fullPath, directory: Directory.External }); return { error: 'Folder already exists', path: fullPath } } catch {}
+      await Filesystem.mkdir({ path: fullPath, directory: Directory.External, recursive: true })
       return { path: fullPath }
     } catch (e: any) { return { error: e?.message ?? 'Failed to create folder' } }
   },
@@ -416,7 +418,7 @@ export const capacitorApi: AppAPI = {
         const { uri, rel } = parseSaf(folderPath)
         await SafPlugin.deleteEntry({ uri, path: rel })
       } else {
-        await Filesystem.rmdir({ path: folderPath, directory: Directory.Data, recursive: true })
+        await Filesystem.rmdir({ path: folderPath, directory: Directory.External, recursive: true })
       }
       return true
     } catch { return false }
@@ -429,7 +431,7 @@ export const capacitorApi: AppAPI = {
       return safFile(uri, r.newPath)
     }
     const newPath = vp.join(vp.dirname(oldPath), newName)
-    await Filesystem.rename({ from: oldPath, to: newPath, directory: Directory.Data, toDirectory: Directory.Data })
+    await Filesystem.rename({ from: oldPath, to: newPath, directory: Directory.External, toDirectory: Directory.External })
     return newPath
   },
 
@@ -449,8 +451,8 @@ export const capacitorApi: AppAPI = {
       }
       // Internal move
       const dest = vp.join(targetDirPath, name)
-      try { await Filesystem.stat({ path: dest, directory: Directory.Data }); return { error: 'An item with this name already exists in the destination' } } catch {}
-      await Filesystem.rename({ from: sourcePath, to: dest, directory: Directory.Data, toDirectory: Directory.Data })
+      try { await Filesystem.stat({ path: dest, directory: Directory.External }); return { error: 'An item with this name already exists in the destination' } } catch {}
+      await Filesystem.rename({ from: sourcePath, to: dest, directory: Directory.External, toDirectory: Directory.External })
       return { path: dest }
     } catch (e: any) { return { error: e?.message ?? 'Failed to move item' } }
   },
@@ -465,7 +467,7 @@ export const capacitorApi: AppAPI = {
       const { uri, rel } = parseSaf(fullPath)
       await SafPlugin.writeFile({ uri, path: rel, data: base64 })
     } else {
-      await Filesystem.writeFile({ path: fullPath, data: base64, directory: Directory.Data, recursive: true })
+      await Filesystem.writeFile({ path: fullPath, data: base64, directory: Directory.External, recursive: true })
     }
     return relPath
   },
@@ -497,8 +499,8 @@ export const capacitorApi: AppAPI = {
 </html>`
     const exportPath = `_exports/${noteTitle}.html`
     try {
-      await Filesystem.writeFile({ path: exportPath, data: fullHtml, directory: Directory.Data, encoding: Encoding.UTF8, recursive: true })
-      const { uri } = await Filesystem.getUri({ path: exportPath, directory: Directory.Data })
+      await Filesystem.writeFile({ path: exportPath, data: fullHtml, directory: Directory.External, encoding: Encoding.UTF8, recursive: true })
+      const { uri } = await Filesystem.getUri({ path: exportPath, directory: Directory.External })
       await Share.share({ title: noteTitle, url: uri, dialogTitle: 'Export note' })
       return `${noteTitle}.html`
     } catch { return null }
@@ -517,7 +519,7 @@ export const capacitorApi: AppAPI = {
         const r = await SafPlugin.readFile({ uri: vaultPath, path: '.oo-index.json' })
         return JSON.parse(r.data)
       }
-      const r = await Filesystem.readFile({ path: indexPath(vaultPath), directory: Directory.Data, encoding: Encoding.UTF8 })
+      const r = await Filesystem.readFile({ path: indexPath(vaultPath), directory: Directory.External, encoding: Encoding.UTF8 })
       return JSON.parse(r.data as string)
     } catch { return null }
   },
@@ -528,7 +530,7 @@ export const capacitorApi: AppAPI = {
       if (isSaf(vaultPath)) {
         await SafPlugin.writeFile({ uri: vaultPath, path: '.oo-index.json', data: json })
       } else {
-        await Filesystem.writeFile({ path: indexPath(vaultPath), data: json, directory: Directory.Data, encoding: Encoding.UTF8, recursive: true })
+        await Filesystem.writeFile({ path: indexPath(vaultPath), data: json, directory: Directory.External, encoding: Encoding.UTF8, recursive: true })
       }
       return true
     } catch { return false }

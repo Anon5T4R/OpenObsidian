@@ -610,7 +610,7 @@ function VaultPickerModal({ onSelect, onCancel }: {
     setError(null)
     const result = await window.api.createVault?.(name)
     if (result) { await handleOpenVault(result) }
-    else { setError('Could not create vault in app storage. Try "Import Synced Folder" to use an external folder instead.') }
+    else { setError('Could not create vault. Try "Import Synced Folder" to pick an existing folder instead.') }
   }
 
   const handleImportExternal = async () => {
@@ -660,7 +660,7 @@ function VaultPickerModal({ onSelect, onCancel }: {
               )}
               {creating ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>New vault name (app private storage)</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>New vault name (stored in Android/data — visible in file manager)</p>
                   <input
                     autoFocus className="tpl-name-input" value={newName}
                     onChange={(e) => setNewName(e.target.value)}
