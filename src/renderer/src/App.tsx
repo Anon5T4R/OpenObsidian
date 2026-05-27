@@ -6,6 +6,7 @@ import { useVaultOps } from './hooks/useVaultOps'
 import { useDocOps } from './hooks/useDocOps'
 import { useFileOps } from './hooks/useFileOps'
 import { useExport } from './hooks/useExport'
+import { useT } from './i18n'
 import FileTree from './components/Sidebar/FileTree'
 import MarkdownEditor, { MarkdownEditorHandle, EditorStats } from './components/Editor/MarkdownEditor'
 import MarkdownPreview from './components/Editor/MarkdownPreview'
@@ -33,6 +34,7 @@ const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
 export default function App() {
   const store = useVaultStore()
   const { settings, setSettings } = useSettings()
+  const t = useT()
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [viewMode,         setViewMode]         = useState<ViewMode>('split')
@@ -303,11 +305,11 @@ export default function App() {
           <div className="editor-area">
             <div className="editor-toolbar">
               <div className="toolbar-left">
-                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title="Back (Alt+← or mouse button 4)">‹</button>
-                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title="Forward (Alt+→ or mouse button 5)">›</button>
+                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title={t('ttBack')}>‹</button>
+                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title={t('ttForward')}>›</button>
                 <span className="note-title">
                   {store.activeFile.name}
-                  {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
+                  {store.isDirty && <span className="dirty-dot" title={t('ttUnsaved')} />}
                 </span>
               </div>
 
@@ -317,34 +319,34 @@ export default function App() {
                   <div className="view-toggle">
                     {(['edit', 'split', 'preview'] as ViewMode[]).map((m) => (
                       <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
-                        {m === 'edit' ? 'Edit' : m === 'split' ? 'Split' : 'Preview'}
+                        {m === 'edit' ? t('viewEdit') : m === 'split' ? t('viewSplit') : t('viewPreview')}
                       </button>
                     ))}
                     <span className="view-toggle-sep" />
-                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title="Find & Replace (Ctrl+F)">🔍</button>
+                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title={t('ttFind')}>🔍</button>
                   </div>
                 </div>
               )}
 
               <div className="toolbar-right">
-                <button className="toolbar-icon-btn" onClick={handleDailyNote} title="Daily Note (today)">📅</button>
+                <button className="toolbar-icon-btn" onClick={handleDailyNote} title={t('ttDailyNote')}>📅</button>
                 {!isDoc && (
-                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title="Table of Contents">≡</button>
+                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title={t('ttToc')}>≡</button>
                 )}
                 {!isDoc && (
                   <div style={{ position: 'relative' }}>
-                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title="Export note">↓</button>
+                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title={t('ttExport')}>↓</button>
                     {exportMenuOpen && (
                       <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={handleExportHTML}>Export as HTML</button>
-                        <button onClick={handleExportPDF}>Export as PDF</button>
+                        <button onClick={handleExportHTML}>{t('exportHtml')}</button>
+                        <button onClick={handleExportPDF}>{t('exportPdf')}</button>
                       </div>
                     )}
                   </div>
                 )}
-                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>
-                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>
-                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
+                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
+                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
+                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
               </div>
             </div>
 
@@ -422,33 +424,35 @@ function WelcomeScreen({ onOpenVault, onHelp, lastVault, onReopenVault }: {
   onOpenVault: () => void; onHelp?: () => void
   lastVault: { path: string; name: string } | null; onReopenVault: () => void
 }) {
+  const t = useT()
   return (
     <div className="welcome-screen">
       <div className="welcome-logo">⬡</div>
       <h1>OpenObsidian</h1>
-      <p>Open source markdown knowledge base</p>
+      <p>{t('welcomeTagline')}</p>
       {lastVault && (
         <div className="welcome-last-vault">
-          <button className="btn-primary" onClick={onReopenVault}>Open "{lastVault.name}"</button>
+          <button className="btn-primary" onClick={onReopenVault}>{t('reopenVault', { name: lastVault.name })}</button>
           <div className="welcome-last-vault-path">{lastVault.path}</div>
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, marginTop: lastVault ? 4 : 8 }}>
-        <button className="btn-secondary" onClick={onOpenVault}>{lastVault ? 'Open Other Vault…' : 'Open Vault Folder'}</button>
-        {onHelp && <button className="btn-secondary" onClick={onHelp} title="F1">? Help</button>}
+        <button className="btn-secondary" onClick={onOpenVault}>{lastVault ? t('openOtherVault') : t('openVault')}</button>
+        {onHelp && <button className="btn-secondary" onClick={onHelp} title="F1">{t('help')}</button>}
       </div>
-      <p className="welcome-hint">Ctrl+Shift+O · Ctrl+N · Ctrl+Shift+F · Ctrl+G · F1</p>
+      <p className="welcome-hint">{t('welcomeHint')}</p>
     </div>
   )
 }
 
 function EmptyState({ onNewNote, onOpenGraph, hasNotes }: { onNewNote: () => void; onOpenGraph: () => void; hasNotes: boolean }) {
+  const t = useT()
   return (
     <div className="empty-state">
-      <p>Select a note or create a new one</p>
+      <p>{t('emptyState')}</p>
       <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn-primary" onClick={onNewNote}>New Note (Ctrl+N)</button>
-        {hasNotes && <button className="btn-secondary" onClick={onOpenGraph}>Graph View (Ctrl+G)</button>}
+        <button className="btn-primary" onClick={onNewNote}>{t('newNote')}</button>
+        {hasNotes && <button className="btn-secondary" onClick={onOpenGraph}>{t('graphView')}</button>}
       </div>
     </div>
   )

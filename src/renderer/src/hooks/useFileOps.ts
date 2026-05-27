@@ -1,5 +1,7 @@
 import { MutableRefObject, useCallback, useState } from 'react'
 import { useVaultStore, NoteFile, flattenTree } from '../store/vaultStore'
+import { useSettings } from './useSettings'
+import { t, formatDailyDate } from '../i18n'
 
 export function useFileOps(
   contentCacheRef: MutableRefObject<Record<string, string>>,
@@ -8,12 +10,14 @@ export function useFileOps(
   notify: (msg: string) => void,
 ) {
   const store = useVaultStore()
+  const { settings } = useSettings()
   const [templateOpen,   setTemplateOpen]   = useState(false)
   const [templateFolder, setTemplateFolder] = useState<string | undefined>(undefined)
 
   const handleDailyNote = useCallback(async () => {
-    if (!store.vaultPath) { notify('Open a vault first'); return }
-    const today = new Date().toISOString().slice(0, 10)
+    if (!store.vaultPath) { notify(t(settings.locale, 'toastOpenVaultFirst')); return }
+    const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD — filename stays ISO
+    const displayDate = formatDailyDate(settings.locale)  // localized long date for heading
     const existing = store.files.find((f) => f.name === today)
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, today)
@@ -23,23 +27,27 @@ export function useFileOps(
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
-      const initialContent = `# ${today}
-
-## Anotações
-
-
-
-## Tarefas
-
-- [ ] Tarefa 1
-- [ ] Tarefa 2
-- [ ] Tarefa 3
-`
+      const initialContent = [
+        `# ${today}`,
+        '',
+        displayDate,
+        '',
+        t(settings.locale, 'dailyAnnotations'),
+        '',
+        '',
+        '',
+        t(settings.locale, 'dailyTasks'),
+        '',
+        `- [ ] ${t(settings.locale, 'dailyTask1')}`,
+        `- [ ] ${t(settings.locale, 'dailyTask2')}`,
+        `- [ ] ${t(settings.locale, 'dailyTask3')}`,
+        '',
+      ].join('\n')
       contentCacheRef.current[newFile.path] = initialContent
       await window.api.writeFile(newFile.path, initialContent)
       await handleFileSelect(newFile)
     }
-  }, [store.vaultPath, store.files, handleFileSelect, notify])
+  }, [store.vaultPath, store.files, handleFileSelect, notify, settings.locale])
 
   const handleNewNote = useCallback(async (folderPath?: string) => {
     if (!store.vaultPath) { await handleOpenVault(); return }

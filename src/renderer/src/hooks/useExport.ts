@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useVaultStore } from '../store/vaultStore'
+import { useSettings } from './useSettings'
+import { t } from '../i18n'
 
 type ViewMode = 'edit' | 'preview' | 'split'
 
@@ -8,6 +10,7 @@ export function useExport(
   setViewMode: (mode: ViewMode) => void,
 ) {
   const store = useVaultStore()
+  const { settings } = useSettings()
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   const handleExportHTML = useCallback(async () => {
@@ -21,8 +24,8 @@ export function useExport(
       .use(remarkParse).use(remarkGfm).use(remarkHtml, { sanitize: false })
       .process(store.activeContent)
     const dest = await window.api.exportHtml(store.activeFile.name, String(result))
-    if (dest) notify(`Exported to: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile, store.activeContent, notify])
+    if (dest) notify(t(settings.locale, 'toastExportedHtml', { file: dest.split(/[/\\]/).pop() ?? dest }))
+  }, [store.activeFile, store.activeContent, notify, settings.locale])
 
   const handleExportPDF = useCallback(async () => {
     if (!store.activeFile) return
@@ -30,8 +33,8 @@ export function useExport(
     setViewMode('preview')
     await new Promise((r) => setTimeout(r, 200))
     const dest = await window.api.exportPdf(store.activeFile.name)
-    if (dest) notify(`PDF saved: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile, notify, setViewMode])
+    if (dest) notify(t(settings.locale, 'toastExportedPdf', { file: dest.split(/[/\\]/).pop() ?? dest }))
+  }, [store.activeFile, notify, setViewMode, settings.locale])
 
   return { handleExportHTML, handleExportPDF, exportMenuOpen, setExportMenuOpen }
 }

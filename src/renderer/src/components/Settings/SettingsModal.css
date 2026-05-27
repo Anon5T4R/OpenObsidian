@@ -119,3 +119,28 @@
 }
 
 .setting-row select:focus { border-color: var(--accent); }
+
+.locale-picker {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.locale-picker button {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.locale-picker button:hover { color: var(--text-primary); border-color: var(--accent); }
+
+.locale-picker button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}

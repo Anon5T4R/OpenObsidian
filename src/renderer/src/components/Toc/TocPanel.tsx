@@ -1,11 +1,8 @@
 import React, { useMemo } from 'react'
+import { useT } from '../../i18n'
 import './TocPanel.css'
 
-interface Heading {
-  level: number
-  text: string
-  id: string
-}
+interface Heading { level: number; text: string; id: string }
 
 interface TocPanelProps {
   content: string
@@ -14,21 +11,14 @@ interface TocPanelProps {
 }
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/--+/g, '-')
-    .trim()
+  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/--+/g, '-').trim()
 }
 
 function extractHeadings(markdown: string): Heading[] {
   const headings: Heading[] = []
   const idCounts: Record<string, number> = {}
-  // Only match headings that aren't inside code blocks
-  const lines = markdown.split('\n')
   let inCode = false
-  for (const line of lines) {
+  for (const line of markdown.split('\n')) {
     if (line.startsWith('```')) { inCode = !inCode; continue }
     if (inCode) continue
     const m = line.match(/^(#{1,3})\s+(.+)/)
@@ -45,25 +35,21 @@ function extractHeadings(markdown: string): Heading[] {
 }
 
 export default function TocPanel({ content, onJump, onClose }: TocPanelProps) {
+  const t = useT()
   const headings = useMemo(() => extractHeadings(content), [content])
 
   return (
     <div className="toc-panel">
       <div className="toc-header">
-        <span className="toc-title">Contents</span>
-        <button className="toc-close" onClick={onClose} title="Close">✕</button>
+        <span className="toc-title">{t('tocTitle')}</span>
+        <button className="toc-close" onClick={onClose} title={t('ctxCancelBtn')}>✕</button>
       </div>
       <div className="toc-list">
         {headings.length === 0 ? (
-          <div className="toc-empty">No headings found</div>
+          <div className="toc-empty">{t('tocEmpty')}</div>
         ) : (
           headings.map((h, i) => (
-            <button
-              key={i}
-              className={`toc-item toc-h${h.level}`}
-              onClick={() => onJump(h.id)}
-              title={h.text}
-            >
+            <button key={i} className={`toc-item toc-h${h.level}`} onClick={() => onJump(h.id)} title={h.text}>
               {h.text}
             </button>
           ))

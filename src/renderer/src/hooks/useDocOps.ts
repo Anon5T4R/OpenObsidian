@@ -1,5 +1,7 @@
 import { MutableRefObject, useCallback, useState } from 'react'
 import { useVaultStore, NoteFile, flattenTree } from '../store/vaultStore'
+import { useSettings } from './useSettings'
+import { t } from '../i18n'
 
 export function useDocOps(
   contentCacheRef: MutableRefObject<Record<string, string>>,
@@ -7,6 +9,7 @@ export function useDocOps(
   notify: (msg: string) => void,
 ) {
   const store = useVaultStore()
+  const { settings } = useSettings()
   const [isConverting, setIsConverting] = useState(false)
 
   const handleOpenCompanionNote = useCallback(async () => {
@@ -39,7 +42,7 @@ export function useDocOps(
 
     const existing = store.files.find((f) => f.name === baseName)
     if (existing) {
-      notify(`Opening existing note: ${baseName}`)
+      notify(t(settings.locale, 'toastOpeningExisting', { name: baseName }))
       await handleFileSelect(existing)
       return
     }
@@ -47,7 +50,7 @@ export function useDocOps(
     setIsConverting(true)
     try {
       const { html, error } = await window.api.docxToHtml(srcPath)
-      if (error) { notify(`Conversion failed: ${error}`); return }
+      if (error) { notify(t(settings.locale, 'toastConversionFailed', { err: error })); return }
 
       const TurndownService = (await import('turndown')).default
       const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced', hr: '---' })
@@ -64,18 +67,18 @@ export function useDocOps(
       if (newFile) {
         contentCacheRef.current[newFile.path] = markdown
         await handleFileSelect(newFile)
-        notify(`Converted to ${baseName}.md`)
+        notify(t(settings.locale, 'toastConverted', { name: baseName }))
       }
     } finally {
       setIsConverting(false)
     }
-  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
+  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify, settings.locale])
 
   const handleOpenInApp = useCallback(async () => {
     if (!store.activeFile) return
     const err = await window.api.openInApp(store.activeFile.path)
-    if (err) notify(`Could not open: ${err}`)
-  }, [store.activeFile, notify])
+    if (err) notify(t(settings.locale, 'toastOpenError', { err }))
+  }, [store.activeFile, notify, settings.locale])
 
   return { handleOpenCompanionNote, handleConvertToMd, handleOpenInApp, isConverting }
 }

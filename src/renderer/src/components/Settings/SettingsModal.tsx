@@ -1,5 +1,6 @@
 import React from 'react'
 import type { Settings } from '../../hooks/useSettings'
+import { useT, LOCALES } from '../../i18n'
 import './SettingsModal.css'
 
 interface SettingsModalProps {
@@ -9,38 +10,40 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ settings, onChange, onClose }: SettingsModalProps) {
+  const t = useT()
+
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
-          <h2>Settings</h2>
+          <h2>{t('settings')}</h2>
           <button className="settings-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="settings-body">
           <section>
-            <h3>Appearance</h3>
+            <h3>{t('appearance')}</h3>
 
             <div className="setting-row">
-              <label>Theme</label>
+              <label>{t('theme')}</label>
               <div className="theme-toggle">
                 <button
                   className={settings.theme === 'dark' ? 'active' : ''}
                   onClick={() => onChange({ theme: 'dark' })}
                 >
-                  🌙 Dark
+                  {t('themeDark')}
                 </button>
                 <button
                   className={settings.theme === 'light' ? 'active' : ''}
                   onClick={() => onChange({ theme: 'light' })}
                 >
-                  ☀️ Light
+                  {t('themeLight')}
                 </button>
               </div>
             </div>
 
             <div className="setting-row">
-              <label>Editor font size</label>
+              <label>{t('editorFontSize')}</label>
               <div className="font-size-picker">
                 {[12, 13, 14, 15, 16, 18].map((s) => (
                   <button
@@ -55,7 +58,7 @@ export default function SettingsModal({ settings, onChange, onClose }: SettingsM
             </div>
 
             <div className="setting-row">
-              <label>Editor font</label>
+              <label>{t('editorFont')}</label>
               <select
                 value={settings.editorFont}
                 onChange={(e) => onChange({ editorFont: e.target.value })}
@@ -66,6 +69,23 @@ export default function SettingsModal({ settings, onChange, onClose }: SettingsM
                 <option value="Consolas, monospace">Consolas</option>
                 <option value="system-ui, sans-serif">System UI</option>
               </select>
+            </div>
+          </section>
+
+          <section>
+            <h3>{t('language')}</h3>
+            <div className="setting-row">
+              <div className="locale-picker">
+                {LOCALES.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    className={settings.locale === value ? 'active' : ''}
+                    onClick={() => onChange({ locale: value })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         </div>

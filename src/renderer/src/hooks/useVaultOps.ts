@@ -1,5 +1,7 @@
 import { MutableRefObject, useCallback, useEffect, useState } from 'react'
 import { useVaultStore, NoteFile, flattenTree } from '../store/vaultStore'
+import { useSettings } from './useSettings'
+import { t } from '../i18n'
 import { buildMtimeMap } from '../utils/mtimeMap'
 
 export function useVaultOps(
@@ -8,6 +10,7 @@ export function useVaultOps(
   resetNav: () => void,
 ) {
   const store = useVaultStore()
+  const { settings } = useSettings()
   const [lastVault, setLastVault] = useState<{ path: string; name: string } | null>(null)
 
   useEffect(() => {
@@ -66,10 +69,10 @@ export function useVaultOps(
   }, [lastVault, openVaultPath])
 
   const handleBackup = useCallback(async () => {
-    if (!store.vaultPath) { notify('No vault open'); return }
+    if (!store.vaultPath) { notify(t(settings.locale, 'toastNoVault')); return }
     const dest = await window.api.backupVault(store.vaultPath)
-    if (dest) notify(`Backup saved to: ${dest}`)
-  }, [store.vaultPath, notify])
+    if (dest) notify(t(settings.locale, 'toastBackupSaved', { path: dest.split(/[/\\]/).pop() ?? dest }))
+  }, [store.vaultPath, notify, settings.locale])
 
   return { openVaultPath, handleOpenVault, handleReopenVault, handleBackup, lastVault }
 }

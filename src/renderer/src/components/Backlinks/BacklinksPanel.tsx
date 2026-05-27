@@ -1,5 +1,6 @@
 import React from 'react'
 import { useVaultStore } from '../../store/vaultStore'
+import { useT } from '../../i18n'
 import './BacklinksPanel.css'
 
 interface BacklinksPanelProps {
@@ -8,12 +9,13 @@ interface BacklinksPanelProps {
 
 export default function BacklinksPanel({ onFileSelect }: BacklinksPanelProps) {
   const { activeFile, backlinks } = useVaultStore()
+  const t = useT()
 
   if (!activeFile) {
     return (
       <div className="backlinks-panel">
-        <div className="backlinks-header">Backlinks</div>
-        <div className="backlinks-empty">No file open</div>
+        <div className="backlinks-header">{t('backlinks')}</div>
+        <div className="backlinks-empty">{t('noFileOpen')}</div>
       </div>
     )
   }
@@ -23,12 +25,12 @@ export default function BacklinksPanel({ onFileSelect }: BacklinksPanelProps) {
   return (
     <div className="backlinks-panel">
       <div className="backlinks-header">
-        Backlinks
+        {t('backlinks')}
         <span className="backlinks-count">{links.length}</span>
       </div>
 
       {links.length === 0 ? (
-        <div className="backlinks-empty">No notes link here</div>
+        <div className="backlinks-empty">{t('noBacklinks')}</div>
       ) : (
         <div className="backlinks-list">
           {links.map((name) => (
