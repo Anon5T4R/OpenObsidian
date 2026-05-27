@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useT, useSettings, formatDailyDate } from '../../i18n'
-import type { TranslationKey } from '../../i18n'
+import { useT, formatDailyDate } from '../../i18n'
+import type { TranslationKey, Locale } from '../../i18n'
+import { useSettings } from '../../hooks/useSettings'
 import './TemplateModal.css'
 
 interface Template {
@@ -12,7 +13,7 @@ interface Template {
 
 function buildTemplates(
   t: ReturnType<typeof useT>,
-  locale: ReturnType<typeof useSettings>['settings']['locale'],
+  locale: Locale,
 ): Template[] {
   const displayDate = formatDailyDate(locale)
   return [
