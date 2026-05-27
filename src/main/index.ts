@@ -27,7 +27,10 @@ function createWindow(): void {
     autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      // In dev the renderer is served from http://localhost which blocks file://
+      // iframes by default. Disable web security only in dev so PDF viewing works.
+      webSecurity: !is.dev
     }
   })
 
