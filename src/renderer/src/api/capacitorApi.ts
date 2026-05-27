@@ -186,16 +186,20 @@ export const capacitorApi: AppAPI = {
   },
 
   async listVaults(): Promise<VaultInfo[]> {
-    // Internal vaults (in app private data folder — Directory.Data)
+    // Internal vaults (app-private data folder — Directory.Data = getFilesDir())
     let internal: VaultInfo[] = []
     try {
       const result = await Filesystem.readdir({ path: '', directory: Directory.Data })
       internal = result.files
-        .filter((f) => f.type === 'directory' && !f.name.startsWith('.'))
+        .filter((f) =>
+          f.type === 'directory' &&
+          !f.name.startsWith('.') &&   // hidden
+          !f.name.startsWith('_')      // system dirs: _exports, _attachments, etc.
+        )
         .map((f) => ({ path: f.name, displayName: f.name, type: 'internal' as const }))
     } catch {}
 
-    // External SAF vaults
+    // External SAF vaults (picked via ACTION_OPEN_DOCUMENT_TREE)
     const safVaults = await loadSafVaults()
     const external: VaultInfo[] = safVaults.map((v) => ({
       path: v.uri,
@@ -204,6 +208,21 @@ export const capacitorApi: AppAPI = {
     }))
 
     return [...internal, ...external]
+  },
+
+  async getVaultDisplayName(vaultPath: string): Promise<string> {
+    if (isSaf(vaultPath)) {
+      const safVaults = await loadSafVaults()
+      const found = safVaults.find((v) => v.uri === vaultPath)
+      if (found) return found.displayName
+      // Fallback: decode percent-encoding from the URI's last segment
+      try {
+        const raw = vaultPath.split('/').pop() ?? vaultPath
+        return decodeURIComponent(raw.split('%3A').pop() ?? raw)
+      } catch {}
+    }
+    // Internal vault: path is already the folder name
+    return vaultPath.split('/').pop() ?? vaultPath
   },
 
   async createVault(name) {

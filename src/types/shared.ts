@@ -28,6 +28,7 @@ export interface AppAPI {
   listVaults?(): Promise<VaultInfo[]>
   createVault?(name: string): Promise<string | null>
   pickExternalVault?(): Promise<VaultInfo | null>   // SAF folder picker (Android)
+  getVaultDisplayName?(vaultPath: string): Promise<string>  // human-readable name for SAF URIs
   listTree(p: string): Promise<TreeNode[]>
   listFiles(p: string): Promise<FileInfo[]>
   watchVault(p: string): Promise<boolean>

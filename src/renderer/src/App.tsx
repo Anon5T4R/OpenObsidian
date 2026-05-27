@@ -279,6 +279,27 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward, isMobile])
 
+  // ── Mobile startup: auto-open last vault, else show vault picker ──────────
+  useEffect(() => {
+    if (!isMobile) return
+    ;(async () => {
+      const vaultPath = await window.api.getLastVault()
+      if (!vaultPath) {
+        // First launch — show vault picker immediately (skip WelcomeScreen)
+        setVaultPickerOpen(true)
+        return
+      }
+      try {
+        await openVaultPath(vaultPath)
+        setSidebarCollapsed(false)
+      } catch {
+        // Last vault inaccessible (permissions revoked, deleted, updated APK) →
+        // show vault picker so user can re-import or create a new vault
+        setVaultPickerOpen(true)
+      }
+    })()
+  }, []) // intentionally [] — runs once on mount; all refs used are stable
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
   const noVault = !store.vaultPath
