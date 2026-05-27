@@ -490,14 +490,10 @@ export default function App() {
       {vaultPickerOpen && (
         <VaultPickerModal
           onSelect={async (vaultPath) => {
+            // Throws on failure → VaultPickerModal shows error inline (modal stays open)
+            await openVaultPath(vaultPath)
             setVaultPickerOpen(false)
-            try {
-              await openVaultPath(vaultPath)
-              // Expand sidebar so the user can immediately see their files
-              if (isMobile) setSidebarCollapsed(false)
-            } catch (e: any) {
-              notify(e?.message ?? 'Could not open vault')
-            }
+            if (isMobile) setSidebarCollapsed(false)
           }}
           onCancel={() => setVaultPickerOpen(false)}
         />
@@ -550,15 +546,17 @@ function MobileDocPlaceholder({ type, fileName }: { type: string; fileName: stri
 
 // ── Android vault picker modal ────────────────────────────────────────────────
 function VaultPickerModal({ onSelect, onCancel }: {
-  onSelect: (vaultPath: string) => void
+  onSelect: (vaultPath: string) => Promise<void>  // throws on failure → shown inline
   onCancel: () => void
 }) {
   const [vaults,    setVaults]    = React.useState<import('../../../types/shared').VaultInfo[]>([])
   const [newName,   setNewName]   = React.useState('')
   const [creating,  setCreating]  = React.useState(false)
   const [loading,   setLoading]   = React.useState(true)
+  const [opening,   setOpening]   = React.useState(false)
   const [importing, setImporting] = React.useState(false)
   const [error,     setError]     = React.useState<string | null>(null)
+  const [failedPath,setFailedPath]= React.useState<string | null>(null)
 
   const reload = React.useCallback(() => {
     setLoading(true)
@@ -567,36 +565,56 @@ function VaultPickerModal({ onSelect, onCancel }: {
 
   React.useEffect(() => { reload() }, [reload])
 
+  const handleOpenVault = async (vaultPath: string) => {
+    setOpening(true); setError(null); setFailedPath(null)
+    try {
+      await onSelect(vaultPath)
+      // success → modal is closed by caller
+    } catch (e: any) {
+      const isSaf = vaultPath.startsWith('content://')
+      setError(
+        isSaf
+          ? 'Cannot access this folder — permission may have been revoked. Re-import it below.'
+          : (e?.message ?? 'Could not open vault')
+      )
+      if (isSaf) setFailedPath(vaultPath)
+    } finally {
+      setOpening(false)
+    }
+  }
+
   const handleCreate = async () => {
     const name = newName.trim()
     if (!name) return
     setError(null)
     const result = await window.api.createVault?.(name)
-    if (result) { onSelect(result) }
-    else { setError('Could not create vault. Check storage permissions.') }
+    if (result) { await handleOpenVault(result) }
+    else { setError('Could not create vault in app storage. Try "Import Synced Folder" to use an external folder instead.') }
   }
 
   const handleImportExternal = async () => {
     if (!window.api.pickExternalVault) return
-    setImporting(true); setError(null)
+    setImporting(true); setError(null); setFailedPath(null)
     try {
       const result = await window.api.pickExternalVault()
-      if (result) { onSelect(result.path) } else { setImporting(false) }
+      if (result) { await handleOpenVault(result.path) } else { setImporting(false) }
     } catch (e: any) { setError(e?.message ?? 'Failed to import folder'); setImporting(false) }
   }
 
   const hasExternalPicker = !!window.api.pickExternalVault
 
   return (
-    <div className="tpl-overlay" onClick={onCancel}>
+    <div className="tpl-overlay" onClick={opening ? undefined : onCancel}>
       <div className="tpl-modal" onClick={(e) => e.stopPropagation()}>
         <div className="tpl-header">
           <span className="tpl-title">Open Vault</span>
-          <button className="tpl-close" onClick={onCancel}>✕</button>
+          {!opening && <button className="tpl-close" onClick={onCancel}>✕</button>}
         </div>
         <div style={{ padding: '14px 16px' }}>
           {loading ? (
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>Loading…</p>
+          ) : opening ? (
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Opening vault…</p>
           ) : (
             <>
               {vaults.length > 0 && (
@@ -606,23 +624,28 @@ function VaultPickerModal({ onSelect, onCancel }: {
                     <button
                       key={v.path} className="btn-secondary"
                       style={{ display: 'block', width: '100%', marginBottom: 6, textAlign: 'left' }}
-                      onClick={() => onSelect(v.path)}
+                      onClick={() => handleOpenVault(v.path)}
                     >
                       {v.type === 'external' ? '🔗' : '⬡'} {v.displayName}
                     </button>
                   ))}
                 </div>
               )}
+              {/* Global error (from opening existing vault or creating) */}
+              {error && (
+                <div style={{ background: 'color-mix(in srgb, var(--danger, #e53e3e) 12%, transparent)', border: '1px solid var(--danger, #e53e3e)', borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
+                  <p style={{ color: 'var(--danger, #e53e3e)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>{error}</p>
+                </div>
+              )}
               {creating ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>New vault name (app storage)</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>New vault name (app private storage)</p>
                   <input
                     autoFocus className="tpl-name-input" value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false) }}
                     placeholder="My Notes"
                   />
-                  {error && <p style={{ color: 'var(--danger, #e53e3e)', fontSize: 12, margin: 0 }}>{error}</p>}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn-primary" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
                     <button className="btn-secondary" onClick={() => { setCreating(false); setError(null) }}>Back</button>
@@ -630,15 +653,16 @@ function VaultPickerModal({ onSelect, onCancel }: {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => setCreating(true)}>+ New Vault</button>
+                  <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setCreating(true); setError(null) }}>+ New Vault</button>
                   {hasExternalPicker && (
                     <button className="btn-secondary" style={{ width: '100%' }} onClick={handleImportExternal} disabled={importing}>
-                      {importing ? 'Opening…' : '📁 Import Synced Folder'}
+                      {importing ? 'Opening…' : failedPath ? '📁 Re-import Folder' : '📁 Import Synced Folder'}
                     </button>
                   )}
-                  {error && <p style={{ color: 'var(--danger, #e53e3e)', fontSize: 12, margin: 0 }}>{error}</p>}
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                    "Import Synced Folder" lets you pick any folder synced by Syncthing, Google Drive, etc.
+                    {failedPath
+                      ? 'Tap "Re-import Folder" and pick the same folder again to restore access.'
+                      : '"Import Synced Folder" lets you pick any folder synced by Syncthing, Google Drive, etc.'}
                   </p>
                 </div>
               )}
