@@ -97,11 +97,12 @@ async function safListFiles(treeUri: string): Promise<FileInfo[]> {
 
 // ── Internal (Filesystem) tree listing ────────────────────────────────────────
 
-async function walkTree(dirPath: string): Promise<TreeNode[]> {
+async function walkTree(dirPath: string, topLevel = false): Promise<TreeNode[]> {
   let result: Awaited<ReturnType<typeof Filesystem.readdir>>
   try {
     result = await Filesystem.readdir({ path: dirPath, directory: Directory.Documents })
-  } catch {
+  } catch (e: any) {
+    if (topLevel) throw new Error(`Cannot access vault "${dirPath}". It may have been deleted. (${e?.message ?? e})`)
     return []
   }
   const nodes: TreeNode[] = []
@@ -230,7 +231,7 @@ export const capacitorApi: AppAPI = {
     if (isSaf(vaultPath)) {
       return safListTree(vaultPath, '', true) // topLevel=true → throws on permission loss
     }
-    return walkTree(vaultPath)
+    return walkTree(vaultPath, true) // topLevel=true → throws if vault directory is gone
   },
 
   async listFiles(vaultPath) {

@@ -22,8 +22,8 @@ export function useFileOps(
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, today)
     if (result.error && !result.path) { notify(result.error); return }
-    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree) } catch {}
-    const files = flattenTree(tree)
+    let files = store.files
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree); files = flattenTree(tree) } catch {}
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
       const initialContent = [
@@ -60,8 +60,8 @@ export function useFileOps(
     const result = await window.api.createFile(store.vaultPath, name, templateFolder)
     if (result.error) { alert(result.error); return }
     if (result.path) await window.api.writeFile(result.path, content)
-    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree) } catch {}
-    const files = flattenTree(tree)
+    let files = store.files
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree); files = flattenTree(tree) } catch {}
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
       contentCacheRef.current[newFile.path] = content
