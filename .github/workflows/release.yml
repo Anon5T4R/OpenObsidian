@@ -3,7 +3,8 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'          # matches v0.5.4, v1.0.0 ...
+      - '!v*-android'       # excludes v0.2.0-android (built separately)
   workflow_dispatch:
 
 jobs:

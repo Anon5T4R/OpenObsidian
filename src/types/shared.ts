@@ -60,9 +60,9 @@ export interface AppAPI {
   loadIndex(vaultPath: string): Promise<{ vaultPath: string; savedAt: number; entries: Record<string, { mtime: number; content: string }> } | null>
   saveIndex(vaultPath: string, data: object): Promise<boolean>
 
-  // Document viewers (Electron-only — stubs return error on Android)
-  docxToHtml?(p: string): Promise<{ html: string; error?: string }>
-  openInApp?(p: string): Promise<string | null>
+  // Document viewers (Electron-only — stubs provided by capacitorApi on Android)
+  docxToHtml(p: string): Promise<{ html: string; error?: string }>
+  openInApp(p: string): Promise<string | null>
 
   // Shell
   showItemInFolder(p: string): Promise<void>
