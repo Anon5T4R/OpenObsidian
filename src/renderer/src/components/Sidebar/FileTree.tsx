@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { useVaultStore, NoteFile, TreeNode } from '../../store/vaultStore'
 import { SidebarSort } from '../../hooks/useSettings'
 import './FileTree.css'
@@ -20,9 +20,27 @@ type CtxMenu = { x: number; y: number; node: TreeNode }
 
 function useCtxMenu() {
   const [menu, setMenu] = useState<CtxMenu | null>(null)
-  const open  = useCallback((e: React.MouseEvent, node: TreeNode) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, node }) }, [])
+  const [pos,  setPos]  = useState<{ top: number; left: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const open = useCallback((e: React.MouseEvent, node: TreeNode) => {
+    e.preventDefault(); e.stopPropagation()
+    setPos(null)
+    setMenu({ x: e.clientX, y: e.clientY, node })
+  }, [])
+
   const close = useCallback(() => setMenu(null), [])
-  return { menu, open, close }
+
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return
+    const { height, width } = menuRef.current.getBoundingClientRect()
+    setPos({
+      top:  menu.y + height > window.innerHeight ? Math.max(0, menu.y - height) : menu.y,
+      left: menu.x + width  > window.innerWidth  ? Math.max(0, menu.x - width)  : menu.x,
+    })
+  }, [menu])
+
+  return { menu, open, close, menuRef, pos }
 }
 
 function sortNodes(nodes: TreeNode[], sort: SidebarSort): TreeNode[] {
@@ -210,7 +228,7 @@ export default function FileTree({
   const [confirmDelete, setConfirmDelete] = useState<TreeNode | null>(null)
 
   // ── Context menu ───────────────────────────────────────────────────────────
-  const { menu, open: openCtx, close: closeCtx } = useCtxMenu()
+  const { menu, open: openCtx, close: closeCtx, menuRef, pos } = useCtxMenu()
 
   // ── Tree refresh ───────────────────────────────────────────────────────────
   const refreshTree = useCallback(async () => {
@@ -409,7 +427,16 @@ export default function FileTree({
       </div>
 
       {menu && (
-        <div className="context-menu" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={menuRef}
+          className="context-menu"
+          style={{
+            top:        pos?.top  ?? menu.y,
+            left:       pos?.left ?? menu.x,
+            visibility: pos ? 'visible' : 'hidden',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {menu.node.type === 'directory' && (
             <>
               <button onClick={() => { onNewNote(menu.node.path); closeCtx() }}>📄 New Note Here</button>

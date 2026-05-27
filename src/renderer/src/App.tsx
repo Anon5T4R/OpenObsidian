@@ -1,6 +1,11 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react'
-import { useVaultStore, NoteFile, TreeNode, flattenTree } from './store/vaultStore'
+import { useVaultStore, NoteFile, TreeNode } from './store/vaultStore'
 import { useSettings } from './hooks/useSettings'
+import { useAutoSave } from './hooks/useAutoSave'
+import { useVaultOps } from './hooks/useVaultOps'
+import { useDocOps } from './hooks/useDocOps'
+import { useFileOps } from './hooks/useFileOps'
+import { useExport } from './hooks/useExport'
 import FileTree from './components/Sidebar/FileTree'
 import MarkdownEditor, { MarkdownEditorHandle, EditorStats } from './components/Editor/MarkdownEditor'
 import MarkdownPreview from './components/Editor/MarkdownPreview'
@@ -23,10 +28,13 @@ const MIN_SIDEBAR = 40
 const MAX_SIDEBAR = 520
 const COLLAPSED_WIDTH = 44
 
+const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
+
 export default function App() {
   const store = useVaultStore()
   const { settings, setSettings } = useSettings()
 
+  // ── UI state ───────────────────────────────────────────────────────────────
   const [viewMode,         setViewMode]         = useState<ViewMode>('split')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth,     setSidebarWidth]     = useState(settings.sidebarWidth)
@@ -35,36 +43,117 @@ export default function App() {
   const [graphOpen,        setGraphOpen]        = useState(false)
   const [helpOpen,         setHelpOpen]         = useState(false)
   const [notification,     setNotification]     = useState<string | null>(null)
-  const [lastVault,        setLastVault]        = useState<{ path: string; name: string } | null>(null)
-  const [exportMenuOpen,   setExportMenuOpen]   = useState(false)
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
-  const [templateFolder,   setTemplateFolder]   = useState<string | undefined>(undefined)
-  const [templateOpen,     setTemplateOpen]     = useState(false)
   const [tocOpen,          setTocOpen]          = useState(false)
-  const [isConverting,     setIsConverting]     = useState(false)
 
-  const editorRef       = useRef<MarkdownEditorHandle>(null)
-  const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const contentCacheRef = useRef<Record<string, string>>({})
+  const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
   const isResizingSplit   = useRef(false)
 
-  // ── Navigation history ────────────────────────────────────────────────────
+  // ── Navigation history (stays here — tightly coupled to handleFileSelect) ──
   const navRef = useRef<{ history: NoteFile[]; index: number }>({ history: [], index: -1 })
   const [navCanBack,    setNavCanBack]    = useState(false)
   const [navCanForward, setNavCanForward] = useState(false)
-
-  // Load last vault on startup
-  useEffect(() => {
-    window.api.getLastVault().then((vp) => {
-      if (vp) setLastVault({ path: vp, name: vp.split(/[/\\]/).pop() ?? vp })
-    })
-  }, [])
 
   // ── Notification ──────────────────────────────────────────────────────────
   const notify = useCallback((msg: string) => {
     setNotification(msg)
     setTimeout(() => setNotification(null), 3000)
+  }, [])
+
+  // ── Reset nav on vault switch ─────────────────────────────────────────────
+  const resetNav = useCallback(() => {
+    navRef.current = { history: [], index: -1 }
+    setNavCanBack(false)
+    setNavCanForward(false)
+  }, [])
+
+  // ── Hooks ─────────────────────────────────────────────────────────────────
+  const { contentCacheRef, handleContentChange } = useAutoSave()
+
+  const { openVaultPath, handleOpenVault, handleReopenVault, handleBackup, lastVault } =
+    useVaultOps(contentCacheRef, notify, resetNav)
+
+  // ── Core file select (central hub — defined here so all hooks can receive it) ──
+  const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
+    if (store.isDirty && store.activeFile && !isDocumentFile(store.activeFile.path)) {
+      await window.api.writeFile(store.activeFile.path, store.activeContent)
+      store.setDirty(false)
+    }
+    store.setActiveFile(file)
+    if (!isDocumentFile(file.path)) {
+      let content = contentCacheRef.current[file.path]
+      if (content === undefined) {
+        content = await window.api.readFile(file.path)
+        contentCacheRef.current[file.path] = content
+      }
+      store.setActiveContent(content)
+    } else {
+      store.setActiveContent('')
+    }
+    store.setDirty(false)
+    if (!fromNav) {
+      const { history, index } = navRef.current
+      const trimmed = history.slice(0, index + 1)
+      navRef.current = { history: [...trimmed, file], index: trimmed.length }
+      setNavCanBack(navRef.current.index > 0)
+      setNavCanForward(false)
+    }
+  }, [])
+
+  // ── Nav back / forward ────────────────────────────────────────────────────
+  const handleNavBack = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index <= 0) return
+    navRef.current = { history, index: index - 1 }
+    setNavCanBack(index - 1 > 0)
+    setNavCanForward(true)
+    await handleFileSelect(history[index - 1], true)
+  }, [handleFileSelect])
+
+  const handleNavForward = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index >= history.length - 1) return
+    navRef.current = { history, index: index + 1 }
+    setNavCanBack(true)
+    setNavCanForward(index + 1 < history.length - 1)
+    await handleFileSelect(history[index + 1], true)
+  }, [handleFileSelect])
+
+  const handleFileSelectByName = useCallback(async (noteName: string) => {
+    const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
+    if (file) await handleFileSelect(file)
+  }, [store.files, handleFileSelect])
+
+  const handleFileDeleted = useCallback((path: string) => {
+    if (store.activeFile?.path === path) {
+      store.setActiveFile(null)
+      store.setActiveContent('')
+    }
+    const { history, index } = navRef.current
+    const newHistory = history.filter((f) => f.path !== path)
+    const newIndex = Math.min(index, newHistory.length - 1)
+    navRef.current = { history: newHistory, index: newIndex }
+    setNavCanBack(newIndex > 0)
+    setNavCanForward(newIndex < newHistory.length - 1)
+  }, [store.activeFile?.path])
+
+  // ── Feature hooks ─────────────────────────────────────────────────────────
+  const { handleOpenCompanionNote, handleConvertToMd, handleOpenInApp, isConverting } =
+    useDocOps(contentCacheRef, handleFileSelect, notify)
+
+  const { handleDailyNote, handleNewNote, handleTemplateConfirm, handleNewFolder, templateOpen, templateFolder, setTemplateOpen } =
+    useFileOps(contentCacheRef, handleFileSelect, handleOpenVault, notify)
+
+  const { handleExportHTML, handleExportPDF, exportMenuOpen, setExportMenuOpen } =
+    useExport(notify, setViewMode)
+
+  // ── TOC scroll ────────────────────────────────────────────────────────────
+  const handleTocJump = useCallback((id: string) => {
+    const preview = document.querySelector('.markdown-preview')
+    if (!preview) return
+    const target = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
   // ── Sidebar resize ────────────────────────────────────────────────────────
@@ -107,314 +196,7 @@ export default function App() {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  // ── Vault open ────────────────────────────────────────────────────────────
-  const openVaultPath = useCallback(async (vaultPath: string) => {
-    navRef.current = { history: [], index: -1 }
-    setNavCanBack(false); setNavCanForward(false)
-    const tree = await window.api.listTree(vaultPath)
-    store.setVault(vaultPath, tree)
-    await window.api.watchVault(vaultPath)
-    await window.api.setLastVault(vaultPath)
-    setLastVault({ path: vaultPath, name: vaultPath.split(/[/\\]/).pop() ?? vaultPath })
-
-    const files = flattenTree(tree)
-    const mtimeMap = buildMtimeMap(tree)
-
-    // Load cached index — only re-read files that changed since last save
-    const cached = await window.api.loadIndex(vaultPath)
-    const contents: Record<string, string> = {}
-    const needsRead: NoteFile[] = []
-
-    for (const file of files) {
-      const entry = cached?.entries?.[file.path]
-      const mtime = mtimeMap[file.path] ?? 0
-      if (entry && mtime > 0 && entry.mtime === mtime) {
-        contents[file.path] = entry.content   // cache hit
-      } else {
-        needsRead.push(file)                  // cache miss or new/changed file
-      }
-    }
-
-    for (const file of needsRead) {
-      try { contents[file.path] = await window.api.readFile(file.path) } catch {}
-    }
-
-    contentCacheRef.current = contents
-    store.buildBacklinks(files, contents)
-
-    // Persist updated index (fire-and-forget)
-    const entries: Record<string, { mtime: number; content: string }> = {}
-    for (const file of files) {
-      entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content: contents[file.path] ?? '' }
-    }
-    window.api.saveIndex(vaultPath, { vaultPath, savedAt: Date.now(), entries })
-  }, [])
-
-  const handleOpenVault = useCallback(async () => {
-    const vaultPath = await window.api.openVault()
-    if (!vaultPath) return
-    await openVaultPath(vaultPath)
-  }, [openVaultPath])
-
-  const handleReopenVault = useCallback(async () => {
-    if (lastVault) await openVaultPath(lastVault.path)
-  }, [lastVault, openVaultPath])
-
-  const handleBackup = useCallback(async () => {
-    if (!store.vaultPath) { notify('No vault open'); return }
-    const dest = await window.api.backupVault(store.vaultPath)
-    if (dest) notify(`Backup saved to: ${dest}`)
-  }, [store.vaultPath])
-
-  // ── File operations ───────────────────────────────────────────────────────
-  const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
-
-  const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
-    if (store.isDirty && store.activeFile && !isDocumentFile(store.activeFile.path)) {
-      await window.api.writeFile(store.activeFile.path, store.activeContent)
-      store.setDirty(false)
-    }
-    store.setActiveFile(file)
-    if (!isDocumentFile(file.path)) {
-      let content = contentCacheRef.current[file.path]
-      if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
-      store.setActiveContent(content)
-    } else {
-      store.setActiveContent('') // binary document — no markdown content
-    }
-    store.setDirty(false)
-
-    if (!fromNav) {
-      const { history, index } = navRef.current
-      const trimmed = history.slice(0, index + 1)
-      navRef.current = { history: [...trimmed, file], index: trimmed.length }
-      setNavCanBack(navRef.current.index > 0)
-      setNavCanForward(false)
-    }
-  }, [])
-
-  const handleNavBack = useCallback(async () => {
-    const { history, index } = navRef.current
-    if (index <= 0) return
-    navRef.current = { history, index: index - 1 }
-    setNavCanBack(index - 1 > 0)
-    setNavCanForward(true)
-    await handleFileSelect(history[index - 1], true)
-  }, [handleFileSelect])
-
-  const handleNavForward = useCallback(async () => {
-    const { history, index } = navRef.current
-    if (index >= history.length - 1) return
-    navRef.current = { history, index: index + 1 }
-    setNavCanBack(true)
-    setNavCanForward(index + 1 < history.length - 1)
-    await handleFileSelect(history[index + 1], true)
-  }, [handleFileSelect])
-
-  const handleFileSelectByName = useCallback(async (noteName: string) => {
-    const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
-    if (file) await handleFileSelect(file)
-  }, [store.files, handleFileSelect])
-
-  const handleFileDeleted = useCallback((path: string) => {
-    if (store.activeFile?.path === path) {
-      store.setActiveFile(null)
-      store.setActiveContent('')
-    }
-    const { history, index } = navRef.current
-    const newHistory = history.filter((f) => f.path !== path)
-    const newIndex = Math.min(index, newHistory.length - 1)
-    navRef.current = { history: newHistory, index: newIndex }
-    setNavCanBack(newIndex > 0)
-    setNavCanForward(newIndex < newHistory.length - 1)
-  }, [store.activeFile?.path])
-
-  // ── TOC jump ──────────────────────────────────────────────────────────────
-  const handleTocJump = useCallback((id: string) => {
-    const preview = document.querySelector('.markdown-preview')
-    if (!preview) return
-    const target = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [])
-
-  // ── Daily note ────────────────────────────────────────────────────────────
-  const handleDailyNote = useCallback(async () => {
-    if (!store.vaultPath) { notify('Open a vault first'); return }
-    const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-    const existing = store.files.find((f) => f.name === today)
-    if (existing) { await handleFileSelect(existing); return }
-    const result = await window.api.createFile(store.vaultPath, today)
-    if (result.error && !result.path) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-    const files = flattenTree(tree)
-    const newFile = files.find((f) => f.path === result.path)
-    if (newFile) {
-      const initialContent = `# ${today}\n\n`
-      contentCacheRef.current[newFile.path] = initialContent
-      await window.api.writeFile(newFile.path, initialContent)
-      await handleFileSelect(newFile)
-    }
-  }, [store.vaultPath, store.files, handleFileSelect, notify])
-
-  // ── Companion notes (PDF, DOCX) ───────────────────────────────────────────
-  const handleOpenCompanionNote = useCallback(async () => {
-    if (!store.activeFile || !store.vaultPath) return
-    const baseName = store.activeFile.name.replace(/\.[^.]+$/, '')
-    const noteName = `${baseName} - Notes`
-    const srcPath = store.activeFile.path
-    const dir = srcPath.substring(0, Math.max(srcPath.lastIndexOf('/'), srcPath.lastIndexOf('\\')))
-    const existing = store.files.find((f) => f.name === noteName)
-    if (existing) { await handleFileSelect(existing); return }
-    const result = await window.api.createFile(store.vaultPath, noteName, dir || store.vaultPath)
-    if (result.error && !result.path) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-    const files = flattenTree(tree)
-    const newFile = files.find((f) => f.path === result.path)
-    if (newFile) {
-      const initialContent = `# Notes: ${baseName}\n\n`
-      contentCacheRef.current[newFile.path] = initialContent
-      await window.api.writeFile(newFile.path, initialContent)
-      await handleFileSelect(newFile)
-    }
-  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
-
-  // ── DOCX → Markdown conversion (mammoth HTML + turndown) ─────────────────
-  const handleConvertToMd = useCallback(async () => {
-    if (!store.activeFile || !store.vaultPath) return
-    const baseName = store.activeFile.name.replace(/\.docx$/i, '')
-    const srcPath = store.activeFile.path
-    const dir = srcPath.substring(0, Math.max(srcPath.lastIndexOf('/'), srcPath.lastIndexOf('\\')))
-
-    // If .md already exists, just open it
-    const existing = store.files.find((f) => f.name === baseName)
-    if (existing) {
-      notify(`Opening existing note: ${baseName}`)
-      await handleFileSelect(existing)
-      return
-    }
-
-    setIsConverting(true)
-    try {
-      const { html, error } = await window.api.docxToHtml(srcPath)
-      if (error) { notify(`Conversion failed: ${error}`); return }
-
-      // Use turndown for better HTML→Markdown (preserves headings, tables, lists)
-      const TurndownService = (await import('turndown')).default
-      const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced', hr: '---' })
-      const markdown = td.turndown(html)
-
-      const result = await window.api.createFile(store.vaultPath, baseName, dir || store.vaultPath)
-      if (result.error && !result.path) { notify(result.error); return }
-      await window.api.writeFile(result.path!, markdown)
-
-      const tree = await window.api.listTree(store.vaultPath)
-      store.setTree(tree)
-      const files = flattenTree(tree)
-      const newFile = files.find((f) => f.path === result.path)
-      if (newFile) {
-        contentCacheRef.current[newFile.path] = markdown
-        await handleFileSelect(newFile)
-        notify(`Converted to ${baseName}.md`)
-      }
-    } finally {
-      setIsConverting(false)
-    }
-  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
-
-  // ── Open document in system default app ───────────────────────────────────
-  const handleOpenInApp = useCallback(async () => {
-    if (!store.activeFile) return
-    const err = await window.api.openInApp(store.activeFile.path)
-    if (err) notify(`Could not open: ${err}`)
-  }, [store.activeFile, notify])
-
-  // ── New note (uses template modal) ────────────────────────────────────────
-  const handleNewNote = useCallback(async (folderPath?: string) => {
-    if (!store.vaultPath) { await handleOpenVault(); return }
-    setTemplateFolder(folderPath)
-    setTemplateOpen(true)
-  }, [store.vaultPath, handleOpenVault])
-
-  const handleTemplateConfirm = useCallback(async (name: string, content: string) => {
-    setTemplateOpen(false)
-    if (!store.vaultPath) return
-    const result = await window.api.createFile(store.vaultPath, name, templateFolder)
-    if (result.error) { alert(result.error); return }
-    // Write template content
-    if (result.path) await window.api.writeFile(result.path, content)
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-    const files = flattenTree(tree)
-    const newFile = files.find((f) => f.path === result.path)
-    if (newFile) {
-      contentCacheRef.current[newFile.path] = content
-      store.setActiveFile(newFile)
-      store.setActiveContent(content)
-      store.setDirty(false)
-    }
-  }, [store.vaultPath, templateFolder])
-
-  const handleNewFolder = useCallback(async (parentPath?: string, name?: string) => {
-    if (!store.vaultPath || !name?.trim()) return
-    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
-    if (result.error) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-  }, [store.vaultPath, notify])
-
-  const handleContentChange = useCallback((value: string) => {
-    store.setActiveContent(value)
-    if (store.activeFile) contentCacheRef.current[store.activeFile.path] = value
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
-      if (store.activeFile) {
-        await window.api.writeFile(store.activeFile.path, value)
-        store.setDirty(false)
-        store.buildBacklinks(store.files, contentCacheRef.current)
-        // Update index cache entry for the saved file
-        if (store.vaultPath) {
-          const cached = await window.api.loadIndex(store.vaultPath)
-          if (cached) {
-            const tree = await window.api.listTree(store.vaultPath)
-            const mtimeMap = buildMtimeMap(tree)
-            cached.entries[store.activeFile.path] = {
-              mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
-              content: value
-            }
-            window.api.saveIndex(store.vaultPath, cached)
-          }
-        }
-      }
-    }, 800)
-  }, [store.activeFile?.path, store.files])
-
-  // ── Export ────────────────────────────────────────────────────────────────
-  const handleExportHTML = useCallback(async () => {
-    if (!store.activeFile) return
-    setExportMenuOpen(false)
-    // Get rendered HTML from the preview pane (or convert inline)
-    const { unified } = await import('unified')
-    const { default: remarkParse } = await import('remark-parse')
-    const { default: remarkGfm } = await import('remark-gfm')
-    const { default: remarkHtml } = await import('remark-html')
-    const result = await unified().use(remarkParse).use(remarkGfm).use(remarkHtml, { sanitize: false }).process(store.activeContent)
-    const dest = await window.api.exportHtml(store.activeFile.name, String(result))
-    if (dest) notify(`Exported to: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile, store.activeContent])
-
-  const handleExportPDF = useCallback(async () => {
-    if (!store.activeFile) return
-    setExportMenuOpen(false)
-    // Switch to preview mode for clean PDF
-    setViewMode('preview')
-    await new Promise((r) => setTimeout(r, 200))
-    const dest = await window.api.exportPdf(store.activeFile.name)
-    if (dest) notify(`PDF saved: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile])
-
-  // ── Vault file watch ──────────────────────────────────────────────────────
+  // ── Vault file watcher ────────────────────────────────────────────────────
   useEffect(() => {
     if (!store.vaultPath) return
     const vp = store.vaultPath
@@ -434,7 +216,7 @@ export default function App() {
     return () => { u1(); u2(); u3(); u4(); u5() }
   }, [store.vaultPath])
 
-  // ── Menu events ───────────────────────────────────────────────────────────
+  // ── Native menu events ────────────────────────────────────────────────────
   useEffect(() => {
     const u1 = window.api.onMenuOpenVault(handleOpenVault)
     const u2 = window.api.onMenuNewNote(() => handleNewNote())
@@ -444,7 +226,7 @@ export default function App() {
     return () => { u1(); u2(); u3(); u4(); u5() }
   }, [handleOpenVault, handleNewNote, handleBackup])
 
-  // ── Mouse back/forward buttons ────────────────────────────────────────────
+  // ── Mouse back / forward buttons ──────────────────────────────────────────
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
       if (e.button === 3) { e.preventDefault(); handleNavBack() }
@@ -459,19 +241,16 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.shiftKey && e.key === 'F') { e.preventDefault(); store.toggleSearch() }
-      if (ctrl && e.key === 'n')   { e.preventDefault(); handleNewNote() }
-      if (ctrl && e.key === '\\')  { e.preventDefault(); setSidebarCollapsed((c) => !c) }
+      if (ctrl && e.key === 'n')               { e.preventDefault(); handleNewNote() }
+      if (ctrl && e.key === '\\')              { e.preventDefault(); setSidebarCollapsed((c) => !c) }
       if (ctrl && e.shiftKey && e.key === 'B') { e.preventDefault(); handleBackup() }
-      if (ctrl && e.key === ',')   { e.preventDefault(); setSettingsOpen(true) }
-      if (ctrl && e.key === 'g')   { e.preventDefault(); setGraphOpen((o) => !o) }
-      if (e.key === 'F1')          { e.preventDefault(); setHelpOpen((o) => !o) }
-      // Zoom
+      if (ctrl && e.key === ',')               { e.preventDefault(); setSettingsOpen(true) }
+      if (ctrl && e.key === 'g')               { e.preventDefault(); setGraphOpen((o) => !o) }
+      if (e.key === 'F1')                      { e.preventDefault(); setHelpOpen((o) => !o) }
       if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); setSettings({ fontSize: Math.min(settings.fontSize + 1, 26) }) }
-      if (ctrl && e.key === '-')   { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
-      if (ctrl && e.key === '0')   { e.preventDefault(); setSettings({ fontSize: 14 }) }
-      // Find
-      if (ctrl && e.key === 'f')   { editorRef.current?.openFind() }
-      // Navigation history
+      if (ctrl && e.key === '-')               { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
+      if (ctrl && e.key === '0')               { e.preventDefault(); setSettings({ fontSize: 14 }) }
+      if (ctrl && e.key === 'f')               { editorRef.current?.openFind() }
       if (e.altKey && !ctrl && e.key === 'ArrowLeft')  { e.preventDefault(); handleNavBack() }
       if (e.altKey && !ctrl && e.key === 'ArrowRight') { e.preventDefault(); handleNavForward() }
     }
@@ -479,11 +258,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
 
+  // ── Derived ───────────────────────────────────────────────────────────────
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
-  const noVault  = !store.vaultPath
-  const isPdf    = store.activeFile?.path.endsWith('.pdf')  ?? false
-  const isDocx   = store.activeFile?.path.endsWith('.docx') ?? false
-  const isDoc    = isPdf || isDocx
+  const noVault = !store.vaultPath
+  const isPdf   = store.activeFile?.path.endsWith('.pdf')  ?? false
+  const isDocx  = store.activeFile?.path.endsWith('.docx') ?? false
+  const isDoc   = isPdf || isDocx
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -523,18 +303,8 @@ export default function App() {
           <div className="editor-area">
             <div className="editor-toolbar">
               <div className="toolbar-left">
-                <button
-                  className="toolbar-nav-btn"
-                  onClick={handleNavBack}
-                  disabled={!navCanBack}
-                  title="Back (Alt+← or mouse button 4)"
-                >‹</button>
-                <button
-                  className="toolbar-nav-btn"
-                  onClick={handleNavForward}
-                  disabled={!navCanForward}
-                  title="Forward (Alt+→ or mouse button 5)"
-                >›</button>
+                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title="Back (Alt+← or mouse button 4)">‹</button>
+                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title="Forward (Alt+→ or mouse button 5)">›</button>
                 <span className="note-title">
                   {store.activeFile.name}
                   {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
@@ -551,39 +321,19 @@ export default function App() {
                       </button>
                     ))}
                     <span className="view-toggle-sep" />
-                    <button
-                      className="view-toggle-find"
-                      onClick={() => editorRef.current?.openFind()}
-                      title="Find & Replace (Ctrl+F)"
-                    >
-                      🔍
-                    </button>
+                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title="Find & Replace (Ctrl+F)">🔍</button>
                   </div>
                 </div>
               )}
 
               <div className="toolbar-right">
-                <button
-                  className="toolbar-icon-btn"
-                  onClick={handleDailyNote}
-                  title="Daily Note (today)"
-                >📅</button>
+                <button className="toolbar-icon-btn" onClick={handleDailyNote} title="Daily Note (today)">📅</button>
                 {!isDoc && (
-                  <button
-                    className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`}
-                    onClick={() => setTocOpen((o) => !o)}
-                    title="Table of Contents"
-                  >≡</button>
+                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title="Table of Contents">≡</button>
                 )}
                 {!isDoc && (
                   <div style={{ position: 'relative' }}>
-                    <button
-                      className="toolbar-icon-btn"
-                      onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }}
-                      title="Export note"
-                    >
-                      ↓
-                    </button>
+                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title="Export note">↓</button>
                     {exportMenuOpen && (
                       <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
                         <button onClick={handleExportHTML}>Export as HTML</button>
@@ -643,27 +393,20 @@ export default function App() {
                   </div>
 
                   {tocOpen && (
-                    <TocPanel
-                      content={store.activeContent}
-                      onJump={handleTocJump}
-                      onClose={() => setTocOpen(false)}
-                    />
+                    <TocPanel content={store.activeContent} onJump={handleTocJump} onClose={() => setTocOpen(false)} />
                   )}
                 </>
               )}
             </div>
 
-            <StatusBar
-              stats={editorStats}
-              onOpenFind={() => editorRef.current?.openFind()}
-            />
+            <StatusBar stats={editorStats} onOpenFind={() => editorRef.current?.openFind()} />
           </div>
         )}
       </main>
 
-      {settingsOpen && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
-      {helpOpen     && <HelpModal onClose={() => setHelpOpen(false)} />}
-      {templateOpen && (
+      {settingsOpen  && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
+      {helpOpen      && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {templateOpen  && (
         <TemplateModal
           onConfirm={handleTemplateConfirm}
           onCancel={() => setTemplateOpen(false)}
@@ -709,16 +452,4 @@ function EmptyState({ onNewNote, onOpenGraph, hasNotes }: { onNewNote: () => voi
       </div>
     </div>
   )
-}
-
-function buildMtimeMap(nodes: TreeNode[]): Record<string, number> {
-  const map: Record<string, number> = {}
-  const walk = (ns: TreeNode[]) => {
-    for (const n of ns) {
-      if (n.type === 'file') map[n.path] = n.mtime ?? 0
-      if (n.children) walk(n.children)
-    }
-  }
-  walk(nodes)
-  return map
 }
