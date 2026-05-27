@@ -41,11 +41,14 @@ const vp = {
 
 // ── SAF tree listing ──────────────────────────────────────────────────────────
 
-async function safListTree(treeUri: string, dirRel: string): Promise<TreeNode[]> {
+async function safListTree(treeUri: string, dirRel: string, topLevel = false): Promise<TreeNode[]> {
   let entries: Awaited<ReturnType<typeof SafPlugin.listDir>>
   try {
     entries = await SafPlugin.listDir({ uri: treeUri, path: dirRel })
-  } catch {
+  } catch (e: any) {
+    // Top-level failure likely means SAF permissions were revoked — propagate so the
+    // caller can show a meaningful error message. Subdirectory failures silently skip.
+    if (topLevel) throw new Error('Cannot access folder. Please re-import it from the vault picker. (' + (e?.message ?? e) + ')')
     return []
   }
   const nodes: TreeNode[] = []
@@ -58,7 +61,7 @@ async function safListTree(treeUri: string, dirRel: string): Promise<TreeNode[]>
       name: d.name,
       path: safFile(treeUri, rel),
       type: 'directory',
-      children: await safListTree(treeUri, rel),
+      children: await safListTree(treeUri, rel, false),
     })
   }
   for (const f of files) {
@@ -214,7 +217,8 @@ export const capacitorApi: AppAPI = {
   async pickExternalVault(): Promise<VaultInfo | null> {
     try {
       const result = await SafPlugin.pickFolder()
-      if (!result) return null
+      // call.resolve() with no args returns {} in Capacitor — check uri explicitly
+      if (!result?.uri) return null
       await addSafVault(result.uri, result.displayName)
       return { path: result.uri, displayName: result.displayName, type: 'external' }
     } catch {
@@ -224,7 +228,7 @@ export const capacitorApi: AppAPI = {
 
   async listTree(vaultPath) {
     if (isSaf(vaultPath)) {
-      return safListTree(vaultPath, '')
+      return safListTree(vaultPath, '', true) // topLevel=true → throws on permission loss
     }
     return walkTree(vaultPath)
   },

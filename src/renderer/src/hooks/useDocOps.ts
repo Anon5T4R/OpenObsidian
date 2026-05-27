@@ -22,9 +22,8 @@ export function useDocOps(
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, noteName, dir || store.vaultPath)
     if (result.error && !result.path) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-    const files = flattenTree(tree)
+    let files = store.files
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree); files = flattenTree(tree) } catch {}
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
       const initialContent = `# Notes: ${baseName}\n\n`
@@ -60,9 +59,8 @@ export function useDocOps(
       if (result.error && !result.path) { notify(result.error); return }
       await window.api.writeFile(result.path!, markdown)
 
-      const tree = await window.api.listTree(store.vaultPath)
-      store.setTree(tree)
-      const files = flattenTree(tree)
+      let files = store.files
+      try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree); files = flattenTree(tree) } catch {}
       const newFile = files.find((f) => f.path === result.path)
       if (newFile) {
         contentCacheRef.current[newFile.path] = markdown

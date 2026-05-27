@@ -17,15 +17,19 @@ export function useAutoSave() {
         store.setDirty(false)
         store.buildBacklinks(store.files, contentCacheRef.current)
         if (store.vaultPath) {
-          const cached = await window.api.loadIndex(store.vaultPath)
-          if (cached) {
-            const tree = await window.api.listTree(store.vaultPath)
-            const mtimeMap = buildMtimeMap(tree)
-            cached.entries[store.activeFile.path] = {
-              mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
-              content: value,
+          try {
+            const cached = await window.api.loadIndex(store.vaultPath)
+            if (cached) {
+              const tree = await window.api.listTree(store.vaultPath)
+              const mtimeMap = buildMtimeMap(tree)
+              cached.entries[store.activeFile.path] = {
+                mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
+                content: value,
+              }
+              window.api.saveIndex(store.vaultPath, cached)
             }
-            window.api.saveIndex(store.vaultPath, cached)
+          } catch {
+            // Index update failed (e.g. SAF permission lost) — skip silently
           }
         }
       }

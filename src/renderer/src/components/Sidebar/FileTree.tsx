@@ -236,8 +236,10 @@ export default function FileTree({
   // ── Tree refresh ───────────────────────────────────────────────────────────
   const refreshTree = useCallback(async () => {
     if (!vaultPath) return
-    const newTree = await window.api.listTree(vaultPath)
-    useVaultStore.getState().setTree(newTree)
+    try {
+      const newTree = await window.api.listTree(vaultPath)
+      useVaultStore.getState().setTree(newTree)
+    } catch {}
   }, [vaultPath])
 
   // ── Drag & drop ────────────────────────────────────────────────────────────

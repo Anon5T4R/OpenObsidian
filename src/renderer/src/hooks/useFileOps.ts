@@ -22,8 +22,7 @@ export function useFileOps(
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, today)
     if (result.error && !result.path) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree) } catch {}
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
@@ -61,8 +60,7 @@ export function useFileOps(
     const result = await window.api.createFile(store.vaultPath, name, templateFolder)
     if (result.error) { alert(result.error); return }
     if (result.path) await window.api.writeFile(result.path, content)
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree) } catch {}
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
@@ -77,8 +75,7 @@ export function useFileOps(
     if (!store.vaultPath || !name?.trim()) return
     const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
     if (result.error) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    try { const tree = await window.api.listTree(store.vaultPath); store.setTree(tree) } catch {}
   }, [store.vaultPath, notify])
 
   return {

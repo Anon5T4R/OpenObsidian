@@ -21,6 +21,8 @@ export function useVaultOps(
 
   const openVaultPath = useCallback(async (vaultPath: string) => {
     resetNav()
+    // listTree throws for SAF vaults when permissions are lost — let the error propagate
+    // so callers can show a meaningful toast to the user.
     const tree = await window.api.listTree(vaultPath)
     store.setVault(vaultPath, tree)
     await window.api.watchVault(vaultPath)
@@ -65,7 +67,10 @@ export function useVaultOps(
   }, [openVaultPath])
 
   const handleReopenVault = useCallback(async () => {
-    if (lastVault) await openVaultPath(lastVault.path)
+    if (lastVault) {
+      // May throw (e.g. SAF permissions lost) — caller is responsible for showing error
+      await openVaultPath(lastVault.path)
+    }
   }, [lastVault, openVaultPath])
 
   const handleBackup = useCallback(async () => {

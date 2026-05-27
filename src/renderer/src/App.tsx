@@ -217,7 +217,9 @@ export default function App() {
   useEffect(() => {
     if (!store.vaultPath) return
     const vp = store.vaultPath
-    const reload = async () => { const tree = await window.api.listTree(vp); store.setTree(tree) }
+    const reload = async () => {
+      try { const tree = await window.api.listTree(vp); store.setTree(tree) } catch {}
+    }
     const u1 = window.api.onFileAdded(reload)
     const u2 = window.api.onFileRemoved((p) => { store.removeFile(p); reload() })
     const u3 = window.api.onDirAdded(reload)
@@ -311,7 +313,19 @@ export default function App() {
         {store.searchOpen ? (
           <SearchPanel onFileSelect={(file) => { store.setSearchOpen(false); handleFileSelect(file) }} onClose={() => store.setSearchOpen(false)} />
         ) : noVault ? (
-          <WelcomeScreen onOpenVault={handleOpenVault} onHelp={() => setHelpOpen(true)} lastVault={lastVault} onReopenVault={handleReopenVault} />
+          <WelcomeScreen
+            onOpenVault={handleOpenVault}
+            onHelp={() => setHelpOpen(true)}
+            lastVault={lastVault}
+            onReopenVault={async () => {
+              try {
+                await handleReopenVault()
+                if (isMobile) setSidebarCollapsed(false)
+              } catch (e: any) {
+                notify(e?.message ?? 'Could not reopen vault')
+              }
+            }}
+          />
         ) : !store.activeFile ? (
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
             {graphOpen
@@ -475,7 +489,16 @@ export default function App() {
       )}
       {vaultPickerOpen && (
         <VaultPickerModal
-          onSelect={async (vaultPath) => { setVaultPickerOpen(false); await openVaultPath(vaultPath) }}
+          onSelect={async (vaultPath) => {
+            setVaultPickerOpen(false)
+            try {
+              await openVaultPath(vaultPath)
+              // Expand sidebar so the user can immediately see their files
+              if (isMobile) setSidebarCollapsed(false)
+            } catch (e: any) {
+              notify(e?.message ?? 'Could not open vault')
+            }
+          }}
           onCancel={() => setVaultPickerOpen(false)}
         />
       )}
