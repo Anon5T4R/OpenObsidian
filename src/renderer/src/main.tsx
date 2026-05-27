@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/global.css'
 
+// On Electron, window.api is injected by the preload script before this runs.
+// On Android (Capacitor), there is no preload — we dynamically import capacitorApi.
 async function mount() {
-  // On Electron, window.api is injected by the preload script before this runs.
-  // On Android (Capacitor), it is not — so we load the Capacitor bridge here.
   if (!window.api) {
     const { capacitorApi } = await import('./api/capacitorApi')
     ;(window as any).api = capacitorApi

@@ -510,6 +510,10 @@ export const capacitorApi: AppAPI = {
     } catch { return false }
   },
 
+  // ── Document viewers (Electron-only — no-op stubs on Android) ───────────────
+  async docxToHtml(_path) { return { html: '', error: 'DOCX viewer not supported on Android' } },
+  async openInApp(_path)  { return null },
+
   // ── Shell ────────────────────────────────────────────────────────────────────
   async showItemInFolder(_path) {},
 

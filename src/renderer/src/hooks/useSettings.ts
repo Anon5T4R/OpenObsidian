@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import type { Locale } from '../i18n'
+import { detectLocale } from '../i18n'
 
 export type Theme = 'dark' | 'light'
 export type SidebarSort = 'name' | 'name-desc' | 'modified'
@@ -9,14 +11,16 @@ export interface Settings {
   editorFont: string
   sidebarWidth: number
   sidebarSort: SidebarSort
+  locale: Locale
 }
 
 const DEFAULTS: Settings = {
-  theme: 'dark',
-  fontSize: 14,
-  editorFont: 'JetBrains Mono, Fira Code, monospace',
+  theme:       'dark',
+  fontSize:    14,
+  editorFont:  'JetBrains Mono, Fira Code, monospace',
   sidebarWidth: 240,
-  sidebarSort: 'name'
+  sidebarSort: 'name',
+  locale:      detectLocale(),
 }
 
 function load(): Settings {

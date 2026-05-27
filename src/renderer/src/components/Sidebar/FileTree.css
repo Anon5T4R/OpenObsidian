@@ -323,27 +323,26 @@
   z-index: 999;
 }
 
-/* ── Mobile touch targets ───────────────────────────────────────────────── */
-.file-tree.mobile .btn-icon {
-  width: 40px;
-  height: 40px;
-  font-size: 18px;
+/* ── Mobile touch targets ────────────────────────────────────────────── */
+.file-tree.mobile-tree .btn-icon {
+  font-size: 20px;
+  padding: 6px 8px;
+  min-width: 40px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  border-radius: 6px;
 }
 
-.file-tree.mobile .collapse-btn {
-  font-size: 16px;
+.file-tree.mobile-tree .collapse-btn {
+  font-size: 18px;
 }
 
-.file-tree.mobile .file-tree-header {
-  padding: 6px 8px;
-  gap: 4px;
+.file-tree.mobile-tree .file-tree-header {
+  padding: 8px 6px;
 }
 
-.file-tree.mobile .file-tree-actions {
-  gap: 4px;
+.file-tree.mobile-tree .tree-item {
+  min-height: 36px;
+  font-size: 14px;
 }

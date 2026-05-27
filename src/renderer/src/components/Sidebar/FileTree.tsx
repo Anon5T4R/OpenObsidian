@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { useVaultStore, NoteFile, TreeNode } from '../../store/vaultStore'
 import { SidebarSort } from '../../hooks/useSettings'
+import { useT } from '../../i18n'
 import './FileTree.css'
 
 interface FileTreeProps {
@@ -14,7 +15,6 @@ interface FileTreeProps {
   onOpenVault: () => void
   onNotify: (msg: string) => void
   onFileDeleted: (path: string) => void
-  onOpenSearch: () => void
   mobile?: boolean
 }
 
@@ -22,9 +22,27 @@ type CtxMenu = { x: number; y: number; node: TreeNode }
 
 function useCtxMenu() {
   const [menu, setMenu] = useState<CtxMenu | null>(null)
-  const open  = useCallback((e: React.MouseEvent, node: TreeNode) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, node }) }, [])
+  const [pos,  setPos]  = useState<{ top: number; left: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const open = useCallback((e: React.MouseEvent, node: TreeNode) => {
+    e.preventDefault(); e.stopPropagation()
+    setPos(null)
+    setMenu({ x: e.clientX, y: e.clientY, node })
+  }, [])
+
   const close = useCallback(() => setMenu(null), [])
-  return { menu, open, close }
+
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return
+    const { height, width } = menuRef.current.getBoundingClientRect()
+    setPos({
+      top:  menu.y + height > window.innerHeight ? Math.max(0, menu.y - height) : menu.y,
+      left: menu.x + width  > window.innerWidth  ? Math.max(0, menu.x - width)  : menu.x,
+    })
+  }, [menu])
+
+  return { menu, open, close, menuRef, pos }
 }
 
 function sortNodes(nodes: TreeNode[], sort: SidebarSort): TreeNode[] {
@@ -101,6 +119,7 @@ function TreeNodeRow({
     if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return null
     const isActive = activeFilePath === node.path
     const file: NoteFile = { name: node.name, path: node.path, relativePath: node.path }
+    const fileIcon = node.path.endsWith('.pdf') ? '📕' : node.path.endsWith('.docx') ? '📝' : '📄'
     return (
       <div
         className={`tree-item ${isActive ? 'active' : ''}`}
@@ -111,9 +130,9 @@ function TreeNodeRow({
         draggable={!isRenaming}
         onDragStart={handleDragStart}
       >
-        {collapsed ? <span className="tree-icon">📄</span> : (
+        {collapsed ? <span className="tree-icon">{fileIcon}</span> : (
           <>
-            <span className="tree-icon">📄</span>
+            <span className="tree-icon">{fileIcon}</span>
             {isRenaming ? renameInput : <span className="tree-label">{node.name}</span>}
             {!isRenaming && isPinned && <span className="tree-pin-dot" title="Pinned">📌</span>}
           </>
@@ -170,9 +189,10 @@ function flatHasMatch(node: TreeNode, query: string): boolean {
 
 export default function FileTree({
   collapsed, sort, onSortChange, onFileSelect, onNewNote, onNewFolder,
-  onToggleCollapse, onOpenVault, onNotify, onFileDeleted, onOpenSearch, mobile
+  onToggleCollapse, onOpenVault, onNotify, onFileDeleted, mobile
 }: FileTreeProps) {
   const store = useVaultStore()
+  const t = useT()
   const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter, setTagFilter } = store
   const [search, setSearch] = useState('')
 
@@ -211,7 +231,7 @@ export default function FileTree({
   const [confirmDelete, setConfirmDelete] = useState<TreeNode | null>(null)
 
   // ── Context menu ───────────────────────────────────────────────────────────
-  const { menu, open: openCtx, close: closeCtx } = useCtxMenu()
+  const { menu, open: openCtx, close: closeCtx, menuRef, pos } = useCtxMenu()
 
   // ── Tree refresh ───────────────────────────────────────────────────────────
   const refreshTree = useCallback(async () => {
@@ -293,7 +313,7 @@ export default function FileTree({
   }, [closeCtx, renaming])
 
   return (
-    <div className={`file-tree ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile' : ''}`} onClick={closeAll}>
+    <div className={`file-tree ${collapsed ? 'collapsed' : ''}${mobile ? ' mobile-tree' : ''}`} onClick={closeAll}>
 
       {/* Backdrop to close context menu / folder input when clicking outside sidebar */}
       {(menu || folderInput !== null) && (
@@ -312,24 +332,22 @@ export default function FileTree({
         <div className="file-tree-actions">
           {!collapsed && vaultPath && (
             <>
-              <button className="btn-icon" onClick={() => onNewNote()} title="New Note (Ctrl+N)">+</button>
-              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setFolderInput({}) }} title="New Folder">📁</button>
+              <button className="btn-icon" onClick={() => onNewNote()} title={t('newNoteBtn')}>+</button>
+              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); setFolderInput({}) }} title={t('newFolderBtn')}>📁</button>
+              <button className="btn-icon" onClick={() => useVaultStore.getState().toggleSearch()} title={t('searchNotesBtn')}>🔍</button>
               <select
                 className="sort-select"
                 value={sort}
                 onChange={(e) => onSortChange(e.target.value as SidebarSort)}
                 title="Sort order"
               >
-                <option value="name">A→Z</option>
-                <option value="name-desc">Z→A</option>
-                <option value="modified">Recent</option>
+                <option value="name">{t('sortAZ')}</option>
+                <option value="name-desc">{t('sortZA')}</option>
+                <option value="modified">{t('sortRecent')}</option>
               </select>
             </>
           )}
-          {vaultPath && (
-            <button className="btn-icon" onClick={onOpenSearch} title="Search all notes (Ctrl+Shift+F)">⌕</button>
-          )}
-          <button className="btn-icon collapse-btn" onClick={onToggleCollapse} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar (Ctrl+\\)'}>
+          <button className="btn-icon collapse-btn" onClick={onToggleCollapse} title={collapsed ? t('expandSidebar') : t('collapseSidebar')}>
             {collapsed ? '→' : '←'}
           </button>
         </div>
@@ -337,7 +355,7 @@ export default function FileTree({
 
       {!collapsed && (
         <div className="file-tree-search">
-          <input placeholder="Filter notes…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input placeholder={t('filterNotes')} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       )}
 
@@ -352,7 +370,7 @@ export default function FileTree({
               if (e.key === 'Enter')  { e.stopPropagation(); commitFolderCreate() }
               if (e.key === 'Escape') { e.stopPropagation(); setFolderInput(null) }
             }}
-            placeholder="Folder name…"
+            placeholder={t('folderNamePlaceholder')}
           />
         </div>
       )}
@@ -360,7 +378,7 @@ export default function FileTree({
       {/* Pinned section */}
       {!collapsed && pinnedFiles.length > 0 && (
         <div className="pinned-section">
-          <div className="pinned-label">📌 Pinned</div>
+          <div className="pinned-label">{t('pinned')}</div>
           {pinnedFiles.map((f) => (
             <div
               key={f.path}
@@ -375,24 +393,7 @@ export default function FileTree({
         </div>
       )}
 
-      {/* Tags filter */}
-      {!collapsed && tagList.length > 0 && (
-        <div className="tag-strip">
-          {tagFilter && (
-            <button className="tag-chip tag-chip-clear" onClick={() => setTagFilter(null)} title="Clear filter">✕</button>
-          )}
-          {tagList.map((tag) => (
-            <button
-              key={tag}
-              className={`tag-chip ${tagFilter === tag ? 'active' : ''}`}
-              onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-              title={`${tags[tag].length} note${tags[tag].length !== 1 ? 's' : ''}`}
-            >
-              #{tag}
-            </button>
-          ))}
-        </div>
-      )}
+
 
       <div
         className="file-tree-list"
@@ -400,9 +401,9 @@ export default function FileTree({
         onDrop={handleDropOnRoot}
       >
         {!vaultPath ? (
-          !collapsed && <div className="file-tree-empty"><button className="open-vault-btn" onClick={onOpenVault}>Open Vault…</button></div>
+          !collapsed && <div className="file-tree-empty"><button className="open-vault-btn" onClick={onOpenVault}>{t('openVaultBtn')}</button></div>
         ) : sortedTree.length === 0 ? (
-          !collapsed && <div className="file-tree-empty">No notes yet</div>
+          !collapsed && <div className="file-tree-empty">{t('noNotes')}</div>
         ) : (
           sortedTree
             .filter((node) => {
@@ -429,37 +430,46 @@ export default function FileTree({
       </div>
 
       {menu && (
-        <div className="context-menu" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={menuRef}
+          className="context-menu"
+          style={{
+            top:        pos?.top  ?? menu.y,
+            left:       pos?.left ?? menu.x,
+            visibility: pos ? 'visible' : 'hidden',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {menu.node.type === 'directory' && (
             <>
-              <button onClick={() => { onNewNote(menu.node.path); closeCtx() }}>📄 New Note Here</button>
-              <button onClick={() => { setFolderInput({ parentPath: menu.node.path }); closeCtx() }}>📁 New Folder Here</button>
+              <button onClick={() => { onNewNote(menu.node.path); closeCtx() }}>{t('ctxNewNote')}</button>
+              <button onClick={() => { setFolderInput({ parentPath: menu.node.path }); closeCtx() }}>{t('ctxNewFolder')}</button>
               <hr />
             </>
           )}
-          <button onClick={handleRenameStart}>✏️ Rename</button>
+          <button onClick={handleRenameStart}>{t('ctxRename')}</button>
           {menu.node.type === 'file' && (
             <>
-              <button onClick={handleDuplicate}>📋 Duplicate</button>
+              <button onClick={handleDuplicate}>{t('ctxDuplicate')}</button>
               <button onClick={handlePin}>
-                {pinnedPaths.includes(menu.node.path) ? '📌 Unpin' : '📌 Pin to top'}
+                {pinnedPaths.includes(menu.node.path) ? t('ctxUnpin') : t('ctxPin')}
               </button>
             </>
           )}
           <hr />
-          <button onClick={() => { navigator.clipboard.writeText(menu.node.path); closeCtx() }}>📎 Copy Path</button>
-          <button onClick={() => { window.api.showItemInFolder(menu.node.path); closeCtx() }}>📂 Show in File Manager</button>
+          <button onClick={() => { navigator.clipboard.writeText(menu.node.path); closeCtx() }}>{t('ctxCopyPath')}</button>
+          <button onClick={() => { window.api.showItemInFolder(menu.node.path); closeCtx() }}>{t('ctxShowInFiles')}</button>
           <hr />
           {confirmDelete?.path === menu.node.path ? (
             <div className="ctx-confirm">
-              <div className="ctx-confirm-msg">Delete "{menu.node.name}"?</div>
+              <div className="ctx-confirm-msg">{t('ctxDeleteConfirm', { name: menu.node.name })}</div>
               <div className="ctx-confirm-btns">
-                <button onClick={handleDeleteConfirm} className="danger">Delete</button>
-                <button onClick={() => setConfirmDelete(null)}>Cancel</button>
+                <button onClick={handleDeleteConfirm} className="danger">{t('ctxDeleteBtn')}</button>
+                <button onClick={() => setConfirmDelete(null)}>{t('ctxCancelBtn')}</button>
               </div>
             </div>
           ) : (
-            <button onClick={handleDelete} className="danger">🗑 Delete</button>
+            <button onClick={handleDelete} className="danger">{t('ctxDelete')}</button>
           )}
         </div>
       )}

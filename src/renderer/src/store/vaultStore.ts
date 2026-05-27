@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { FileInfo, TreeNode } from '../../../preload/index'
+import type { FileInfo, TreeNode } from '../../../types/shared'
 
 export type NoteFile = FileInfo
 export type { TreeNode }
@@ -61,9 +61,9 @@ function savePinned(paths: string[]): void {
 export function flattenTree(nodes: TreeNode[]): NoteFile[] {
   const files: NoteFile[] = []
   function walk(node: TreeNode, prefix: string) {
-    if (node.type === 'file') {
+    if (node.type === 'file' && !node.path.endsWith('.pdf') && !node.path.endsWith('.docx')) {
       files.push({ name: node.name, path: node.path, relativePath: prefix ? `${prefix}/${node.name}.md` : `${node.name}.md` })
-    } else if (node.children) {
+    } else if (node.type === 'directory' && node.children) {
       const p = prefix ? `${prefix}/${node.name}` : node.name
       for (const child of node.children) walk(child, p)
     }

@@ -1,6 +1,12 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react'
-import { useVaultStore, NoteFile, TreeNode, flattenTree } from './store/vaultStore'
+import { useVaultStore, NoteFile, TreeNode } from './store/vaultStore'
 import { useSettings } from './hooks/useSettings'
+import { useAutoSave } from './hooks/useAutoSave'
+import { useVaultOps } from './hooks/useVaultOps'
+import { useDocOps } from './hooks/useDocOps'
+import { useFileOps } from './hooks/useFileOps'
+import { useExport } from './hooks/useExport'
+import { useT } from './i18n'
 import FileTree from './components/Sidebar/FileTree'
 import MarkdownEditor, { MarkdownEditorHandle, EditorStats } from './components/Editor/MarkdownEditor'
 import MarkdownPreview from './components/Editor/MarkdownPreview'
@@ -12,8 +18,10 @@ import SettingsModal from './components/Settings/SettingsModal'
 import GraphView from './components/Graph/GraphView'
 import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
+import PdfViewer from './components/Pdf/PdfViewer'
+import DocxViewer from './components/Docx/DocxViewer'
+import TocPanel from './components/Toc/TocPanel'
 import './styles/app.css'
-import './components/Templates/TemplateModal.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
 
@@ -21,13 +29,17 @@ const MIN_SIDEBAR = 40
 const MAX_SIDEBAR = 520
 const COLLAPSED_WIDTH = 44
 
+const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
+
 export default function App() {
   const store = useVaultStore()
   const { settings, setSettings } = useSettings()
+  const t = useT()
 
   // True when running on Android/iOS (Capacitor). Evaluated after mount so window.api is set.
   const isMobile = useMemo(() => typeof window.api?.listVaults === 'function', [])
 
+  // ── UI state ───────────────────────────────────────────────────────────────
   const [viewMode,         setViewMode]         = useState<ViewMode>(() => isMobile ? 'edit' : 'split')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => isMobile)
   const [vaultPickerOpen,  setVaultPickerOpen]  = useState(false)
@@ -37,17 +49,12 @@ export default function App() {
   const [graphOpen,        setGraphOpen]        = useState(false)
   const [helpOpen,         setHelpOpen]         = useState(false)
   const [notification,     setNotification]     = useState<string | null>(null)
-  const [lastVault,        setLastVault]        = useState<{ path: string; name: string } | null>(null)
-  const [exportMenuOpen,   setExportMenuOpen]   = useState(false)
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
-  const [templateFolder,   setTemplateFolder]   = useState<string | undefined>(undefined)
-  const [templateOpen,     setTemplateOpen]     = useState(false)
+  const [tocOpen,          setTocOpen]          = useState(false)
   const [mobileFindOpen,   setMobileFindOpen]   = useState(false)
   const [mobileFindQuery,  setMobileFindQuery]  = useState('')
 
-  const editorRef       = useRef<MarkdownEditorHandle>(null)
-  const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const contentCacheRef = useRef<Record<string, string>>({})
+  const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
   const isResizingSplit   = useRef(false)
 
@@ -56,17 +63,114 @@ export default function App() {
   const [navCanBack,    setNavCanBack]    = useState(false)
   const [navCanForward, setNavCanForward] = useState(false)
 
-  // Load last vault on startup
-  useEffect(() => {
-    window.api.getLastVault().then((vp) => {
-      if (vp) setLastVault({ path: vp, name: vp.split(/[/\\]/).pop() ?? vp })
-    })
-  }, [])
-
   // ── Notification ──────────────────────────────────────────────────────────
   const notify = useCallback((msg: string) => {
     setNotification(msg)
     setTimeout(() => setNotification(null), 3000)
+  }, [])
+
+  // ── Reset nav on vault switch ─────────────────────────────────────────────
+  const resetNav = useCallback(() => {
+    navRef.current = { history: [], index: -1 }
+    setNavCanBack(false)
+    setNavCanForward(false)
+  }, [])
+
+  // ── Hooks ─────────────────────────────────────────────────────────────────
+  const { contentCacheRef, handleContentChange } = useAutoSave()
+
+  const { openVaultPath, handleOpenVault: _handleOpenVaultPC, handleReopenVault, handleBackup, lastVault } =
+    useVaultOps(contentCacheRef, notify, resetNav)
+
+  // On Android: show in-app vault picker. On desktop: native dialog.
+  const handleOpenVault = useCallback(async () => {
+    if (isMobile) { setVaultPickerOpen(true); return }
+    await _handleOpenVaultPC()
+  }, [isMobile, _handleOpenVaultPC])
+
+  // ── Core file select ──────────────────────────────────────────────────────
+  const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
+    if (store.isDirty && store.activeFile && !isDocumentFile(store.activeFile.path)) {
+      await window.api.writeFile(store.activeFile.path, store.activeContent)
+      store.setDirty(false)
+    }
+    store.setActiveFile(file)
+    if (!isDocumentFile(file.path)) {
+      let content = contentCacheRef.current[file.path]
+      if (content === undefined) {
+        content = await window.api.readFile(file.path)
+        contentCacheRef.current[file.path] = content
+      }
+      store.setActiveContent(content)
+    } else {
+      store.setActiveContent('')
+    }
+    store.setDirty(false)
+    // Reset mobile find bar on file change
+    setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
+
+    if (!fromNav) {
+      const { history, index } = navRef.current
+      const trimmed = history.slice(0, index + 1)
+      navRef.current = { history: [...trimmed, file], index: trimmed.length }
+      setNavCanBack(navRef.current.index > 0)
+      setNavCanForward(false)
+    }
+  }, [])
+
+  // ── Nav back / forward ────────────────────────────────────────────────────
+  const handleNavBack = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index <= 0) return
+    navRef.current = { history, index: index - 1 }
+    setNavCanBack(index - 1 > 0)
+    setNavCanForward(true)
+    await handleFileSelect(history[index - 1], true)
+  }, [handleFileSelect])
+
+  const handleNavForward = useCallback(async () => {
+    const { history, index } = navRef.current
+    if (index >= history.length - 1) return
+    navRef.current = { history, index: index + 1 }
+    setNavCanBack(true)
+    setNavCanForward(index + 1 < history.length - 1)
+    await handleFileSelect(history[index + 1], true)
+  }, [handleFileSelect])
+
+  const handleFileSelectByName = useCallback(async (noteName: string) => {
+    const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
+    if (file) await handleFileSelect(file)
+  }, [store.files, handleFileSelect])
+
+  const handleFileDeleted = useCallback((path: string) => {
+    if (store.activeFile?.path === path) {
+      store.setActiveFile(null)
+      store.setActiveContent('')
+    }
+    const { history, index } = navRef.current
+    const newHistory = history.filter((f) => f.path !== path)
+    const newIndex = Math.min(index, newHistory.length - 1)
+    navRef.current = { history: newHistory, index: newIndex }
+    setNavCanBack(newIndex > 0)
+    setNavCanForward(newIndex < newHistory.length - 1)
+  }, [store.activeFile?.path])
+
+  // ── Feature hooks ─────────────────────────────────────────────────────────
+  const { handleOpenCompanionNote, handleConvertToMd, handleOpenInApp, isConverting } =
+    useDocOps(contentCacheRef, handleFileSelect, notify)
+
+  const { handleDailyNote, handleNewNote, handleTemplateConfirm, handleNewFolder, templateOpen, templateFolder, setTemplateOpen } =
+    useFileOps(contentCacheRef, handleFileSelect, handleOpenVault, notify)
+
+  const { handleExportHTML, handleExportPDF, exportMenuOpen, setExportMenuOpen } =
+    useExport(notify, setViewMode)
+
+  // ── TOC scroll ────────────────────────────────────────────────────────────
+  const handleTocJump = useCallback((id: string) => {
+    const preview = document.querySelector('.markdown-preview')
+    if (!preview) return
+    const target = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
   // ── Sidebar resize ────────────────────────────────────────────────────────
@@ -109,213 +213,7 @@ export default function App() {
     document.addEventListener('mouseup', onUp)
   }, [])
 
-  // ── Vault open ────────────────────────────────────────────────────────────
-  const openVaultPath = useCallback(async (vaultPath: string) => {
-    navRef.current = { history: [], index: -1 }
-    setNavCanBack(false); setNavCanForward(false)
-    const tree = await window.api.listTree(vaultPath)
-    store.setVault(vaultPath, tree)
-    await window.api.watchVault(vaultPath)
-    await window.api.setLastVault(vaultPath)
-    setLastVault({ path: vaultPath, name: vaultPath.split(/[/\\]/).pop() ?? vaultPath })
-
-    const files = flattenTree(tree)
-    const mtimeMap = buildMtimeMap(tree)
-
-    // Load cached index — only re-read files that changed since last save
-    const cached = await window.api.loadIndex(vaultPath)
-    const contents: Record<string, string> = {}
-    const needsRead: NoteFile[] = []
-
-    for (const file of files) {
-      const entry = cached?.entries?.[file.path]
-      const mtime = mtimeMap[file.path] ?? 0
-      if (entry && mtime > 0 && entry.mtime === mtime) {
-        contents[file.path] = entry.content   // cache hit
-      } else {
-        needsRead.push(file)                  // cache miss or new/changed file
-      }
-    }
-
-    for (const file of needsRead) {
-      try { contents[file.path] = await window.api.readFile(file.path) } catch {}
-    }
-
-    contentCacheRef.current = contents
-    store.buildBacklinks(files, contents)
-
-    // Persist updated index (fire-and-forget)
-    const entries: Record<string, { mtime: number; content: string }> = {}
-    for (const file of files) {
-      entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content: contents[file.path] ?? '' }
-    }
-    window.api.saveIndex(vaultPath, { vaultPath, savedAt: Date.now(), entries })
-  }, [])
-
-  const handleOpenVault = useCallback(async () => {
-    if (isMobile) {
-      // On Android, openVault() returns null — show the in-app vault picker instead
-      setVaultPickerOpen(true)
-      return
-    }
-    const vaultPath = await window.api.openVault()
-    if (!vaultPath) return
-    await openVaultPath(vaultPath)
-  }, [openVaultPath, isMobile])
-
-  const handleReopenVault = useCallback(async () => {
-    if (lastVault) await openVaultPath(lastVault.path)
-  }, [lastVault, openVaultPath])
-
-  const handleBackup = useCallback(async () => {
-    if (!store.vaultPath) { notify('No vault open'); return }
-    const dest = await window.api.backupVault(store.vaultPath)
-    if (dest) notify(`Backup saved to: ${dest}`)
-  }, [store.vaultPath])
-
-  // ── File operations ───────────────────────────────────────────────────────
-  const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
-    if (store.isDirty && store.activeFile) {
-      await window.api.writeFile(store.activeFile.path, store.activeContent)
-      store.setDirty(false)
-    }
-    store.setActiveFile(file)
-    let content = contentCacheRef.current[file.path]
-    if (content === undefined) { content = await window.api.readFile(file.path); contentCacheRef.current[file.path] = content }
-    store.setActiveContent(content)
-    store.setDirty(false)
-    setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
-
-    if (!fromNav) {
-      const { history, index } = navRef.current
-      const trimmed = history.slice(0, index + 1)
-      navRef.current = { history: [...trimmed, file], index: trimmed.length }
-      setNavCanBack(navRef.current.index > 0)
-      setNavCanForward(false)
-    }
-  }, [])
-
-  const handleNavBack = useCallback(async () => {
-    const { history, index } = navRef.current
-    if (index <= 0) return
-    navRef.current = { history, index: index - 1 }
-    setNavCanBack(index - 1 > 0)
-    setNavCanForward(true)
-    await handleFileSelect(history[index - 1], true)
-  }, [handleFileSelect])
-
-  const handleNavForward = useCallback(async () => {
-    const { history, index } = navRef.current
-    if (index >= history.length - 1) return
-    navRef.current = { history, index: index + 1 }
-    setNavCanBack(true)
-    setNavCanForward(index + 1 < history.length - 1)
-    await handleFileSelect(history[index + 1], true)
-  }, [handleFileSelect])
-
-  const handleFileSelectByName = useCallback(async (noteName: string) => {
-    const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
-    if (file) await handleFileSelect(file)
-  }, [store.files, handleFileSelect])
-
-  const handleFileDeleted = useCallback((path: string) => {
-    if (store.activeFile?.path === path) {
-      store.setActiveFile(null)
-      store.setActiveContent('')
-    }
-    const { history, index } = navRef.current
-    const newHistory = history.filter((f) => f.path !== path)
-    const newIndex = Math.min(index, newHistory.length - 1)
-    navRef.current = { history: newHistory, index: newIndex }
-    setNavCanBack(newIndex > 0)
-    setNavCanForward(newIndex < newHistory.length - 1)
-  }, [store.activeFile?.path])
-
-  // ── New note (uses template modal) ────────────────────────────────────────
-  const handleNewNote = useCallback(async (folderPath?: string) => {
-    if (!store.vaultPath) { await handleOpenVault(); return }
-    setTemplateFolder(folderPath)
-    setTemplateOpen(true)
-  }, [store.vaultPath, handleOpenVault])
-
-  const handleTemplateConfirm = useCallback(async (name: string, content: string) => {
-    setTemplateOpen(false)
-    if (!store.vaultPath) return
-    const result = await window.api.createFile(store.vaultPath, name, templateFolder)
-    if (result.error) { alert(result.error); return }
-    // Write template content
-    if (result.path) await window.api.writeFile(result.path, content)
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-    const files = flattenTree(tree)
-    const newFile = files.find((f) => f.path === result.path)
-    if (newFile) {
-      contentCacheRef.current[newFile.path] = content
-      store.setActiveFile(newFile)
-      store.setActiveContent(content)
-      store.setDirty(false)
-    }
-  }, [store.vaultPath, templateFolder])
-
-  const handleNewFolder = useCallback(async (parentPath?: string, name?: string) => {
-    if (!store.vaultPath || !name?.trim()) return
-    const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
-    if (result.error) { notify(result.error); return }
-    const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
-  }, [store.vaultPath, notify])
-
-  const handleContentChange = useCallback((value: string) => {
-    store.setActiveContent(value)
-    if (store.activeFile) contentCacheRef.current[store.activeFile.path] = value
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
-      if (store.activeFile) {
-        await window.api.writeFile(store.activeFile.path, value)
-        store.setDirty(false)
-        store.buildBacklinks(store.files, contentCacheRef.current)
-        // Update index cache entry for the saved file
-        if (store.vaultPath) {
-          const cached = await window.api.loadIndex(store.vaultPath)
-          if (cached) {
-            const tree = await window.api.listTree(store.vaultPath)
-            const mtimeMap = buildMtimeMap(tree)
-            cached.entries[store.activeFile.path] = {
-              mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
-              content: value
-            }
-            window.api.saveIndex(store.vaultPath, cached)
-          }
-        }
-      }
-    }, 800)
-  }, [store.activeFile?.path, store.files])
-
-  // ── Export ────────────────────────────────────────────────────────────────
-  const handleExportHTML = useCallback(async () => {
-    if (!store.activeFile) return
-    setExportMenuOpen(false)
-    // Get rendered HTML from the preview pane (or convert inline)
-    const { unified } = await import('unified')
-    const { default: remarkParse } = await import('remark-parse')
-    const { default: remarkGfm } = await import('remark-gfm')
-    const { default: remarkHtml } = await import('remark-html')
-    const result = await unified().use(remarkParse).use(remarkGfm).use(remarkHtml, { sanitize: false }).process(store.activeContent)
-    const dest = await window.api.exportHtml(store.activeFile.name, String(result))
-    if (dest) notify(`Exported to: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile, store.activeContent])
-
-  const handleExportPDF = useCallback(async () => {
-    if (!store.activeFile) return
-    setExportMenuOpen(false)
-    // Switch to preview mode for clean PDF
-    setViewMode('preview')
-    await new Promise((r) => setTimeout(r, 200))
-    const dest = await window.api.exportPdf(store.activeFile.name)
-    if (dest) notify(`PDF saved: ${dest.split(/[/\\]/).pop()}`)
-  }, [store.activeFile])
-
-  // ── Vault file watch ──────────────────────────────────────────────────────
+  // ── Vault file watcher ────────────────────────────────────────────────────
   useEffect(() => {
     if (!store.vaultPath) return
     const vp = store.vaultPath
@@ -325,7 +223,7 @@ export default function App() {
     const u3 = window.api.onDirAdded(reload)
     const u4 = window.api.onDirRemoved(reload)
     const u5 = window.api.onFileChanged(async (p) => {
-      if (store.activeFile?.path === p && !store.isDirty) {
+      if (store.activeFile?.path === p && !store.isDirty && !isDocumentFile(p)) {
         const content = await window.api.readFile(p)
         contentCacheRef.current[p] = content
         store.setActiveContent(content)
@@ -335,7 +233,7 @@ export default function App() {
     return () => { u1(); u2(); u3(); u4(); u5() }
   }, [store.vaultPath])
 
-  // ── Menu events ───────────────────────────────────────────────────────────
+  // ── Native menu events ────────────────────────────────────────────────────
   useEffect(() => {
     const u1 = window.api.onMenuOpenVault(handleOpenVault)
     const u2 = window.api.onMenuNewNote(() => handleNewNote())
@@ -345,7 +243,7 @@ export default function App() {
     return () => { u1(); u2(); u3(); u4(); u5() }
   }, [handleOpenVault, handleNewNote, handleBackup])
 
-  // ── Mouse back/forward buttons ────────────────────────────────────────────
+  // ── Mouse back / forward buttons ──────────────────────────────────────────
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
       if (e.button === 3) { e.preventDefault(); handleNavBack() }
@@ -360,28 +258,31 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.shiftKey && e.key === 'F') { e.preventDefault(); store.toggleSearch() }
-      if (ctrl && e.key === 'n')   { e.preventDefault(); handleNewNote() }
-      if (ctrl && e.key === '\\')  { e.preventDefault(); setSidebarCollapsed((c) => !c) }
+      if (ctrl && e.key === 'n')               { e.preventDefault(); handleNewNote() }
+      if (ctrl && e.key === '\\')              { e.preventDefault(); setSidebarCollapsed((c) => !c) }
       if (ctrl && e.shiftKey && e.key === 'B') { e.preventDefault(); handleBackup() }
-      if (ctrl && e.key === ',')   { e.preventDefault(); setSettingsOpen(true) }
-      if (ctrl && e.key === 'g')   { e.preventDefault(); setGraphOpen((o) => !o) }
-      if (e.key === 'F1')          { e.preventDefault(); setHelpOpen((o) => !o) }
-      // Zoom
+      if (ctrl && e.key === ',')               { e.preventDefault(); setSettingsOpen(true) }
+      if (ctrl && e.key === 'g')               { e.preventDefault(); setGraphOpen((o) => !o) }
+      if (e.key === 'F1')                      { e.preventDefault(); setHelpOpen((o) => !o) }
       if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); setSettings({ fontSize: Math.min(settings.fontSize + 1, 26) }) }
-      if (ctrl && e.key === '-')   { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
-      if (ctrl && e.key === '0')   { e.preventDefault(); setSettings({ fontSize: 14 }) }
-      // Find
-      if (ctrl && e.key === 'f')   { editorRef.current?.openFind() }
-      // Navigation history
+      if (ctrl && e.key === '-')               { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
+      if (ctrl && e.key === '0')               { e.preventDefault(); setSettings({ fontSize: 14 }) }
+      if (ctrl && e.key === 'f') {
+        if (isMobile) { setMobileFindOpen((o) => !o) } else { editorRef.current?.openFind() }
+      }
       if (e.altKey && !ctrl && e.key === 'ArrowLeft')  { e.preventDefault(); handleNavBack() }
       if (e.altKey && !ctrl && e.key === 'ArrowRight') { e.preventDefault(); handleNavForward() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
+  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward, isMobile])
 
+  // ── Derived ───────────────────────────────────────────────────────────────
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
   const noVault = !store.vaultPath
+  const isPdf   = store.activeFile?.path.endsWith('.pdf')  ?? false
+  const isDocx  = store.activeFile?.path.endsWith('.docx') ?? false
+  const isDoc   = isPdf || isDocx
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -398,7 +299,6 @@ export default function App() {
           onOpenVault={handleOpenVault}
           onNotify={notify}
           onFileDeleted={handleFileDeleted}
-          onOpenSearch={store.toggleSearch}
           mobile={isMobile}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
@@ -423,76 +323,76 @@ export default function App() {
           <div className="editor-area">
             <div className={`editor-toolbar${isMobile ? ' mobile' : ''}`}>
               <div className="toolbar-left">
-                <button
-                  className="toolbar-nav-btn"
-                  onClick={handleNavBack}
-                  disabled={!navCanBack}
-                  title="Back (Alt+← or mouse button 4)"
-                >‹</button>
-                <button
-                  className="toolbar-nav-btn"
-                  onClick={handleNavForward}
-                  disabled={!navCanForward}
-                  title="Forward (Alt+→ or mouse button 5)"
-                >›</button>
+                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title={t('ttBack')}>‹</button>
+                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title={t('ttForward')}>›</button>
                 <span className="note-title">
                   {store.activeFile.name}
-                  {store.isDirty && <span className="dirty-dot" title="Unsaved changes" />}
+                  {store.isDirty && <span className="dirty-dot" title={t('ttUnsaved')} />}
                 </span>
               </div>
 
-              <div className="toolbar-centre">
-                <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
-                <div className="view-toggle">
-                  {(['edit', 'split', 'preview'] as ViewMode[]).map((m) => (
-                    <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
-                      {m === 'edit' ? 'Edit' : m === 'split' ? 'Split' : 'Preview'}
-                    </button>
-                  ))}
-                  <span className="view-toggle-sep" />
-                  <button
-                    className={`view-toggle-find${mobileFindOpen ? ' active' : ''}`}
-                    onClick={() => {
-                      if (isMobile) {
-                        if (mobileFindOpen) {
-                          setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
+              {!isDoc && (
+                <div className="toolbar-centre">
+                  {!isMobile && (
+                    <InsertMenu onInsert={(text, offset) => editorRef.current?.insertText(text, offset)} files={store.files} />
+                  )}
+                  <div className="view-toggle">
+                    {(['edit', 'split', 'preview'] as ViewMode[]).map((m) => (
+                      <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
+                        {m === 'edit' ? t('viewEdit') : m === 'split' ? t('viewSplit') : t('viewPreview')}
+                      </button>
+                    ))}
+                    <span className="view-toggle-sep" />
+                    <button
+                      className={`view-toggle-find${mobileFindOpen ? ' active' : ''}`}
+                      onClick={() => {
+                        if (isMobile) {
+                          if (mobileFindOpen) {
+                            setMobileFindOpen(false); setMobileFindQuery(''); editorRef.current?.clearSearch()
+                          } else {
+                            setMobileFindOpen(true)
+                          }
                         } else {
-                          setMobileFindOpen(true)
+                          editorRef.current?.openFind()
                         }
-                      } else {
-                        editorRef.current?.openFind()
-                      }
-                    }}
-                    title="Find in note (Ctrl+F)"
-                  >
-                    🔍
-                  </button>
+                      }}
+                      title={t('ttFind')}
+                    >🔍</button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="toolbar-right">
-                <div style={{ position: 'relative' }}>
-                  <button
-                    className="toolbar-icon-btn"
-                    onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }}
-                    title="Export note"
-                  >
-                    ↓
-                  </button>
-                  {exportMenuOpen && (
-                    <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={handleExportHTML}>Export as HTML</button>
-                      <button onClick={handleExportPDF}>Export as PDF</button>
-                    </div>
-                  )}
-                </div>
-                {isMobile && <button className="toolbar-icon-btn" onClick={() => store.setSearchOpen(true)} title="Search all notes">⌕</button>}
-                {!isMobile && <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title="Graph view (Ctrl+G)">◎</button>}
-                {!isMobile && <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title="Help (F1)">?</button>}
-                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title="Settings (Ctrl+,)">⚙</button>
+                <button className="toolbar-icon-btn" onClick={handleDailyNote} title={t('ttDailyNote')}>📅</button>
+                {!isDoc && (
+                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title={t('ttToc')}>≡</button>
+                )}
+                {!isDoc && (
+                  <div style={{ position: 'relative' }}>
+                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title={t('ttExport')}>↓</button>
+                    {exportMenuOpen && (
+                      <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={handleExportHTML}>{t('exportHtml')}</button>
+                        <button onClick={handleExportPDF}>{t('exportPdf')}</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Mobile-only: full-text search button (sidebar may be collapsed) */}
+                {isMobile && (
+                  <button className="toolbar-icon-btn" onClick={() => store.setSearchOpen(true)} title="Search all notes">⌕</button>
+                )}
+                {!isMobile && (
+                  <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
+                )}
+                {!isMobile && (
+                  <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
+                )}
+                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
               </div>
             </div>
 
+            {/* Mobile in-note find bar — sits above editor, not hidden by keyboard */}
             {isMobile && mobileFindOpen && (
               <MobileFindBar
                 query={mobileFindQuery}
@@ -506,46 +406,67 @@ export default function App() {
             <div className="editor-content" style={{ position: 'relative' }}>
               {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
 
-              {(viewMode === 'edit' || viewMode === 'split') && (
-                <div className="editor-pane" style={viewMode === 'split' ? { flex: splitRatio } : { flex: 1 }}>
-                  <MarkdownEditor
-                    ref={editorRef}
-                    content={store.activeContent}
-                    onChange={handleContentChange}
-                    onWikiLinkClick={handleFileSelectByName}
-                    vaultPath={store.vaultPath}
-                    files={store.files}
-                    theme={settings.theme}
-                    onStatsChange={setEditorStats}
-                  />
-                </div>
-              )}
+              {/* PDF and DOCX viewers — Electron only; show placeholder on Android */}
+              {isPdf ? (
+                isMobile
+                  ? <MobileDocPlaceholder type="PDF" fileName={store.activeFile.name} />
+                  : <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
+              ) : isDocx ? (
+                isMobile
+                  ? <MobileDocPlaceholder type="DOCX" fileName={store.activeFile.name} />
+                  : <DocxViewer
+                      filePath={store.activeFile.path}
+                      onOpenInApp={handleOpenInApp}
+                      onConvertToMd={handleConvertToMd}
+                      isConverting={isConverting}
+                    />
+              ) : (
+                <>
+                  <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+                    {(viewMode === 'edit' || viewMode === 'split') && (
+                      <div className="editor-pane" style={viewMode === 'split' ? { flex: splitRatio } : { flex: 1 }}>
+                        <MarkdownEditor
+                          ref={editorRef}
+                          content={store.activeContent}
+                          onChange={handleContentChange}
+                          onWikiLinkClick={handleFileSelectByName}
+                          vaultPath={store.vaultPath}
+                          files={store.files}
+                          theme={settings.theme}
+                          onStatsChange={setEditorStats}
+                        />
+                      </div>
+                    )}
 
-              {viewMode === 'split' && <div className="resize-handle-split" onMouseDown={onSplitResizeStart} />}
+                    {viewMode === 'split' && <div className="resize-handle-split" onMouseDown={onSplitResizeStart} />}
 
-              {(viewMode === 'preview' || viewMode === 'split') && (
-                <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
-                  <MarkdownPreview
-                    content={store.activeContent}
-                    onWikiLinkClick={handleFileSelectByName}
-                    onChange={handleContentChange}
-                    vaultPath={store.vaultPath}
-                  />
-                </div>
+                    {(viewMode === 'preview' || viewMode === 'split') && (
+                      <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
+                        <MarkdownPreview
+                          content={store.activeContent}
+                          onWikiLinkClick={handleFileSelectByName}
+                          onChange={handleContentChange}
+                          vaultPath={store.vaultPath}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {tocOpen && (
+                    <TocPanel content={store.activeContent} onJump={handleTocJump} onClose={() => setTocOpen(false)} />
+                  )}
+                </>
               )}
             </div>
 
-            <StatusBar
-              stats={editorStats}
-              onOpenFind={() => editorRef.current?.openFind()}
-            />
+            <StatusBar stats={editorStats} onOpenFind={() => editorRef.current?.openFind()} />
           </div>
         )}
       </main>
 
-      {settingsOpen && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
-      {helpOpen     && <HelpModal onClose={() => setHelpOpen(false)} />}
-      {templateOpen && (
+      {settingsOpen  && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
+      {helpOpen      && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {templateOpen  && (
         <TemplateModal
           onConfirm={handleTemplateConfirm}
           onCancel={() => setTemplateOpen(false)}
@@ -582,6 +503,24 @@ function MobileFindBar({ query, onChange, onNext, onPrev, onClose }: {
       <button onClick={onPrev}  disabled={!query} className="mfb-btn">↑</button>
       <button onClick={onNext}  disabled={!query} className="mfb-btn">↓</button>
       <button onClick={onClose} className="mfb-btn mfb-close">✕</button>
+    </div>
+  )
+}
+
+// ── Android placeholder for PDF/DOCX ─────────────────────────────────────────
+function MobileDocPlaceholder({ type, fileName }: { type: string; fileName: string }) {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 12, color: 'var(--text-muted)', padding: 32, textAlign: 'center'
+    }}>
+      <span style={{ fontSize: 48 }}>{type === 'PDF' ? '📕' : '📝'}</span>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{fileName}</div>
+      <div style={{ fontSize: 13 }}>
+        {type} viewer is not available on Android.{'\n'}
+        Open this file in a dedicated app.
+      </div>
     </div>
   )
 }
@@ -692,46 +631,36 @@ function WelcomeScreen({ onOpenVault, onHelp, lastVault, onReopenVault }: {
   onOpenVault: () => void; onHelp?: () => void
   lastVault: { path: string; name: string } | null; onReopenVault: () => void
 }) {
+  const t = useT()
   return (
     <div className="welcome-screen">
       <div className="welcome-logo">⬡</div>
       <h1>OpenObsidian</h1>
-      <p>Open source markdown knowledge base</p>
+      <p>{t('welcomeTagline')}</p>
       {lastVault && (
         <div className="welcome-last-vault">
-          <button className="btn-primary" onClick={onReopenVault}>Open "{lastVault.name}"</button>
+          <button className="btn-primary" onClick={onReopenVault}>{t('reopenVault', { name: lastVault.name })}</button>
           <div className="welcome-last-vault-path">{lastVault.path}</div>
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, marginTop: lastVault ? 4 : 8 }}>
-        <button className="btn-secondary" onClick={onOpenVault}>{lastVault ? 'Open Other Vault…' : 'Open Vault Folder'}</button>
-        {onHelp && <button className="btn-secondary" onClick={onHelp} title="F1">? Help</button>}
+        <button className="btn-secondary" onClick={onOpenVault}>{lastVault ? t('openOtherVault') : t('openVault')}</button>
+        {onHelp && <button className="btn-secondary" onClick={onHelp} title="F1">{t('help')}</button>}
       </div>
-      <p className="welcome-hint">Ctrl+Shift+O · Ctrl+N · Ctrl+Shift+F · Ctrl+G · F1</p>
+      <p className="welcome-hint">{t('welcomeHint')}</p>
     </div>
   )
 }
 
 function EmptyState({ onNewNote, onOpenGraph, hasNotes }: { onNewNote: () => void; onOpenGraph: () => void; hasNotes: boolean }) {
+  const t = useT()
   return (
     <div className="empty-state">
-      <p>Select a note or create a new one</p>
+      <p>{t('emptyState')}</p>
       <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn-primary" onClick={onNewNote}>New Note (Ctrl+N)</button>
-        {hasNotes && <button className="btn-secondary" onClick={onOpenGraph}>Graph View (Ctrl+G)</button>}
+        <button className="btn-primary" onClick={onNewNote}>{t('newNote')}</button>
+        {hasNotes && <button className="btn-secondary" onClick={onOpenGraph}>{t('graphView')}</button>}
       </div>
     </div>
   )
-}
-
-function buildMtimeMap(nodes: TreeNode[]): Record<string, number> {
-  const map: Record<string, number> = {}
-  const walk = (ns: TreeNode[]) => {
-    for (const n of ns) {
-      if (n.type === 'file') map[n.path] = n.mtime ?? 0
-      if (n.children) walk(n.children)
-    }
-  }
-  walk(nodes)
-  return map
 }

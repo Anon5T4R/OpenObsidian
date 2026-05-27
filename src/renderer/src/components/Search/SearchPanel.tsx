@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useVaultStore, NoteFile } from '../../store/vaultStore'
+import { useT } from '../../i18n'
 import './SearchPanel.css'
 
 interface SearchResult {
@@ -14,24 +15,18 @@ interface SearchPanelProps {
 
 export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps) {
   const { files } = useVaultStore()
+  const t = useT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-
+    if (!query.trim()) { setResults([]); return }
     setSearching(true)
     const lower = query.toLowerCase()
-
     const doSearch = async () => {
       const found: SearchResult[] = []
       for (const file of files) {
@@ -39,18 +34,14 @@ export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps)
         const lines = content.split('\n')
         const matches: { line: number; text: string }[] = []
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].toLowerCase().includes(lower)) {
+          if (lines[i].toLowerCase().includes(lower))
             matches.push({ line: i + 1, text: lines[i].trim() })
-          }
         }
-        if (matches.length > 0) {
-          found.push({ file, matches: matches.slice(0, 5) })
-        }
+        if (matches.length > 0) found.push({ file, matches: matches.slice(0, 5) })
       }
       setResults(found)
       setSearching(false)
     }
-
     const timer = setTimeout(doSearch, 200)
     return () => clearTimeout(timer)
   }, [query, files])
@@ -68,12 +59,8 @@ export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps)
     )
   }
 
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
-  }
-
   return (
-    <div className="search-panel" onKeyDown={handleKey}>
+    <div className="search-panel" onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
       <div className="search-header">
         <div className="search-input-wrap">
           <span className="search-icon">🔍</span>
@@ -81,41 +68,26 @@ export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps)
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search all notes..."
+            placeholder={t('searchPlaceholder')}
           />
-          {query && (
-            <button className="search-clear" onClick={() => setQuery('')}>
-              ✕
-            </button>
-          )}
+          {query && <button className="search-clear" onClick={() => setQuery('')}>✕</button>}
         </div>
-        <button className="search-close" onClick={onClose}>
-          Close
-        </button>
+        <button className="search-close" onClick={onClose}>{t('searchClose')}</button>
       </div>
 
       <div className="search-results">
-        {searching && <div className="search-status">Searching…</div>}
-
+        {searching && <div className="search-status">{t('searching')}</div>}
         {!searching && query && results.length === 0 && (
-          <div className="search-status">No results for "{query}"</div>
+          <div className="search-status">{t('noResults', { query })}</div>
         )}
-
         {results.map(({ file, matches }) => (
           <div key={file.path} className="search-result-group">
-            <button
-              className="search-result-file"
-              onClick={() => onFileSelect(file)}
-            >
+            <button className="search-result-file" onClick={() => onFileSelect(file)}>
               📄 {file.name}
               <span className="match-count">{matches.length}</span>
             </button>
             {matches.map((m, i) => (
-              <button
-                key={i}
-                className="search-result-line"
-                onClick={() => onFileSelect(file, m.line)}
-              >
+              <button key={i} className="search-result-line" onClick={() => onFileSelect(file, m.line)}>
                 <span className="line-num">{m.line}</span>
                 <span className="line-text">{highlight(m.text)}</span>
               </button>

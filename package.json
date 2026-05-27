@@ -1,6 +1,6 @@
 {
   "name": "open-obsidian",
-  "version": "0.3.8",
+  "version": "0.5.4",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
@@ -21,7 +21,6 @@
     "cap:open": "npx cap open android"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.2.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
@@ -33,11 +32,6 @@
     "vite": "^5.0.12"
   },
   "dependencies": {
-    "@capacitor/android": "^6.2.1",
-    "@capacitor/core": "^6.2.1",
-    "@capacitor/filesystem": "^6.0.4",
-    "@capacitor/preferences": "^6.0.4",
-    "@capacitor/share": "^6.0.4",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.3.3",
     "@codemirror/lang-markdown": "^6.2.5",
@@ -50,14 +44,18 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@lezer/highlight": "^1.2.0",
     "@types/d3": "^7.4.3",
+    "@types/turndown": "^5.0.6",
     "chokidar": "^3.6.0",
     "d3": "^7.9.0",
     "flexsearch": "^0.7.43",
+    "mammoth": "^1.12.0",
+    "mermaid": "^11.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.0",
     "remark-html": "^16.0.1",
+    "turndown": "^7.2.4",
     "zustand": "^4.5.0"
   },
   "build": {

@@ -81,6 +81,136 @@
 
 .markdown-preview img { max-width: 100%; border-radius: 4px; }
 
+/* Mermaid diagrams */
+.markdown-preview .mermaid-block {
+  margin: 1.2em 0;
+  overflow-x: auto;
+  text-align: center;
+  cursor: zoom-in;
+  position: relative;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.markdown-preview .mermaid-block:hover { background: var(--hover); }
+
+.markdown-preview .mermaid-block::after {
+  content: '🔍';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 13px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.markdown-preview .mermaid-block:hover::after { opacity: 1; }
+
+.markdown-preview .mermaid-block pre.mermaid {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 8px;
+  margin: 0;
+  overflow: visible;
+  text-align: left;
+}
+
+.markdown-preview .mermaid-block svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid zoom modal */
+.mermaid-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-zoom-dialog {
+  background: var(--bg-editor);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 92vw;
+  max-width: 1300px;
+  height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.mermaid-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+}
+
+.mermaid-zoom-toolbar button {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.mermaid-zoom-toolbar button:hover { background: var(--hover); }
+
+.mermaid-zoom-pct {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 38px;
+  text-align: center;
+}
+
+.mermaid-zoom-hint {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mermaid-zoom-close {
+  margin-left: 0;
+  background: none !important;
+  border: none !important;
+  font-size: 16px !important;
+  width: 28px !important;
+  color: var(--text-muted) !important;
+}
+
+.mermaid-zoom-view {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  cursor: grab;
+}
+
 /* Callouts / admonitions */
 .markdown-preview .callout {
   margin: 1em 0;
@@ -124,6 +254,34 @@
 .markdown-preview details.callout > summary.callout-title::-webkit-details-marker { display: none; }
 .markdown-preview details.callout:not([open]) > summary.callout-title .callout-fold {
   transform: rotate(-90deg);
+}
+
+/* Math (KaTeX) */
+.markdown-preview .math-block {
+  overflow-x: auto;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.markdown-preview .math-error {
+  color: #ef4444;
+  font-family: monospace;
+  font-size: 0.85em;
+  background: rgba(239,68,68,0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Highlights ==text== */
+.markdown-preview mark {
+  background: rgba(255, 220, 0, 0.35);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+[data-theme='light'] .markdown-preview mark {
+  background: rgba(220, 170, 0, 0.38);
 }
 
 /* Checkboxes */

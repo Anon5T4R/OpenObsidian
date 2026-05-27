@@ -61,8 +61,13 @@ const api = {
   saveIndex: (vaultPath: string, data: object): Promise<boolean> =>
     ipcRenderer.invoke('index:save', vaultPath, data),
 
+  // DOCX conversion
+  docxToHtml:     (p: string): Promise<{ html: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('docx:to-html', p),
+  docxToMarkdown: (p: string): Promise<{ markdown: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('docx:to-markdown', p),
+
   // Shell
-  showItemInFolder: (p: string): Promise<void> => ipcRenderer.invoke('shell:show-item', p),
+  showItemInFolder: (p: string): Promise<void>     => ipcRenderer.invoke('shell:show-item', p),
+  openInApp:        (p: string): Promise<string>   => ipcRenderer.invoke('shell:open-path', p),
 
   // Menu events
   onMenuOpenVault:    (cb: () => void) => { ipcRenderer.on('menu:open-vault', cb);    return () => ipcRenderer.removeListener('menu:open-vault', cb) },

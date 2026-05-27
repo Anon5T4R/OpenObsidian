@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
+import mammoth from 'mammoth'
 
 let mainWindow: BrowserWindow
 let vaultWatcher: FSWatcher | null = null
@@ -134,7 +135,9 @@ function walkTree(dir: string): TreeNode[] {
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-  const files = entries.filter((e) => e.isFile() && e.name.endsWith('.md') && !e.name.startsWith('.'))
+  const BINARY_EXTS = ['.pdf', '.docx']
+  const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.') &&
+    (e.name.endsWith('.md') || BINARY_EXTS.some((x) => e.name.endsWith(x))))
 
   for (const d of dirs) {
     const fullPath = path.join(dir, d.name)
@@ -143,7 +146,9 @@ function walkTree(dir: string): TreeNode[] {
   for (const f of files) {
     const fullPath = path.join(dir, f.name)
     const mtime = fs.statSync(fullPath).mtimeMs
-    nodes.push({ name: f.name.replace(/\.md$/, ''), path: fullPath, type: 'file', mtime })
+    const isBinary = BINARY_EXTS.some((x) => f.name.endsWith(x))
+    const name = isBinary ? f.name : f.name.replace(/\.md$/, '')
+    nodes.push({ name, path: fullPath, type: 'file', mtime })
   }
   return nodes
 }
@@ -211,7 +216,10 @@ ipcMain.handle('file:delete',    async (_, filePath: string) => { fs.unlinkSync(
 
 ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const dir = path.dirname(oldPath)
-  const newPath = path.join(dir, `${newName}.md`)
+  const ext = path.extname(oldPath)
+  const hasExt = path.extname(newName) !== ''
+  const finalName = hasExt ? newName : `${newName}${ext}`
+  const newPath = path.join(dir, finalName)
   fs.renameSync(oldPath, newPath)
   return newPath
 })
@@ -317,10 +325,34 @@ ipcMain.handle('export:pdf', async (_, noteTitle: string) => {
   return result.filePath
 })
 
+// ── DOCX conversion (mammoth) ──────────────────────────────────────────────
+
+ipcMain.handle('docx:to-html', async (_, filePath: string) => {
+  try {
+    const result = await mammoth.convertToHtml({ path: filePath })
+    return { html: result.value, warnings: result.messages.map((m) => m.message) }
+  } catch (e) {
+    return { html: '', warnings: [], error: String(e) }
+  }
+})
+
+ipcMain.handle('docx:to-markdown', async (_, filePath: string) => {
+  try {
+    const result = await mammoth.convertToMarkdown({ path: filePath })
+    return { markdown: result.value, warnings: result.messages.map((m) => m.message) }
+  } catch (e) {
+    return { markdown: '', warnings: [], error: String(e) }
+  }
+})
+
 // ── Shell ──────────────────────────────────────────────────────────────────
 
 ipcMain.handle('shell:show-item', async (_, itemPath: string) => {
   shell.showItemInFolder(itemPath)
+})
+
+ipcMain.handle('shell:open-path', async (_, itemPath: string) => {
+  return await shell.openPath(itemPath) // '' = success, message = error
 })
 
 // ── App lifecycle ──────────────────────────────────────────────────────────

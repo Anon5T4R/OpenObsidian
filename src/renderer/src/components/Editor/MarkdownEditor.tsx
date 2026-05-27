@@ -7,7 +7,11 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { RangeSetBuilder } from '@codemirror/state'
-import { search, searchKeymap, openSearchPanel, SearchQuery, setSearchQuery, findNext as cmFindNext, findPrevious as cmFindPrev } from '@codemirror/search'
+import {
+  search, searchKeymap, openSearchPanel,
+  SearchQuery, setSearchQuery,
+  findNext as cmFindNext, findPrevious as cmFindPrev,
+} from '@codemirror/search'
 import {
   autocompletion, CompletionContext, CompletionResult,
   closeBrackets, closeBracketsKeymap
@@ -20,7 +24,7 @@ export interface MarkdownEditorHandle {
   insertText: (text: string, cursorOffset?: number) => void
   focus: () => void
   openFind: () => void
-  // Mobile find bar support
+  // Mobile programmatic search (MobileFindBar — avoids Android keyboard hiding CM panel)
   applySearch: (query: string) => void
   findNextMatch: () => void
   findPrevMatch: () => void
@@ -248,7 +252,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       clearSearch: () => {
         const view = viewRef.current; if (!view) return
         view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) })
-      }
+      },
     }))
 
     const handleCopy = useCallback(async () => {

@@ -316,7 +316,34 @@
   color: var(--accent);
 }
 
-/* ── Mobile in-note find bar ────────────────────────────────────────── */
+/* ── Toast notification ─────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  z-index: 600;
+  max-width: 480px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Mobile in-note find bar ────────────────────────────────────────────── */
 .mobile-find-bar {
   display: flex;
   align-items: center;
@@ -364,7 +391,7 @@
   color: var(--accent);
 }
 
-/* ── Export dropdown ────────────────────────────────────────────────── */
+/* ── Export dropdown ────────────────────────────────────────────────────── */
 .export-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -393,7 +420,7 @@
 
 .export-dropdown button:hover { background: var(--hover); }
 
-/* ── Mobile toolbar adjustments ─────────────────────────────────────── */
+/* ── Mobile toolbar adjustments ─────────────────────────────────────────── */
 .editor-toolbar.mobile {
   padding: 4px 8px;
   gap: 4px;
@@ -423,31 +450,4 @@
 .editor-toolbar.mobile .view-toggle-find {
   font-size: 16px;
   padding: 6px 10px;
-}
-
-/* ── Toast notification ─────────────────────────────────────────────── */
-.toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-floating);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--success);
-  color: var(--text-primary);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 13px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  z-index: 600;
-  max-width: 480px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  animation: toast-in 0.2s ease;
-}
-
-@keyframes toast-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
