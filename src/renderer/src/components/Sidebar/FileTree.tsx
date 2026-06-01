@@ -145,7 +145,12 @@ function TreeNodeRow({
   const sorted = sortNodes(node.children ?? [], sort)
 
   return (
-    <div className="tree-dir-group">
+    <div
+      className="tree-dir-group"
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false) }}
+      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const src = e.dataTransfer.getData('text/plain'); if (src && src !== node.path && !node.path.startsWith(src)) onDropOnDir(src, node.path) }}
+    >
       <div
         className={`tree-item tree-dir ${dragOver ? 'drag-over' : ''}`}
         style={{ paddingLeft: collapsed ? 0 : 10 + depth * 14 }}
@@ -154,9 +159,6 @@ function TreeNodeRow({
         title={collapsed ? node.name : undefined}
         draggable={!isRenaming}
         onDragStart={handleDragStart}
-        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const src = e.dataTransfer.getData('text/plain'); if (src && src !== node.path) onDropOnDir(src, node.path) }}
       >
         {collapsed ? <span className="tree-icon">📁</span> : (
           <>

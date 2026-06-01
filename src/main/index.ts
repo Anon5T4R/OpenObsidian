@@ -263,8 +263,12 @@ ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string)
   const name = path.basename(sourcePath)
   const dest = path.join(targetDirPath, name)
   if (fs.existsSync(dest)) return { error: 'An item with this name already exists in the destination' }
-  fs.renameSync(sourcePath, dest)
-  return { path: dest }
+  try {
+    fs.renameSync(sourcePath, dest)
+    return { path: dest }
+  } catch (e) {
+    return { error: String(e) }
+  }
 })
 
 // ── Images ─────────────────────────────────────────────────────────────────
