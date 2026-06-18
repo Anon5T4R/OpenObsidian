@@ -21,6 +21,7 @@ import TemplateModal from './components/Templates/TemplateModal'
 import PdfViewer from './components/Pdf/PdfViewer'
 import DocxViewer from './components/Docx/DocxViewer'
 import TocPanel from './components/Toc/TocPanel'
+import ChatPanel from './components/Chat/ChatPanel'
 import './styles/app.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
@@ -47,6 +48,7 @@ export default function App() {
   const [notification,     setNotification]     = useState<string | null>(null)
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [tocOpen,          setTocOpen]          = useState(false)
+  const [chatOpen,         setChatOpen]         = useState(false)
 
   const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
@@ -415,7 +417,12 @@ export default function App() {
           folderHint={templateFolder?.split(/[/\\]/).pop()}
         />
       )}
+      {chatOpen && <ChatPanel onClose={() => setChatOpen(false)} />}
       {notification && <div className="toast">{notification}</div>}
+
+      {!noVault && !chatOpen && (
+        <button className="chat-fab" onClick={() => setChatOpen(true)} title={t('ttChat')}>💬</button>
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import * as llm from './llm'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -373,3 +374,47 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
+
+// ── LLM ──────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('llm:status',       () => llm.getStatus())
+ipcMain.handle('llm:get-settings', () => llm.getLlmSettings())
+ipcMain.handle('llm:set-settings', (_, patch: Partial<llm.LlmSettings>) => llm.setLlmSettings(patch))
+
+ipcMain.handle('llm:browse-gguf', async () => {
+  const r = await dialog.showOpenDialog(mainWindow, {
+    title:      'Select GGUF model file',
+    filters:    [{ name: 'GGUF Models', extensions: ['gguf'] }],
+    properties: ['openFile'],
+  })
+  return r.canceled ? null : r.filePaths[0]
+})
+
+ipcMain.handle('llm:load', async (_, modelPath: string) => {
+  await llm.loadModel(modelPath, (p) => mainWindow.webContents.send('llm:load-progress', p))
+})
+
+ipcMain.handle('llm:unload', async () => {
+  await llm.unloadModel()
+})
+
+ipcMain.handle('llm:generate', async (_, messages: llm.ChatMessage[]) => {
+  const settings     = llm.getLlmSettings()
+  const onChunk      = (t: string) => mainWindow.webContents.send('llm:chunk', t)
+  const sendDone     = () => mainWindow.webContents.send('llm:done')
+  const sendError    = (e: string) => mainWindow.webContents.send('llm:error', e)
+
+  try {
+    if (settings.provider === 'local') {
+      await llm.generateLocal(messages, settings.systemPrompt, onChunk)
+    } else {
+      await llm.generateRemote(messages, settings, onChunk)
+    }
+    sendDone()
+  } catch (e: any) {
+    if (e?.name === 'AbortError' || e?.message?.includes('AbortError')) sendDone()
+    else sendError(String(e))
+  }
+})
+
+ipcMain.handle('llm:cancel', () => llm.cancelGeneration())

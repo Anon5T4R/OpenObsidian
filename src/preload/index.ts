@@ -14,6 +14,22 @@ export type TreeNode = {
   children?: TreeNode[]
 }
 
+export type LlmProvider = 'local' | 'anthropic' | 'openai' | 'openai-compatible' | 'gemini'
+
+export interface LlmSettings {
+  provider:     LlmProvider
+  modelPath:    string
+  systemPrompt: string
+  apiKey:       string
+  baseUrl:      string
+  modelName:    string
+}
+
+export interface ChatMessage {
+  role:    'user' | 'assistant' | 'system'
+  content: string
+}
+
 const api = {
   // App settings
   getLastVault:  (): Promise<string | null> => ipcRenderer.invoke('app:get-last-vault'),
@@ -81,7 +97,22 @@ const api = {
   onFileRemoved: (cb: (p: string) => void) => { const h = (_: Electron.IpcRendererEvent, p: string) => cb(p); ipcRenderer.on('vault:file-removed', h);  return () => ipcRenderer.removeListener('vault:file-removed', h) },
   onFileChanged: (cb: (p: string) => void) => { const h = (_: Electron.IpcRendererEvent, p: string) => cb(p); ipcRenderer.on('vault:file-changed', h);  return () => ipcRenderer.removeListener('vault:file-changed', h) },
   onDirAdded:    (cb: (p: string) => void) => { const h = (_: Electron.IpcRendererEvent, p: string) => cb(p); ipcRenderer.on('vault:dir-added', h);     return () => ipcRenderer.removeListener('vault:dir-added', h) },
-  onDirRemoved:  (cb: (p: string) => void) => { const h = (_: Electron.IpcRendererEvent, p: string) => cb(p); ipcRenderer.on('vault:dir-removed', h);   return () => ipcRenderer.removeListener('vault:dir-removed', h) }
+  onDirRemoved:  (cb: (p: string) => void) => { const h = (_: Electron.IpcRendererEvent, p: string) => cb(p); ipcRenderer.on('vault:dir-removed', h);   return () => ipcRenderer.removeListener('vault:dir-removed', h) },
+
+  // LLM
+  llmStatus:      (): Promise<{ status: string; modelPath: string | null }> => ipcRenderer.invoke('llm:status'),
+  llmGetSettings: (): Promise<LlmSettings>                                  => ipcRenderer.invoke('llm:get-settings'),
+  llmSetSettings: (patch: Partial<LlmSettings>): Promise<LlmSettings>      => ipcRenderer.invoke('llm:set-settings', patch),
+  llmBrowseGguf:  (): Promise<string | null>                                => ipcRenderer.invoke('llm:browse-gguf'),
+  llmLoad:        (modelPath: string): Promise<void>                        => ipcRenderer.invoke('llm:load', modelPath),
+  llmUnload:      (): Promise<void>                                          => ipcRenderer.invoke('llm:unload'),
+  llmGenerate:    (messages: ChatMessage[]): Promise<void>                  => ipcRenderer.invoke('llm:generate', messages),
+  llmCancel:      (): Promise<void>                                          => ipcRenderer.invoke('llm:cancel'),
+
+  onLlmLoadProgress: (cb: (p: number) => void)   => { const h = (_: Electron.IpcRendererEvent, p: number) => cb(p);   ipcRenderer.on('llm:load-progress', h); return () => ipcRenderer.removeListener('llm:load-progress', h) },
+  onLlmChunk:        (cb: (t: string) => void)   => { const h = (_: Electron.IpcRendererEvent, t: string) => cb(t);   ipcRenderer.on('llm:chunk', h);          return () => ipcRenderer.removeListener('llm:chunk', h) },
+  onLlmDone:         (cb: () => void)            => { const h = () => cb();                                            ipcRenderer.on('llm:done', h);           return () => ipcRenderer.removeListener('llm:done', h) },
+  onLlmError:        (cb: (m: string) => void)   => { const h = (_: Electron.IpcRendererEvent, m: string) => cb(m);   ipcRenderer.on('llm:error', h);          return () => ipcRenderer.removeListener('llm:error', h) },
 }
 
 contextBridge.exposeInMainWorld('api', api)
