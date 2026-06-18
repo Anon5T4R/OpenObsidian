@@ -14,6 +14,7 @@ import {
 } from '@codemirror/autocomplete'
 import { NoteFile } from '../../store/vaultStore'
 import { Theme } from '../../hooks/useSettings'
+import { useT } from '../../i18n'
 import './MarkdownEditor.css'
 
 export interface MarkdownEditorHandle {
@@ -194,12 +195,17 @@ interface MarkdownEditorProps {
   files: NoteFile[]
   theme: Theme
   onStatsChange?: (stats: EditorStats) => void
+  onAiExplain?: (text: string) => void
+  onAiNeedModel?: () => void
 }
 
-type CtxMenuState = { x: number; y: number; hasSelection: boolean } | null
+type CtxMenuState = {
+  x: number; y: number; hasSelection: boolean
+  selFrom: number; selTo: number; selText: string
+} | null
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme, onStatsChange }, ref) => {
+  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
     const editorRef       = useRef<HTMLDivElement>(null)
     const viewRef         = useRef<EditorView | null>(null)
     const onChangeRef     = useRef(onChange)
@@ -207,14 +213,19 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     const vaultPathRef    = useRef(vaultPath)
     const filesRef        = useRef(files)
     const onStatsRef      = useRef(onStatsChange)
+    const onAiExplainRef  = useRef(onAiExplain)
+    const onAiNeedModelRef = useRef(onAiNeedModel)
     const themeCompartment = useRef(new Compartment())
     const [ctxMenu, setCtxMenu] = useState<CtxMenuState>(null)
+    const [aiLoading, setAiLoading] = useState(false)
 
-    useEffect(() => { onChangeRef.current = onChange },         [onChange])
-    useEffect(() => { onWikiLinkRef.current = onWikiLinkClick },[onWikiLinkClick])
-    useEffect(() => { vaultPathRef.current = vaultPath },       [vaultPath])
-    useEffect(() => { filesRef.current = files },               [files])
-    useEffect(() => { onStatsRef.current = onStatsChange },     [onStatsChange])
+    useEffect(() => { onChangeRef.current = onChange },              [onChange])
+    useEffect(() => { onWikiLinkRef.current = onWikiLinkClick },     [onWikiLinkClick])
+    useEffect(() => { vaultPathRef.current = vaultPath },            [vaultPath])
+    useEffect(() => { filesRef.current = files },                    [files])
+    useEffect(() => { onStatsRef.current = onStatsChange },          [onStatsChange])
+    useEffect(() => { onAiExplainRef.current = onAiExplain },        [onAiExplain])
+    useEffect(() => { onAiNeedModelRef.current = onAiNeedModel },    [onAiNeedModel])
 
     useEffect(() => {
       const view = viewRef.current
@@ -381,7 +392,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       }
       const onContextMenu = (e: MouseEvent) => {
         e.preventDefault()
-        setCtxMenu({ x: e.clientX, y: e.clientY, hasSelection: !view.state.selection.main.empty })
+        const sel = view.state.selection.main
+        setCtxMenu({
+          x: e.clientX, y: e.clientY,
+          hasSelection: !sel.empty,
+          selFrom: sel.from, selTo: sel.to,
+          selText: view.state.doc.sliceString(sel.from, sel.to),
+        })
       }
 
       editorRef.current.addEventListener('paste', onPaste)
@@ -404,12 +421,42 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       if (current !== content) view.dispatch({ changes: { from: 0, to: current.length, insert: content } })
     }, [content])
 
+    const handleAiTransform = useCallback(async (action: 'fix' | 'formalize', from: number, to: number, text: string) => {
+      setCtxMenu(null)
+      const { status } = await window.api.llmStatus()
+      if (status !== 'loaded') { onAiNeedModelRef.current?.(); return }
+      const prompts = {
+        fix:       'You are a text editor. Fix grammar, spelling and punctuation. Return ONLY the corrected text.',
+        formalize: 'You are a text editor. Rewrite the text in a formal, professional tone. Return ONLY the rewritten text.',
+      }
+      setAiLoading(true)
+      try {
+        const result = await window.api.llmTransform([
+          { role: 'system', content: prompts[action] },
+          { role: 'user',   content: text },
+        ])
+        const view = viewRef.current
+        if (!view || !result) return
+        view.dispatch({ changes: { from, to, insert: result }, selection: { anchor: from + result.length } })
+        view.focus()
+      } catch {}
+      setAiLoading(false)
+    }, [])
+
+    const handleAiExplain = useCallback((text: string) => {
+      setCtxMenu(null)
+      onAiExplainRef.current?.(text)
+    }, [])
+
     return (
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex' }}>
         <div ref={editorRef} className="markdown-editor" />
+        {aiLoading && <div className="editor-ai-loading">✦ Transformando…</div>}
         {ctxMenu && (
           <EditorContextMenu
-            x={ctxMenu.x} y={ctxMenu.y} hasSelection={ctxMenu.hasSelection}
+            x={ctxMenu.x} y={ctxMenu.y}
+            hasSelection={ctxMenu.hasSelection}
+            selFrom={ctxMenu.selFrom} selTo={ctxMenu.selTo} selText={ctxMenu.selText}
             onClose={() => setCtxMenu(null)}
             onWrap={wrapSelection}
             onInsert={insertAtCursor}
@@ -417,6 +464,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
             onCut={handleCut}
             onPaste={handlePaste}
             onSelectAll={handleSelectAll}
+            onAiTransform={handleAiTransform}
+            onAiExplain={handleAiExplain}
           />
         )}
       </div>
@@ -431,6 +480,7 @@ export default MarkdownEditor
 
 interface EditorCtxProps {
   x: number; y: number; hasSelection: boolean
+  selFrom: number; selTo: number; selText: string
   onClose: () => void
   onWrap: (before: string, after: string, placeholder?: string) => void
   onInsert: (text: string, cursorOffset?: number) => void
@@ -438,9 +488,12 @@ interface EditorCtxProps {
   onCut: () => void
   onPaste: () => void
   onSelectAll: () => void
+  onAiTransform: (action: 'fix' | 'formalize', from: number, to: number, text: string) => void
+  onAiExplain: (text: string) => void
 }
 
-function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert, onCopy, onCut, onPaste, onSelectAll }: EditorCtxProps) {
+function EditorContextMenu({ x, y, hasSelection, selFrom, selTo, selText, onClose, onWrap, onInsert, onCopy, onCut, onPaste, onSelectAll, onAiTransform, onAiExplain }: EditorCtxProps) {
+  const t = useT()
   const today = new Date().toISOString().slice(0, 10)
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
@@ -492,6 +545,23 @@ function EditorContextMenu({ x, y, hasSelection, onClose, onWrap, onInsert, onCo
         <button onClick={() => onInsert('- [ ] \n- [ ] \n- [ ] ', -14)}>Task list</button>
         <button onClick={() => onInsert('\n---\n', 0)}>Horizontal rule</button>
         <button onClick={() => onInsert(today, 0)}>Today's date</button>
+
+        {/* AI actions */}
+        {hasSelection && (
+          <>
+            <hr />
+            <div className="ctx-section-label">✦ AI</div>
+            <button onClick={() => onAiTransform('fix', selFrom, selTo, selText)}>
+              <span className="ctx-icon">✓</span> {t('aiFixText')}
+            </button>
+            <button onClick={() => onAiTransform('formalize', selFrom, selTo, selText)}>
+              <span className="ctx-icon">✦</span> {t('aiFormalizeText')}
+            </button>
+            <button onClick={() => onAiExplain(selText)}>
+              <span className="ctx-icon">💬</span> {t('aiExplainText')}
+            </button>
+          </>
+        )}
       </div>
     </>
   )

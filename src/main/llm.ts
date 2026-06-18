@@ -185,6 +185,25 @@ export function cancelGeneration(): void {
   abortCtrl?.abort()
 }
 
+// Single-shot transform (no streaming) — for fix/formalize/explain actions
+export async function generateTransform(messages: ChatMessage[]): Promise<string> {
+  const settings     = getLlmSettings()
+  const sysMsg       = messages.find((m) => m.role === 'system')
+  const systemPrompt = sysMsg?.content ?? ''
+  const userMessages = messages.filter((m) => m.role !== 'system')
+
+  let result = ''
+  const collect = (t: string) => { result += t }
+
+  if (settings.provider === 'local') {
+    await generateLocal(userMessages, systemPrompt, collect)
+  } else {
+    await generateRemote(messages, { ...settings, systemPrompt }, collect)
+  }
+
+  return result.trim()
+}
+
 // ── Anthropic ─────────────────────────────────────────────────────────────────
 
 async function anthropicStream(

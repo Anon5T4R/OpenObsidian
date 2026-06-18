@@ -108,6 +108,7 @@ const api = {
   llmUnload:      (): Promise<void>                                          => ipcRenderer.invoke('llm:unload'),
   llmGenerate:    (messages: ChatMessage[]): Promise<void>                  => ipcRenderer.invoke('llm:generate', messages),
   llmCancel:      (): Promise<void>                                          => ipcRenderer.invoke('llm:cancel'),
+  llmTransform:   (messages: ChatMessage[]): Promise<string>                => ipcRenderer.invoke('llm:transform', messages),
 
   onLlmLoadProgress: (cb: (p: number) => void)   => { const h = (_: Electron.IpcRendererEvent, p: number) => cb(p);   ipcRenderer.on('llm:load-progress', h); return () => ipcRenderer.removeListener('llm:load-progress', h) },
   onLlmChunk:        (cb: (t: string) => void)   => { const h = (_: Electron.IpcRendererEvent, t: string) => cb(t);   ipcRenderer.on('llm:chunk', h);          return () => ipcRenderer.removeListener('llm:chunk', h) },

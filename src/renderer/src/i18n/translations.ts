@@ -162,6 +162,16 @@ export const en = {
   chatYou:               'You',
   chatAssistant:         'Assistant',
   chatGoSettings:        'Configure model →',
+
+  // AI text actions
+  aiFixText:       'Fix grammar',
+  aiFormalizeText: 'Formalize',
+  aiExplainText:   'Explain in chat',
+  aiTransforming:  'Transforming…',
+  aiNeedModel:     'Load a model in the chat first',
+  chatContinue:    'Continue writing',
+  chatWikilinks:   'Suggest wikilinks',
+  chatInsert:      'Insert in note',
 }
 
 // ── PT-BR ────────────────────────────────────────────────────────────────────
@@ -308,6 +318,15 @@ const ptBR: typeof en = {
   chatYou:               'Você',
   chatAssistant:         'Assistente',
   chatGoSettings:        'Configurar modelo →',
+
+  aiFixText:       'Corrigir texto',
+  aiFormalizeText: 'Formalizar',
+  aiExplainText:   'Explicar no chat',
+  aiTransforming:  'Transformando…',
+  aiNeedModel:     'Carregue um modelo no chat primeiro',
+  chatContinue:    'Continuar escrita',
+  chatWikilinks:   'Sugerir wikilinks',
+  chatInsert:      'Inserir na nota',
 }
 
 // ── ES-LATAM ─────────────────────────────────────────────────────────────────
@@ -454,6 +473,15 @@ const esLatam: typeof en = {
   chatYou:               'Tú',
   chatAssistant:         'Asistente',
   chatGoSettings:        'Configurar modelo →',
+
+  aiFixText:       'Corregir texto',
+  aiFormalizeText: 'Formalizar',
+  aiExplainText:   'Explicar en chat',
+  aiTransforming:  'Transformando…',
+  aiNeedModel:     'Carga un modelo en el chat primero',
+  chatContinue:    'Continuar escritura',
+  chatWikilinks:   'Sugerir wikilinks',
+  chatInsert:      'Insertar en nota',
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

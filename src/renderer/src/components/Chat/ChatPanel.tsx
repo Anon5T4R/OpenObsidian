@@ -10,7 +10,19 @@ type View = 'chat' | 'settings'
 
 // ── Root component ────────────────────────────────────────────────────────────
 
-export default function ChatPanel({ onClose }: { onClose: () => void }) {
+interface ChatPanelProps {
+  onClose: () => void
+  activeContent?: string
+  noteTitle?: string
+  vaultFileNames?: string[]
+  onInsertAtCursor?: (text: string) => void
+  triggerMessage?: string
+  onTriggerConsumed?: () => void
+}
+
+export default function ChatPanel({
+  onClose, activeContent, noteTitle, vaultFileNames, onInsertAtCursor, triggerMessage, onTriggerConsumed,
+}: ChatPanelProps) {
   const t = useT()
   const [view,         setView]         = useState<View>('chat')
   const [messages,     setMessages]     = useState<ChatMessage[]>([])
@@ -19,8 +31,10 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
   const [status,       setStatus]       = useState<LlmStatusInfo>({ status: 'idle', modelPath: null })
   const [loadProgress, setLoadProgress] = useState<number | null>(null)
   const [settings,     setSettingsState]= useState<LlmSettings | null>(null)
-  const msgEndRef = useRef<HTMLDivElement>(null)
-  const inputRef  = useRef<HTMLTextAreaElement>(null)
+  const [lastWasContinue, setLastWasContinue] = useState(false)
+  const msgEndRef      = useRef<HTMLDivElement>(null)
+  const inputRef       = useRef<HTMLTextAreaElement>(null)
+  const triggeredRef   = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     window.api.llmStatus().then(setStatus)
@@ -70,6 +84,20 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
     return () => { u1(); u2(); u3(); u4() }
   }, [])
 
+  // Auto-send external trigger (e.g. "Explain in chat")
+  useEffect(() => {
+    if (!triggerMessage || triggerMessage === triggeredRef.current) return
+    if (status.status !== 'loaded') return
+    triggeredRef.current = triggerMessage
+    onTriggerConsumed?.()
+    setView('chat')
+    const userMsg: ChatMessage = { role: 'user', content: triggerMessage }
+    setMessages([userMsg, { role: 'assistant', content: '' }])
+    setGenerating(true)
+    setLastWasContinue(false)
+    window.api.llmGenerate([userMsg])
+  }, [triggerMessage, status.status])
+
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -83,6 +111,7 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
     setMessages(next)
     setInput('')
     setGenerating(true)
+    setLastWasContinue(false)
 
     await window.api.llmGenerate([...messages, userMsg])
   }, [input, messages, generating])
@@ -90,7 +119,26 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
   const handleNewChat = useCallback(() => {
     setMessages([])
     setGenerating(false)
+    setLastWasContinue(false)
   }, [])
+
+  const handleQuickAction = useCallback((action: 'continue' | 'wikilinks') => {
+    if (generating || !activeContent) return
+    let userContent: string
+    if (action === 'continue') {
+      const snippet = activeContent.slice(-2000)
+      userContent = `I'm writing a markdown note titled "${noteTitle ?? 'Untitled'}". Continue writing from where it ends, in the same style.\n\nCurrent note:\n\n${snippet}`
+      setLastWasContinue(true)
+    } else {
+      const names = (vaultFileNames ?? []).slice(0, 200).join(', ')
+      userContent = `Here is my note titled "${noteTitle ?? 'Untitled'}":\n\n${activeContent.slice(0, 3000)}\n\nAvailable notes in my vault: ${names}\n\nWhich of these notes would be good to link with [[WikiLinks]]? List each suggestion with a brief reason.`
+      setLastWasContinue(false)
+    }
+    const userMsg: ChatMessage = { role: 'user', content: userContent }
+    setMessages((prev) => [...prev, userMsg, { role: 'assistant', content: '' }])
+    setGenerating(true)
+    window.api.llmGenerate([...messages, userMsg])
+  }, [generating, activeContent, noteTitle, vaultFileNames, messages])
 
   return (
     <div className="chat-panel">
@@ -152,6 +200,19 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
             <div ref={msgEndRef} />
           </div>
 
+          {/* Insert button after "continue writing" finishes */}
+          {!generating && lastWasContinue && messages.length > 0 && onInsertAtCursor && (
+            <div className="chat-insert-bar">
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  const last = messages[messages.length - 1]
+                  if (last?.role === 'assistant' && last.content) onInsertAtCursor(last.content)
+                }}
+              >↙ {t('chatInsert')}</button>
+            </div>
+          )}
+
           <div className="chat-status-bar">
             <span className={`chat-status-dot status-${status.status}`} />
             <span className="chat-status-label">
@@ -165,6 +226,18 @@ export default function ChatPanel({ onClose }: { onClose: () => void }) {
               {t('chatNewChat')}
             </button>
           </div>
+
+          {/* Quick actions — only when model loaded and note is open */}
+          {status.status === 'loaded' && activeContent && (
+            <div className="chat-quick-actions">
+              <button onClick={() => handleQuickAction('continue')} disabled={generating}>
+                ✦ {t('chatContinue')}
+              </button>
+              <button onClick={() => handleQuickAction('wikilinks')} disabled={generating}>
+                ⬡ {t('chatWikilinks')}
+              </button>
+            </div>
+          )}
 
           <div className="chat-input-area">
             <textarea

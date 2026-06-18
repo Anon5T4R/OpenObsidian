@@ -418,3 +418,7 @@ ipcMain.handle('llm:generate', async (_, messages: llm.ChatMessage[]) => {
 })
 
 ipcMain.handle('llm:cancel', () => llm.cancelGeneration())
+
+ipcMain.handle('llm:transform', async (_, messages: llm.ChatMessage[]) => {
+  return llm.generateTransform(messages)
+})

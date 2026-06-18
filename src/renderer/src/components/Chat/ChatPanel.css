@@ -393,3 +393,46 @@
 }
 
 .btn-danger:hover { background: #dc2626; }
+
+/* ── Quick actions ────────────────────────────────────────────────────────── */
+
+.chat-quick-actions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-quick-actions button {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.chat-quick-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.chat-quick-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Insert bar ───────────────────────────────────────────────────────────── */
+
+.chat-insert-bar {
+  display: flex;
+  justify-content: center;
+  padding: 6px 12px 2px;
+  flex-shrink: 0;
+}

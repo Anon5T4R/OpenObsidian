@@ -49,6 +49,7 @@ export default function App() {
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [tocOpen,          setTocOpen]          = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
+  const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
 
   const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
@@ -151,6 +152,17 @@ export default function App() {
 
   const { handleExportHTML, handleExportPDF, exportMenuOpen, setExportMenuOpen } =
     useExport(notify, setViewMode)
+
+  // ── AI editor actions ─────────────────────────────────────────────────────
+  const handleAiExplain = useCallback((text: string) => {
+    setChatTrigger(`Explain this:\n\n${text}`)
+    setChatOpen(true)
+  }, [])
+
+  const handleAiNeedModel = useCallback(() => {
+    setChatOpen(true)
+    notify(t('aiNeedModel'))
+  }, [notify, t])
 
   // ── TOC scroll ────────────────────────────────────────────────────────────
   const handleTocJump = useCallback((id: string) => {
@@ -378,6 +390,8 @@ export default function App() {
                           files={store.files}
                           theme={settings.theme}
                           onStatsChange={setEditorStats}
+                          onAiExplain={handleAiExplain}
+                          onAiNeedModel={handleAiNeedModel}
                         />
                       </div>
                     )}
@@ -417,7 +431,17 @@ export default function App() {
           folderHint={templateFolder?.split(/[/\\]/).pop()}
         />
       )}
-      {chatOpen && <ChatPanel onClose={() => setChatOpen(false)} />}
+      {chatOpen && (
+        <ChatPanel
+          onClose={() => setChatOpen(false)}
+          activeContent={store.activeFile && !isDoc ? store.activeContent : undefined}
+          noteTitle={store.activeFile?.name}
+          vaultFileNames={store.files.map((f) => f.name)}
+          onInsertAtCursor={(text) => editorRef.current?.insertText(text)}
+          triggerMessage={chatTrigger}
+          onTriggerConsumed={() => setChatTrigger(undefined)}
+        />
+      )}
       {notification && <div className="toast">{notification}</div>}
 
       {!noVault && !chatOpen && (
