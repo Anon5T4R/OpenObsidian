@@ -1,6 +1,6 @@
 {
   "name": "open-obsidian",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
@@ -40,20 +40,22 @@
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
     "@lezer/highlight": "^1.2.0",
+    "@types/adm-zip": "^0.5.8",
     "@types/d3": "^7.4.3",
     "@types/turndown": "^5.0.6",
+    "adm-zip": "^0.5.17",
     "chokidar": "^3.6.0",
     "d3": "^7.9.0",
     "flexsearch": "^0.7.43",
     "mammoth": "^1.12.0",
     "mermaid": "^11.15.0",
+    "node-llama-cpp": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.0",
     "remark-html": "^16.0.1",
     "turndown": "^7.2.4",
-    "node-llama-cpp": "^3.0.0",
     "zustand": "^4.5.0"
   },
   "build": {

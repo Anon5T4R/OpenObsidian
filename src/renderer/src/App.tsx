@@ -22,6 +22,8 @@ import PdfViewer from './components/Pdf/PdfViewer'
 import DocxViewer from './components/Docx/DocxViewer'
 import TocPanel from './components/Toc/TocPanel'
 import ChatPanel from './components/Chat/ChatPanel'
+import PluginPanel from './components/Plugins/PluginPanel'
+import type { PluginInfo } from '../../preload/index'
 import './styles/app.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
@@ -50,6 +52,8 @@ export default function App() {
   const [tocOpen,          setTocOpen]          = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
+  const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
+  const [activePluginId,   setActivePluginId]   = useState<string | null>(null)
 
   const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
@@ -65,6 +69,12 @@ export default function App() {
     setNotification(msg)
     setTimeout(() => setNotification(null), 3000)
   }, [])
+
+  const refreshPlugins = useCallback(() => {
+    window.api.pluginList().then(setPlugins)
+  }, [])
+
+  useEffect(() => { refreshPlugins() }, [])
 
   // ── Reset nav on vault switch ─────────────────────────────────────────────
   const resetNav = useCallback(() => {
@@ -163,6 +173,31 @@ export default function App() {
     setChatOpen(true)
     notify(t('aiNeedModel'))
   }, [notify, t])
+
+  // ── Plugin actions ────────────────────────────────────────────────────────
+  const handlePluginToggle = useCallback(async (id: string, enabled: boolean) => {
+    await window.api.pluginSetEnabled(id, enabled)
+    refreshPlugins()
+    if (!enabled && activePluginId === id) setActivePluginId(null)
+  }, [activePluginId, refreshPlugins])
+
+  const handlePluginInstallZip = useCallback(async () => {
+    const r = await window.api.pluginInstallZip()
+    if ('error' in r && r.error !== 'cancelled') { notify(r.error); return }
+    if ('name' in r) { refreshPlugins(); notify(`Plugin "${r.name}" installed`) }
+  }, [refreshPlugins, notify])
+
+  const handlePluginOpenDir = useCallback(() => { window.api.pluginOpenDir() }, [])
+
+  const handlePluginDelete = useCallback(async (id: string) => {
+    await window.api.pluginDelete(id)
+    if (activePluginId === id) setActivePluginId(null)
+    refreshPlugins()
+  }, [activePluginId, refreshPlugins])
+
+  const handlePluginPanelToggle = useCallback((id: string) => {
+    setActivePluginId((prev) => prev === id ? null : id)
+  }, [])
 
   // ── TOC scroll ────────────────────────────────────────────────────────────
   const handleTocJump = useCallback((id: string) => {
@@ -359,6 +394,14 @@ export default function App() {
                   </div>
                 )}
                 <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
+                {plugins.filter((p) => p.enabled && p.panelPath).map((p) => (
+                  <button
+                    key={p.id}
+                    className={`toolbar-icon-btn ${activePluginId === p.id ? 'active' : ''}`}
+                    onClick={() => handlePluginPanelToggle(p.id)}
+                    title={t('ttPlugin', { name: p.name })}
+                  >{p.icon ?? '⬡'}</button>
+                ))}
                 <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
                 <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
               </div>
@@ -422,7 +465,18 @@ export default function App() {
         )}
       </main>
 
-      {settingsOpen  && <SettingsModal settings={settings} onChange={setSettings} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen  && (
+        <SettingsModal
+          settings={settings}
+          onChange={setSettings}
+          onClose={() => setSettingsOpen(false)}
+          plugins={plugins}
+          onPluginToggle={handlePluginToggle}
+          onPluginInstallZip={handlePluginInstallZip}
+          onPluginOpenDir={handlePluginOpenDir}
+          onPluginDelete={handlePluginDelete}
+        />
+      )}
       {helpOpen      && <HelpModal onClose={() => setHelpOpen(false)} />}
       {templateOpen  && (
         <TemplateModal
@@ -442,6 +496,18 @@ export default function App() {
           onTriggerConsumed={() => setChatTrigger(undefined)}
         />
       )}
+      {activePluginId && (() => {
+        const activePlugin = plugins.find((p) => p.id === activePluginId)
+        return activePlugin ? (
+          <PluginPanel
+            plugin={activePlugin}
+            vaultPath={store.vaultPath}
+            theme={settings.theme}
+            onClose={() => setActivePluginId(null)}
+            onNotify={notify}
+          />
+        ) : null
+      })()}
       {notification && <div className="toast">{notification}</div>}
 
       {!noVault && !chatOpen && (

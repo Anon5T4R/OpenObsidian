@@ -30,6 +30,19 @@ export interface ChatMessage {
   content: string
 }
 
+export interface PluginInfo {
+  id:           string
+  name:         string
+  version:      string
+  icon?:        string
+  panel?:       string
+  author?:      string
+  description?: string
+  dir:          string
+  panelPath:    string | null
+  enabled:      boolean
+}
+
 const api = {
   // App settings
   getLastVault:  (): Promise<string | null> => ipcRenderer.invoke('app:get-last-vault'),
@@ -114,6 +127,15 @@ const api = {
   onLlmChunk:        (cb: (t: string) => void)   => { const h = (_: Electron.IpcRendererEvent, t: string) => cb(t);   ipcRenderer.on('llm:chunk', h);          return () => ipcRenderer.removeListener('llm:chunk', h) },
   onLlmDone:         (cb: () => void)            => { const h = () => cb();                                            ipcRenderer.on('llm:done', h);           return () => ipcRenderer.removeListener('llm:done', h) },
   onLlmError:        (cb: (m: string) => void)   => { const h = (_: Electron.IpcRendererEvent, m: string) => cb(m);   ipcRenderer.on('llm:error', h);          return () => ipcRenderer.removeListener('llm:error', h) },
+
+  // Plugins
+  pluginList:       (): Promise<PluginInfo[]>                              => ipcRenderer.invoke('plugin:list'),
+  pluginSetEnabled: (id: string, value: boolean): Promise<void>           => ipcRenderer.invoke('plugin:set-enabled', id, value),
+  pluginExec:       (cmd: string, args: string[], cwd?: string): Promise<{ stdout: string; stderr: string; code: number }> =>
+    ipcRenderer.invoke('plugin:exec', cmd, args, cwd),
+  pluginInstallZip: (): Promise<{ id: string; name: string } | { error: string }> => ipcRenderer.invoke('plugin:install-zip'),
+  pluginDelete:     (id: string): Promise<void>                           => ipcRenderer.invoke('plugin:delete', id),
+  pluginOpenDir:    (): Promise<string>                                    => ipcRenderer.invoke('plugin:open-dir'),
 }
 
 contextBridge.exposeInMainWorld('api', api)

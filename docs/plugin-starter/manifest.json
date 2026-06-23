@@ -1,0 +1,9 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "version": "0.1.0",
+  "icon": "⎇",
+  "panel": "panel.html",
+  "author": "community",
+  "description": "Git integration — commit, push, pull from your vault"
+}

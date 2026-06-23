@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import * as llm from './llm'
+import * as plugins from './plugin-manager'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -421,4 +422,17 @@ ipcMain.handle('llm:cancel', () => llm.cancelGeneration())
 
 ipcMain.handle('llm:transform', async (_, messages: llm.ChatMessage[]) => {
   return llm.generateTransform(messages)
+})
+
+// ── Plugins ──────────────────────────────────────────────────────────────────
+
+ipcMain.handle('plugin:list',        ()                              => plugins.listPlugins())
+ipcMain.handle('plugin:set-enabled', (_, id: string, value: boolean) => plugins.setPluginEnabled(id, value))
+ipcMain.handle('plugin:exec',        (_, cmd: string, args: string[], cwd?: string) => plugins.execPlugin(cmd, args, cwd))
+ipcMain.handle('plugin:install-zip', ()                              => plugins.installFromZip())
+ipcMain.handle('plugin:delete',      (_, id: string)                 => plugins.deletePlugin(id))
+ipcMain.handle('plugin:open-dir',    ()                              => {
+  const dir = plugins.openPluginsDir()
+  shell.openPath(dir)
+  return dir
 })

@@ -172,6 +172,16 @@ export const en = {
   chatContinue:    'Continue writing',
   chatWikilinks:   'Suggest wikilinks',
   chatInsert:      'Insert in note',
+
+  // Plugins
+  plugins:          'Plugins',
+  pluginsEmpty:     'No plugins installed yet.',
+  pluginEnable:     'Enable',
+  pluginDisable:    'Disable',
+  pluginDelete:     'Delete plugin',
+  pluginInstallZip: 'Install from ZIP…',
+  pluginOpenDir:    'Open plugins folder',
+  ttPlugin:         'Open {name} panel',
 }
 
 // ── PT-BR ────────────────────────────────────────────────────────────────────
@@ -327,6 +337,15 @@ const ptBR: typeof en = {
   chatContinue:    'Continuar escrita',
   chatWikilinks:   'Sugerir wikilinks',
   chatInsert:      'Inserir na nota',
+
+  plugins:          'Plugins',
+  pluginsEmpty:     'Nenhum plugin instalado ainda.',
+  pluginEnable:     'Ativar',
+  pluginDisable:    'Desativar',
+  pluginDelete:     'Excluir plugin',
+  pluginInstallZip: 'Instalar via ZIP…',
+  pluginOpenDir:    'Abrir pasta de plugins',
+  ttPlugin:         'Abrir painel {name}',
 }
 
 // ── ES-LATAM ─────────────────────────────────────────────────────────────────
@@ -482,6 +501,15 @@ const esLatam: typeof en = {
   chatContinue:    'Continuar escritura',
   chatWikilinks:   'Sugerir wikilinks',
   chatInsert:      'Insertar en nota',
+
+  plugins:          'Plugins',
+  pluginsEmpty:     'Aún no hay plugins instalados.',
+  pluginEnable:     'Activar',
+  pluginDisable:    'Desactivar',
+  pluginDelete:     'Eliminar plugin',
+  pluginInstallZip: 'Instalar desde ZIP…',
+  pluginOpenDir:    'Abrir carpeta de plugins',
+  ttPlugin:         'Abrir panel {name}',
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

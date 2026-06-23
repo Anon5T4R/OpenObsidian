@@ -1,15 +1,24 @@
 import React from 'react'
 import type { Settings } from '../../hooks/useSettings'
+import type { PluginInfo } from '../../../../preload/index'
 import { useT, LOCALES } from '../../i18n'
 import './SettingsModal.css'
 
 interface SettingsModalProps {
-  settings: Settings
-  onChange: (patch: Partial<Settings>) => void
-  onClose: () => void
+  settings:          Settings
+  onChange:          (patch: Partial<Settings>) => void
+  onClose:           () => void
+  plugins:           PluginInfo[]
+  onPluginToggle:    (id: string, enabled: boolean) => void
+  onPluginInstallZip:() => void
+  onPluginOpenDir:   () => void
+  onPluginDelete:    (id: string) => void
 }
 
-export default function SettingsModal({ settings, onChange, onClose }: SettingsModalProps) {
+export default function SettingsModal({
+  settings, onChange, onClose,
+  plugins, onPluginToggle, onPluginInstallZip, onPluginOpenDir, onPluginDelete,
+}: SettingsModalProps) {
   const t = useT()
 
   return (
@@ -86,6 +95,51 @@ export default function SettingsModal({ settings, onChange, onClose }: SettingsM
                   </button>
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section>
+            <h3>{t('plugins')}</h3>
+
+            <div className="plugin-list">
+              {plugins.length === 0 ? (
+                <p className="plugin-list-empty">{t('pluginsEmpty')}</p>
+              ) : (
+                plugins.map((p) => (
+                  <div key={p.id} className="plugin-item">
+                    <span className="plugin-item-icon">{p.icon ?? '⬡'}</span>
+                    <div className="plugin-item-info">
+                      <span className="plugin-item-name">{p.name}</span>
+                      <span className="plugin-item-meta">v{p.version}{p.author ? ` · ${p.author}` : ''}</span>
+                      {p.description && <span className="plugin-item-desc">{p.description}</span>}
+                    </div>
+                    <div className="plugin-item-actions">
+                      <label className="plugin-toggle" title={p.enabled ? t('pluginDisable') : t('pluginEnable')}>
+                        <input
+                          type="checkbox"
+                          checked={p.enabled}
+                          onChange={(e) => onPluginToggle(p.id, e.target.checked)}
+                        />
+                        <span className="plugin-toggle-track" />
+                      </label>
+                      <button
+                        className="plugin-delete-btn"
+                        onClick={() => onPluginDelete(p.id)}
+                        title={t('pluginDelete')}
+                      >🗑</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="plugin-footer">
+              <button className="plugin-action-btn" onClick={onPluginInstallZip}>
+                ⬆ {t('pluginInstallZip')}
+              </button>
+              <button className="plugin-action-btn" onClick={onPluginOpenDir}>
+                📂 {t('pluginOpenDir')}
+              </button>
             </div>
           </section>
         </div>
