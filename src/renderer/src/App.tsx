@@ -345,6 +345,23 @@ export default function App() {
           <WelcomeScreen onOpenVault={handleOpenVault} onHelp={() => setHelpOpen(true)} lastVault={lastVault} onReopenVault={handleReopenVault} />
         ) : !store.activeFile ? (
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            <div className="editor-toolbar">
+              <div className="toolbar-left" />
+              <div className="toolbar-right">
+                <button className="toolbar-icon-btn" onClick={handleDailyNote} title={t('ttDailyNote')}>📅</button>
+                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
+                {plugins.filter((p) => p.enabled && p.panelPath).map((p) => (
+                  <button
+                    key={p.id}
+                    className={`toolbar-icon-btn ${activePluginId === p.id ? 'active' : ''}`}
+                    onClick={() => handlePluginPanelToggle(p.id)}
+                    title={t('ttPlugin', { name: p.name })}
+                  >{p.icon ?? '⬡'}</button>
+                ))}
+                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
+                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
+              </div>
+            </div>
             {graphOpen
               ? <GraphView onNodeClick={(f) => { handleFileSelect(f); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />
               : <EmptyState onNewNote={() => handleNewNote()} onOpenGraph={() => setGraphOpen(true)} hasNotes={store.files.length > 0} />
