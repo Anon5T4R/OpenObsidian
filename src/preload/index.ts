@@ -131,8 +131,8 @@ const api = {
   // Plugins
   pluginList:       (): Promise<PluginInfo[]>                              => ipcRenderer.invoke('plugin:list'),
   pluginSetEnabled: (id: string, value: boolean): Promise<void>           => ipcRenderer.invoke('plugin:set-enabled', id, value),
-  pluginExec:       (cmd: string, args: string[], cwd?: string): Promise<{ stdout: string; stderr: string; code: number }> =>
-    ipcRenderer.invoke('plugin:exec', cmd, args, cwd),
+  pluginExec:       (cmd: string, args: string[], cwd?: string, neutralLocale?: boolean): Promise<{ stdout: string; stderr: string; code: number }> =>
+    ipcRenderer.invoke('plugin:exec', cmd, args, cwd, neutralLocale),
   pluginInstallZip: (): Promise<{ id: string; name: string } | { error: string }> => ipcRenderer.invoke('plugin:install-zip'),
   pluginDelete:     (id: string): Promise<void>                           => ipcRenderer.invoke('plugin:delete', id),
   pluginOpenDir:    (): Promise<string>                                    => ipcRenderer.invoke('plugin:open-dir'),

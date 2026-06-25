@@ -101,9 +101,12 @@ export async function execPlugin(
   cmd: string,
   args: string[],
   cwd?: string,
+  neutralLocale?: boolean,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
-    const { stdout, stderr } = await execFileAsync(cmd, args, { cwd, timeout: 30_000 })
+    const opts: Record<string, unknown> = { cwd, timeout: 30_000 }
+    if (neutralLocale) opts.env = { ...process.env, LC_ALL: 'C' }
+    const { stdout, stderr } = await execFileAsync(cmd, args, opts as any)
     return { stdout: stdout.trim(), stderr: stderr.trim(), code: 0 }
   } catch (e: any) {
     return {

@@ -31,8 +31,9 @@ export default function PluginPanel({ plugin, vaultPath, theme, onClose, onNotif
 
     switch (type) {
       case 'exec': {
-        const cwd = payload.cwd as string | undefined ?? vaultPath ?? undefined
-        const res = await window.api.pluginExec(payload.cmd as string, (payload.args as string[]) ?? [], cwd)
+        const cwd   = payload.cwd as string | undefined ?? vaultPath ?? undefined
+        const nl    = payload.neutralLocale as boolean | undefined
+        const res   = await window.api.pluginExec(payload.cmd as string, (payload.args as string[]) ?? [], cwd, nl)
         reply = { ...reply, ...res }
         break
       }
@@ -110,7 +111,7 @@ const BRIDGE_SCRIPT = `
     });
   }
   window.pluginApi={
-    exec:      function(cmd,args,cwd){ return _call('exec',{cmd:cmd,args:args||[],cwd:cwd}); },
+    exec:      function(cmd,args,cwd,opts){ return _call('exec',{cmd:cmd,args:args||[],cwd:cwd,neutralLocale:opts?.neutralLocale}); },
     readFile:  function(p){            return _call('readFile',{path:p}); },
     writeFile: function(p,c){          return _call('writeFile',{path:p,content:c}); },
     notify:    function(msg){          return _call('notify',{msg:msg}); },
