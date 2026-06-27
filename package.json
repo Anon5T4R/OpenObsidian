@@ -12,7 +12,6 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "icons": "node scripts/generate-icons.js",
-    "predist": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux"
