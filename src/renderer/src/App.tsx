@@ -20,6 +20,7 @@ import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
 import PdfViewer from './components/Pdf/PdfViewer'
 import DocxViewer from './components/Docx/DocxViewer'
+import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
@@ -32,7 +33,7 @@ const MIN_SIDEBAR = 40
 const MAX_SIDEBAR = 520
 const COLLAPSED_WIDTH = 44
 
-const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx')
+const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx') || p.endsWith('.epub')
 
 export default function App() {
   const store = useVaultStore()
@@ -314,7 +315,8 @@ export default function App() {
   const noVault = !store.vaultPath
   const isPdf   = store.activeFile?.path.endsWith('.pdf')  ?? false
   const isDocx  = store.activeFile?.path.endsWith('.docx') ?? false
-  const isDoc   = isPdf || isDocx
+  const isEpub  = store.activeFile?.path.endsWith('.epub') ?? false
+  const isDoc   = isPdf || isDocx || isEpub
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -436,6 +438,8 @@ export default function App() {
                   onConvertToMd={handleConvertToMd}
                   isConverting={isConverting}
                 />
+              ) : isEpub ? (
+                <EpubViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
               ) : (
                 <>
                   <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>

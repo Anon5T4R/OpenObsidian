@@ -140,7 +140,7 @@ function walkTree(dir: string): TreeNode[] {
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-  const BINARY_EXTS = ['.pdf', '.docx']
+  const BINARY_EXTS = ['.pdf', '.docx', '.epub']
   const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.') &&
     (e.name.endsWith('.md') || BINARY_EXTS.some((x) => e.name.endsWith(x))))
 

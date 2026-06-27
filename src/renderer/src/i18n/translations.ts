@@ -91,8 +91,10 @@ export const en = {
   tocTitle: 'Contents',
   tocEmpty: 'No headings found',
 
-  // PDF viewer
-  pdfOpenNotes: '📝 Open Notes',
+  // PDF / EPUB viewer
+  pdfOpenNotes:  '📝 Open Notes',
+  epubLoading:   'Loading book…',
+  epubChapters:  'Chapters',
 
   // DOCX viewer
   docxOpenInApp:  '↗ Open in App',
@@ -263,7 +265,9 @@ const ptBR: typeof en = {
   tocTitle: 'Índice',
   tocEmpty: 'Nenhum título encontrado',
 
-  pdfOpenNotes: '📝 Abrir notas',
+  pdfOpenNotes:  '📝 Abrir notas',
+  epubLoading:   'Carregando livro…',
+  epubChapters:  'Capítulos',
 
   docxOpenInApp:  '↗ Abrir no app',
   docxConvert:    '⬇ Converter para .md',
@@ -427,7 +431,9 @@ const esLatam: typeof en = {
   tocTitle: 'Contenido',
   tocEmpty: 'No se encontraron títulos',
 
-  pdfOpenNotes: '📝 Abrir notas',
+  pdfOpenNotes:  '📝 Abrir notas',
+  epubLoading:   'Cargando libro…',
+  epubChapters:  'Capítulos',
 
   docxOpenInApp:  '↗ Abrir en app',
   docxConvert:    '⬇ Convertir a .md',

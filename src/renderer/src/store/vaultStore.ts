@@ -61,7 +61,7 @@ function savePinned(paths: string[]): void {
 export function flattenTree(nodes: TreeNode[]): NoteFile[] {
   const files: NoteFile[] = []
   function walk(node: TreeNode, prefix: string) {
-    if (node.type === 'file' && !node.path.endsWith('.pdf') && !node.path.endsWith('.docx')) {
+    if (node.type === 'file' && !node.path.endsWith('.pdf') && !node.path.endsWith('.docx') && !node.path.endsWith('.epub')) {
       files.push({ name: node.name, path: node.path, relativePath: prefix ? `${prefix}/${node.name}.md` : `${node.name}.md` })
     } else if (node.type === 'directory' && node.children) {
       const p = prefix ? `${prefix}/${node.name}` : node.name

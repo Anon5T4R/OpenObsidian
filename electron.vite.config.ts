@@ -22,7 +22,7 @@ export default defineConfig({
     },
     plugins: [react()],
     optimizeDeps: {
-      include: ['mermaid', 'katex']
+      include: ['mermaid', 'katex', 'epubjs']
     }
   }
 })
