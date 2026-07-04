@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { useVaultStore, NoteFile, TreeNode } from '../../store/vaultStore'
 import { SidebarSort } from '../../hooks/useSettings'
+import { sortNodes } from './treeSort'
 import { useT } from '../../i18n'
 import './FileTree.css'
 
@@ -42,16 +43,6 @@ function useCtxMenu() {
   }, [menu])
 
   return { menu, open, close, menuRef, pos }
-}
-
-function sortNodes(nodes: TreeNode[], sort: SidebarSort): TreeNode[] {
-  return [...nodes].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
-    if (sort === 'name')       return a.name.localeCompare(b.name)
-    if (sort === 'name-desc')  return b.name.localeCompare(a.name)
-    if (sort === 'modified')   return (b.mtime ?? 0) - (a.mtime ?? 0)
-    return 0
-  })
 }
 
 interface TreeNodeRowProps {
