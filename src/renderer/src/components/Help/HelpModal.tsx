@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { X } from 'lucide-react'
+import { useModalA11y } from '../../hooks/useModalA11y'
 import './HelpModal.css'
 
 interface HelpModalProps {
@@ -9,16 +11,24 @@ type Tab = 'interface' | 'markdown' | 'features' | 'shortcuts'
 
 export default function HelpModal({ onClose }: HelpModalProps) {
   const [tab, setTab] = useState<Tab>('interface')
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose)
 
   return (
     <div className="help-overlay" onClick={onClose}>
-      <div className="help-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="help-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Help & Reference"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="help-header">
           <div className="help-title">
             <span className="help-icon">?</span>
             Help & Reference
           </div>
-          <button className="help-close" onClick={onClose}>✕</button>
+          <button className="help-close" onClick={onClose} aria-label="Close"><X size={16} /></button>
         </div>
 
         <div className="help-tabs">

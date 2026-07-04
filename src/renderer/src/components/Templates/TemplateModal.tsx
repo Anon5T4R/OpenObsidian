@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useT, formatDailyDate } from '../../i18n'
 import type { TranslationKey, Locale } from '../../i18n'
 import { useSettings } from '../../hooks/useSettings'
+import { X } from 'lucide-react'
+import { useModalA11y } from '../../hooks/useModalA11y'
 import './TemplateModal.css'
 
 interface Template {
@@ -74,18 +76,7 @@ export default function TemplateModal({ onConfirm, onCancel, folderHint }: Templ
 
   const [name,     setName]     = useState('')
   const [selected, setSelected] = useState('blank')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 50)
-    return () => clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
+  const dialogRef = useModalA11y<HTMLDivElement>(onCancel)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,17 +88,24 @@ export default function TemplateModal({ onConfirm, onCancel, folderHint }: Templ
 
   return (
     <div className="tpl-overlay" onClick={onCancel}>
-      <div className="tpl-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="tpl-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('tplTitle')}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="tpl-header">
           <span className="tpl-title">{t('tplTitle')}</span>
           {folderHint && <span className="tpl-folder">{t('tplIn', { folder: folderHint })}</span>}
-          <button className="tpl-close" onClick={onCancel}>✕</button>
+          <button className="tpl-close" onClick={onCancel} aria-label={t('close')}><X size={16} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="tpl-name-row">
             <input
-              ref={inputRef}
+              data-autofocus
               className="tpl-name-input"
               placeholder={t('tplNamePlaceholder')}
               value={name}

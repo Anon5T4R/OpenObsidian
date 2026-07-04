@@ -69,7 +69,6 @@ export function useFileOps(
       contentCacheRef.current[newFile.path] = content
       store.setActiveFile(newFile)
       store.setActiveContent(content)
-      store.setDirty(false)
     }
   }, [store.vaultPath, templateFolder])
 

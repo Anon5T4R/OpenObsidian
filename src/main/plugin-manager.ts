@@ -107,7 +107,7 @@ export async function execPlugin(
     const opts: Record<string, unknown> = { cwd, timeout: 30_000 }
     if (neutralLocale) opts.env = { ...process.env, LC_ALL: 'C' }
     const { stdout, stderr } = await execFileAsync(cmd, args, opts as any)
-    return { stdout: stdout.trim(), stderr: stderr.trim(), code: 0 }
+    return { stdout: stdout.toString().trim(), stderr: stderr.toString().trim(), code: 0 }
   } catch (e: any) {
     return {
       stdout: e.stdout?.trim() ?? '',

@@ -2,6 +2,8 @@ import React from 'react'
 import type { Settings } from '../../hooks/useSettings'
 import type { PluginInfo } from '../../../../preload/index'
 import { useT, LOCALES } from '../../i18n'
+import { X } from 'lucide-react'
+import { useModalA11y } from '../../hooks/useModalA11y'
 import './SettingsModal.css'
 
 interface SettingsModalProps {
@@ -20,13 +22,21 @@ export default function SettingsModal({
   plugins, onPluginToggle, onPluginInstallZip, onPluginOpenDir, onPluginDelete,
 }: SettingsModalProps) {
   const t = useT()
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose)
 
   return (
     <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('settings')}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="settings-header">
           <h2>{t('settings')}</h2>
-          <button className="settings-close" onClick={onClose}>✕</button>
+          <button className="settings-close" onClick={onClose} aria-label={t('close')}><X size={16} /></button>
         </div>
 
         <div className="settings-body">

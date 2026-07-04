@@ -8,7 +8,7 @@ export function useAutoSave() {
   const contentCacheRef = useRef<Record<string, string>>({})
 
   const handleContentChange = useCallback((value: string) => {
-    store.setActiveContent(value)
+    store.setActiveContent(value, true)
     if (store.activeFile) contentCacheRef.current[store.activeFile.path] = value
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {

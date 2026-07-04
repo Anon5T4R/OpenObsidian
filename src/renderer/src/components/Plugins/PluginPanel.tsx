@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { X } from 'lucide-react'
 import type { PluginInfo } from '../../../../preload/index'
 import './PluginPanel.css'
 
@@ -71,7 +72,7 @@ export default function PluginPanel({ plugin, vaultPath, theme, onClose, onNotif
         <span className="plugin-panel-title">
           {plugin.icon ?? '⬡'} {plugin.name}
         </span>
-        <button className="plugin-panel-close" onClick={onClose} title="Close">✕</button>
+        <button className="plugin-panel-close" onClick={onClose} title="Close" aria-label="Close"><X size={16} /></button>
       </div>
 
       <div className="plugin-panel-body">

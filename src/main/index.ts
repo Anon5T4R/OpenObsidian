@@ -8,6 +8,8 @@ import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
 import mammoth from 'mammoth'
 
+const fsp = fs.promises
+
 let mainWindow: BrowserWindow
 let vaultWatcher: FSWatcher | null = null
 
@@ -111,17 +113,16 @@ function getIndexPath(vaultPath: string): string {
   return path.join(dir, `${vaultCacheKey(vaultPath)}.json`)
 }
 
-ipcMain.handle('index:load', (_, vaultPath: string) => {
+ipcMain.handle('index:load', async (_, vaultPath: string) => {
   try {
     const file = getIndexPath(vaultPath)
-    if (!fs.existsSync(file)) return null
-    return JSON.parse(fs.readFileSync(file, 'utf-8'))
+    return JSON.parse(await fsp.readFile(file, 'utf-8'))
   } catch { return null }
 })
 
-ipcMain.handle('index:save', (_, vaultPath: string, data: object) => {
+ipcMain.handle('index:save', async (_, vaultPath: string, data: object) => {
   try {
-    fs.writeFileSync(getIndexPath(vaultPath), JSON.stringify(data), 'utf-8')
+    await fsp.writeFile(getIndexPath(vaultPath), JSON.stringify(data), 'utf-8')
     return true
   } catch { return false }
 })
@@ -134,9 +135,9 @@ ipcMain.handle('vault:open', async () => {
   return result.filePaths[0]
 })
 
-function walkTree(dir: string): TreeNode[] {
+async function walkTree(dir: string): Promise<TreeNode[]> {
   let entries: fs.Dirent[]
-  try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return [] }
+  try { entries = await fsp.readdir(dir, { withFileTypes: true }) } catch { return [] }
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
@@ -146,11 +147,11 @@ function walkTree(dir: string): TreeNode[] {
 
   for (const d of dirs) {
     const fullPath = path.join(dir, d.name)
-    nodes.push({ name: d.name, path: fullPath, type: 'directory', children: walkTree(fullPath) })
+    nodes.push({ name: d.name, path: fullPath, type: 'directory', children: await walkTree(fullPath) })
   }
   for (const f of files) {
     const fullPath = path.join(dir, f.name)
-    const mtime = fs.statSync(fullPath).mtimeMs
+    const mtime = (await fsp.stat(fullPath)).mtimeMs
     const isBinary = BINARY_EXTS.some((x) => f.name.endsWith(x))
     const name = isBinary ? f.name : f.name.replace(/\.md$/, '')
     nodes.push({ name, path: fullPath, type: 'file', mtime })
@@ -162,17 +163,17 @@ ipcMain.handle('vault:list-tree', async (_, vaultPath: string) => walkTree(vault
 
 ipcMain.handle('vault:list-files', async (_, vaultPath: string) => {
   const files: { name: string; path: string; relativePath: string }[] = []
-  function walk(dir: string) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true })
+  async function walk(dir: string) {
+    const entries = await fsp.readdir(dir, { withFileTypes: true })
     for (const entry of entries) {
       if (entry.name.startsWith('.')) continue
       const fullPath = path.join(dir, entry.name)
-      if (entry.isDirectory()) walk(fullPath)
+      if (entry.isDirectory()) await walk(fullPath)
       else if (entry.isFile() && entry.name.endsWith('.md'))
         files.push({ name: entry.name.replace(/\.md$/, ''), path: fullPath, relativePath: path.relative(vaultPath, fullPath) })
     }
   }
-  walk(vaultPath)
+  await walk(vaultPath)
   return files
 })
 
@@ -194,17 +195,17 @@ ipcMain.handle('vault:backup', async (_, vaultPath: string) => {
   const vaultName = path.basename(vaultPath)
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
   const backupDest = path.join(dest.filePaths[0], `${vaultName}-backup-${ts}`)
-  fs.cpSync(vaultPath, backupDest, { recursive: true })
+  await fsp.cp(vaultPath, backupDest, { recursive: true })
   return backupDest
 })
 
 // ── Files ──────────────────────────────────────────────────────────────────
 
-ipcMain.handle('file:read', async (_, filePath: string) => fs.readFileSync(filePath, 'utf-8'))
+ipcMain.handle('file:read', async (_, filePath: string) => fsp.readFile(filePath, 'utf-8'))
 
 ipcMain.handle('file:write', async (_, filePath: string, content: string) => {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  fs.writeFileSync(filePath, content, 'utf-8')
+  await fsp.mkdir(path.dirname(filePath), { recursive: true })
+  await fsp.writeFile(filePath, content, 'utf-8')
   return true
 })
 
@@ -212,12 +213,12 @@ ipcMain.handle('file:create', async (_, vaultPath: string, noteName: string, fol
   const base = folderPath ?? vaultPath
   const filePath = path.join(base, `${noteName}.md`)
   if (fs.existsSync(filePath)) return { error: 'File already exists', path: filePath }
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  fs.writeFileSync(filePath, `# ${noteName}\n\n`, 'utf-8')
+  await fsp.mkdir(path.dirname(filePath), { recursive: true })
+  await fsp.writeFile(filePath, `# ${noteName}\n\n`, 'utf-8')
   return { path: filePath }
 })
 
-ipcMain.handle('file:delete',    async (_, filePath: string) => { fs.unlinkSync(filePath); return true })
+ipcMain.handle('file:delete',    async (_, filePath: string) => { await fsp.unlink(filePath); return true })
 
 ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const dir = path.dirname(oldPath)
@@ -225,7 +226,7 @@ ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const hasExt = path.extname(newName) !== ''
   const finalName = hasExt ? newName : `${newName}${ext}`
   const newPath = path.join(dir, finalName)
-  fs.renameSync(oldPath, newPath)
+  await fsp.rename(oldPath, newPath)
   return newPath
 })
 
@@ -236,7 +237,7 @@ ipcMain.handle('file:duplicate', async (_, filePath: string) => {
   let dest = path.join(dir, `${base} copy${ext}`)
   let i = 2
   while (fs.existsSync(dest)) { dest = path.join(dir, `${base} copy ${i}${ext}`); i++ }
-  fs.copyFileSync(filePath, dest)
+  await fsp.copyFile(filePath, dest)
   return { path: dest }
 })
 
@@ -245,17 +246,17 @@ ipcMain.handle('file:duplicate', async (_, filePath: string) => {
 ipcMain.handle('folder:create', async (_, parentPath: string, folderName: string) => {
   const fullPath = path.join(parentPath, folderName)
   if (fs.existsSync(fullPath)) return { error: 'Folder already exists', path: fullPath }
-  fs.mkdirSync(fullPath, { recursive: true })
+  await fsp.mkdir(fullPath, { recursive: true })
   return { path: fullPath }
 })
 
 ipcMain.handle('folder:delete', async (_, folderPath: string) => {
-  fs.rmSync(folderPath, { recursive: true, force: true }); return true
+  await fsp.rm(folderPath, { recursive: true, force: true }); return true
 })
 
 ipcMain.handle('folder:rename', async (_, oldPath: string, newName: string) => {
   const newPath = path.join(path.dirname(oldPath), newName)
-  fs.renameSync(oldPath, newPath)
+  await fsp.rename(oldPath, newPath)
   return newPath
 })
 
@@ -266,7 +267,7 @@ ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string)
   const dest = path.join(targetDirPath, name)
   if (fs.existsSync(dest)) return { error: 'An item with this name already exists in the destination' }
   try {
-    fs.renameSync(sourcePath, dest)
+    await fsp.rename(sourcePath, dest)
     return { path: dest }
   } catch (e) {
     return { error: String(e) }
@@ -277,9 +278,9 @@ ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string)
 
 ipcMain.handle('image:save', async (_, vaultPath: string, fileName: string, base64: string) => {
   const attachDir = path.join(vaultPath, '_attachments')
-  fs.mkdirSync(attachDir, { recursive: true })
+  await fsp.mkdir(attachDir, { recursive: true })
   const filePath = path.join(attachDir, fileName)
-  fs.writeFileSync(filePath, Buffer.from(base64, 'base64'))
+  await fsp.writeFile(filePath, Buffer.from(base64, 'base64'))
   return `_attachments/${fileName}`
 })
 
@@ -318,7 +319,7 @@ ipcMain.handle('export:html', async (_, noteTitle: string, htmlContent: string) 
 ${htmlContent}
 </body>
 </html>`
-  fs.writeFileSync(result.filePath, fullHtml, 'utf-8')
+  await fsp.writeFile(result.filePath, fullHtml, 'utf-8')
   return result.filePath
 })
 
@@ -330,7 +331,7 @@ ipcMain.handle('export:pdf', async (_, noteTitle: string) => {
   })
   if (result.canceled || !result.filePath) return null
   const pdfData = await mainWindow.webContents.printToPDF({ pageSize: 'A4', printBackground: false })
-  fs.writeFileSync(result.filePath, pdfData)
+  await fsp.writeFile(result.filePath, pdfData)
   return result.filePath
 })
 
@@ -347,7 +348,8 @@ ipcMain.handle('docx:to-html', async (_, filePath: string) => {
 
 ipcMain.handle('docx:to-markdown', async (_, filePath: string) => {
   try {
-    const result = await mammoth.convertToMarkdown({ path: filePath })
+    // convertToMarkdown exists at runtime but is missing from mammoth's type defs
+    const result = await (mammoth as any).convertToMarkdown({ path: filePath })
     return { markdown: result.value, warnings: result.messages.map((m) => m.message) }
   } catch (e) {
     return { markdown: '', warnings: [], error: String(e) }
