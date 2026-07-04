@@ -1,5 +1,6 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react'
-import { useVaultStore, NoteFile, TreeNode } from './store/vaultStore'
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Search, List, Download, MessageCircle } from 'lucide-react'
+import { useVaultStore, NoteFile } from './store/vaultStore'
 import { useSettings } from './hooks/useSettings'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useVaultOps } from './hooks/useVaultOps'
@@ -24,6 +25,8 @@ import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
+import { ToolbarRight } from './components/Toolbar/EditorToolbar'
+import CommandPalette, { Command } from './components/CommandPalette/CommandPalette'
 import type { PluginInfo } from '../../preload/index'
 import './styles/app.css'
 
@@ -55,6 +58,7 @@ export default function App() {
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
   const [activePluginId,   setActivePluginId]   = useState<string | null>(null)
+  const [paletteOpen,      setPaletteOpen]      = useState(false)
 
   const editorRef         = useRef<MarkdownEditorHandle>(null)
   const isResizingSidebar = useRef(false)
@@ -87,27 +91,27 @@ export default function App() {
   // ── Hooks ─────────────────────────────────────────────────────────────────
   const { contentCacheRef, handleContentChange } = useAutoSave()
 
-  const { openVaultPath, handleOpenVault, handleReopenVault, handleBackup, lastVault } =
+  const { handleOpenVault, handleReopenVault, handleBackup, lastVault } =
     useVaultOps(contentCacheRef, notify, resetNav)
 
   // ── Core file select (central hub — defined here so all hooks can receive it) ──
   const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
-    if (store.isDirty && store.activeFile && !isDocumentFile(store.activeFile.path)) {
-      await window.api.writeFile(store.activeFile.path, store.activeContent)
-      store.setDirty(false)
+    // Read live state (not the render-time snapshot) so the dirty-flush actually fires
+    const s = useVaultStore.getState()
+    if (s.isDirty && s.activeFile && !isDocumentFile(s.activeFile.path)) {
+      await window.api.writeFile(s.activeFile.path, s.activeContent)
     }
-    store.setActiveFile(file)
+    s.setActiveFile(file)
     if (!isDocumentFile(file.path)) {
       let content = contentCacheRef.current[file.path]
       if (content === undefined) {
         content = await window.api.readFile(file.path)
         contentCacheRef.current[file.path] = content
       }
-      store.setActiveContent(content)
+      s.setActiveContent(content)
     } else {
-      store.setActiveContent('')
+      s.setActiveContent('')
     }
-    store.setDirty(false)
     if (!fromNav) {
       const { history, index } = navRef.current
       const trimmed = history.slice(0, index + 1)
@@ -252,20 +256,28 @@ export default function App() {
   useEffect(() => {
     if (!store.vaultPath) return
     const vp = store.vaultPath
-    const reload = async () => { const tree = await window.api.listTree(vp); store.setTree(tree) }
+    // Coalesce bursts of watcher events (e.g. copying a folder of N files) into a single re-scan
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null
+    const reload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer)
+      reloadTimer = setTimeout(async () => {
+        const tree = await window.api.listTree(vp)
+        useVaultStore.getState().setTree(tree)
+      }, 150)
+    }
     const u1 = window.api.onFileAdded(reload)
-    const u2 = window.api.onFileRemoved((p) => { store.removeFile(p); reload() })
+    const u2 = window.api.onFileRemoved((p) => { useVaultStore.getState().removeFile(p); reload() })
     const u3 = window.api.onDirAdded(reload)
     const u4 = window.api.onDirRemoved(reload)
     const u5 = window.api.onFileChanged(async (p) => {
-      if (store.activeFile?.path === p && !store.isDirty && !isDocumentFile(p)) {
+      const s = useVaultStore.getState()
+      if (s.activeFile?.path === p && !s.isDirty && !isDocumentFile(p)) {
         const content = await window.api.readFile(p)
         contentCacheRef.current[p] = content
-        store.setActiveContent(content)
-        store.setDirty(false)
+        s.setActiveContent(content)
       }
     })
-    return () => { u1(); u2(); u3(); u4(); u5() }
+    return () => { u1(); u2(); u3(); u4(); u5(); if (reloadTimer) clearTimeout(reloadTimer) }
   }, [store.vaultPath])
 
   // ── Native menu events ────────────────────────────────────────────────────
@@ -298,6 +310,7 @@ export default function App() {
       if (ctrl && e.shiftKey && e.key === 'B') { e.preventDefault(); handleBackup() }
       if (ctrl && e.key === ',')               { e.preventDefault(); setSettingsOpen(true) }
       if (ctrl && e.key === 'g')               { e.preventDefault(); setGraphOpen((o) => !o) }
+      if (ctrl && e.key === 'p')               { e.preventDefault(); setPaletteOpen((o) => !o) }
       if (e.key === 'F1')                      { e.preventDefault(); setHelpOpen((o) => !o) }
       if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); setSettings({ fontSize: Math.min(settings.fontSize + 1, 26) }) }
       if (ctrl && e.key === '-')               { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
@@ -309,6 +322,18 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
+
+  // ── Command palette commands ──────────────────────────────────────────────
+  const paletteCommands: Command[] = useMemo(() => [
+    { id: 'new-note', icon: '📝', label: t('cmdNewNote'),       run: () => handleNewNote() },
+    { id: 'daily',    icon: '📅', label: t('cmdDailyNote'),     run: handleDailyNote },
+    { id: 'search',   icon: '🔍', label: t('cmdSearch'),        run: () => store.setSearchOpen(true) },
+    { id: 'graph',    icon: '◎',  label: t('cmdGraph'),         run: () => setGraphOpen((o) => !o) },
+    { id: 'settings', icon: '⚙',  label: t('cmdSettings'),      run: () => setSettingsOpen(true) },
+    { id: 'backup',   icon: '💾', label: t('cmdBackup'),        run: handleBackup },
+    { id: 'help',     icon: '?',  label: t('cmdHelp'),          run: () => setHelpOpen(true) },
+    { id: 'sidebar',  icon: '▤',  label: t('cmdToggleSidebar'), run: () => setSidebarCollapsed((c) => !c) },
+  ], [t, handleNewNote, handleDailyNote, handleBackup])
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
@@ -346,23 +371,19 @@ export default function App() {
         ) : noVault ? (
           <WelcomeScreen onOpenVault={handleOpenVault} onHelp={() => setHelpOpen(true)} lastVault={lastVault} onReopenVault={handleReopenVault} />
         ) : !store.activeFile ? (
-          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          <div className="no-note-body">
             <div className="editor-toolbar">
               <div className="toolbar-left" />
-              <div className="toolbar-right">
-                <button className="toolbar-icon-btn" onClick={handleDailyNote} title={t('ttDailyNote')}>📅</button>
-                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
-                {plugins.filter((p) => p.enabled && p.panelPath).map((p) => (
-                  <button
-                    key={p.id}
-                    className={`toolbar-icon-btn ${activePluginId === p.id ? 'active' : ''}`}
-                    onClick={() => handlePluginPanelToggle(p.id)}
-                    title={t('ttPlugin', { name: p.name })}
-                  >{p.icon ?? '⬡'}</button>
-                ))}
-                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
-                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
-              </div>
+              <ToolbarRight
+                onDailyNote={handleDailyNote}
+                graphOpen={graphOpen}
+                onToggleGraph={() => setGraphOpen((o) => !o)}
+                plugins={plugins}
+                activePluginId={activePluginId}
+                onPluginPanelToggle={handlePluginPanelToggle}
+                onHelp={() => setHelpOpen(true)}
+                onSettings={() => setSettingsOpen(true)}
+              />
             </div>
             {graphOpen
               ? <GraphView onNodeClick={(f) => { handleFileSelect(f); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />
@@ -373,8 +394,8 @@ export default function App() {
           <div className="editor-area">
             <div className="editor-toolbar">
               <div className="toolbar-left">
-                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title={t('ttBack')}>‹</button>
-                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title={t('ttForward')}>›</button>
+                <button className="toolbar-nav-btn" onClick={handleNavBack} disabled={!navCanBack} title={t('ttBack')} aria-label={t('ttBack')}><ChevronLeft size={18} /></button>
+                <button className="toolbar-nav-btn" onClick={handleNavForward} disabled={!navCanForward} title={t('ttForward')} aria-label={t('ttForward')}><ChevronRight size={18} /></button>
                 <span className="note-title">
                   {store.activeFile.name}
                   {store.isDirty && <span className="dirty-dot" title={t('ttUnsaved')} />}
@@ -391,19 +412,27 @@ export default function App() {
                       </button>
                     ))}
                     <span className="view-toggle-sep" />
-                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title={t('ttFind')}>🔍</button>
+                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title={t('ttFind')} aria-label={t('ttFind')}><Search size={15} /></button>
                   </div>
                 </div>
               )}
 
-              <div className="toolbar-right">
-                <button className="toolbar-icon-btn" onClick={handleDailyNote} title={t('ttDailyNote')}>📅</button>
+              <ToolbarRight
+                onDailyNote={handleDailyNote}
+                graphOpen={graphOpen}
+                onToggleGraph={() => setGraphOpen((o) => !o)}
+                plugins={plugins}
+                activePluginId={activePluginId}
+                onPluginPanelToggle={handlePluginPanelToggle}
+                onHelp={() => setHelpOpen(true)}
+                onSettings={() => setSettingsOpen(true)}
+              >
                 {!isDoc && (
-                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title={t('ttToc')}>≡</button>
+                  <button className={`toolbar-icon-btn ${tocOpen ? 'active' : ''}`} onClick={() => setTocOpen((o) => !o)} title={t('ttToc')} aria-label={t('ttToc')}><List size={17} /></button>
                 )}
                 {!isDoc && (
-                  <div style={{ position: 'relative' }}>
-                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title={t('ttExport')}>↓</button>
+                  <div className="toolbar-export-wrap">
+                    <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title={t('ttExport')} aria-label={t('ttExport')}><Download size={17} /></button>
                     {exportMenuOpen && (
                       <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
                         <button onClick={handleExportHTML}>{t('exportHtml')}</button>
@@ -412,21 +441,10 @@ export default function App() {
                     )}
                   </div>
                 )}
-                <button className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`} onClick={() => setGraphOpen((o) => !o)} title={t('ttGraph')}>◎</button>
-                {plugins.filter((p) => p.enabled && p.panelPath).map((p) => (
-                  <button
-                    key={p.id}
-                    className={`toolbar-icon-btn ${activePluginId === p.id ? 'active' : ''}`}
-                    onClick={() => handlePluginPanelToggle(p.id)}
-                    title={t('ttPlugin', { name: p.name })}
-                  >{p.icon ?? '⬡'}</button>
-                ))}
-                <button className="toolbar-icon-btn" onClick={() => setHelpOpen(true)} title={t('ttHelp')}>?</button>
-                <button className="toolbar-icon-btn" onClick={() => setSettingsOpen(true)} title={t('ttSettings')}>⚙</button>
-              </div>
+              </ToolbarRight>
             </div>
 
-            <div className="editor-content" style={{ position: 'relative' }}>
+            <div className="editor-content">
               {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
 
               {isPdf ? (
@@ -442,7 +460,7 @@ export default function App() {
                 <EpubViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
               ) : (
                 <>
-                  <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
+                  <div className="editor-split-row">
                     {(viewMode === 'edit' || viewMode === 'split') && (
                       <div className="editor-pane" style={viewMode === 'split' ? { flex: splitRatio } : { flex: 1 }}>
                         <MarkdownEditor
@@ -529,10 +547,19 @@ export default function App() {
           />
         ) : null
       })()}
+      {paletteOpen && !noVault && (
+        <CommandPalette
+          files={store.files}
+          commands={paletteCommands}
+          onFileSelect={(file) => handleFileSelect(file)}
+          onClose={() => setPaletteOpen(false)}
+        />
+      )}
+
       {notification && <div className="toast">{notification}</div>}
 
       {!noVault && !chatOpen && (
-        <button className="chat-fab" onClick={() => setChatOpen(true)} title={t('ttChat')}>💬</button>
+        <button className="chat-fab" onClick={() => setChatOpen(true)} title={t('ttChat')} aria-label={t('ttChat')}><MessageCircle size={18} /></button>
       )}
     </div>
   )
@@ -554,7 +581,7 @@ function WelcomeScreen({ onOpenVault, onHelp, lastVault, onReopenVault }: {
           <div className="welcome-last-vault-path">{lastVault.path}</div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, marginTop: lastVault ? 4 : 8 }}>
+      <div className="btn-row" style={{ marginTop: lastVault ? 4 : 8 }}>
         <button className="btn-secondary" onClick={onOpenVault}>{lastVault ? t('openOtherVault') : t('openVault')}</button>
         {onHelp && <button className="btn-secondary" onClick={onHelp} title="F1">{t('help')}</button>}
       </div>
@@ -568,7 +595,7 @@ function EmptyState({ onNewNote, onOpenGraph, hasNotes }: { onNewNote: () => voi
   return (
     <div className="empty-state">
       <p>{t('emptyState')}</p>
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="btn-row">
         <button className="btn-primary" onClick={onNewNote}>{t('newNote')}</button>
         {hasNotes && <button className="btn-secondary" onClick={onOpenGraph}>{t('graphView')}</button>}
       </div>

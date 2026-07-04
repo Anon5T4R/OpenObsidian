@@ -68,7 +68,7 @@ const GROUPS: Group[] = [
   }
 ]
 
-export default function InsertMenu({ onInsert, files }: InsertMenuProps) {
+export default function InsertMenu({ onInsert }: InsertMenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 

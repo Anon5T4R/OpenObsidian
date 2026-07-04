@@ -24,7 +24,7 @@ interface VaultState {
   setVault: (path: string, tree: TreeNode[]) => void
   setTree: (tree: TreeNode[]) => void
   setActiveFile: (file: NoteFile | null) => void
-  setActiveContent: (content: string) => void
+  setActiveContent: (content: string, dirty?: boolean) => void
   setDirty: (dirty: boolean) => void
   buildBacklinks: (files: NoteFile[], contents: Record<string, string>) => void
   removeFile: (filePath: string) => void
@@ -34,7 +34,7 @@ interface VaultState {
   setTagFilter: (tag: string | null) => void
 }
 
-function extractLinks(content: string): string[] {
+export function extractLinks(content: string): string[] {
   const links: string[] = []
   let m: RegExpExecArray | null
   LINK_RE.lastIndex = 0
@@ -42,7 +42,7 @@ function extractLinks(content: string): string[] {
   return links
 }
 
-function extractTags(content: string): string[] {
+export function extractTags(content: string): string[] {
   const result: string[] = []
   let m: RegExpExecArray | null
   TAG_RE.lastIndex = 0
@@ -91,7 +91,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
   setActiveFile: (file) => set({ activeFile: file }),
 
-  setActiveContent: (content) => set({ activeContent: content, isDirty: true }),
+  setActiveContent: (content, dirty = false) => set({ activeContent: content, isDirty: dirty }),
 
   setDirty: (dirty) => set({ isDirty: dirty }),
 

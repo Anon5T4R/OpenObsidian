@@ -194,7 +194,7 @@ export default function FileTree({
 }: FileTreeProps) {
   const store = useVaultStore()
   const t = useT()
-  const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter, setTagFilter } = store
+  const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter } = store
   const [search, setSearch] = useState('')
 
   // ── Folder creation input ──────────────────────────────────────────────────
@@ -220,9 +220,8 @@ export default function FileTree({
     if (!renaming) return
     const name = renaming.newName.trim()
     if (name && name !== renaming.originalName) {
-      renaming.type === 'file'
-        ? await window.api.renameFile(renaming.path, name)
-        : await window.api.renameFolder(renaming.path, name)
+      if (renaming.type === 'file') await window.api.renameFile(renaming.path, name)
+      else await window.api.renameFolder(renaming.path, name)
       await refreshTree()
     }
     setRenaming(null)
@@ -303,7 +302,6 @@ export default function FileTree({
     const all = store.files
     return pinnedPaths.map((p) => all.find((f) => f.path === p)).filter((f): f is NoteFile => !!f)
   }, [pinnedPaths, store.files])
-  const tagList   = useMemo(() => Object.keys(tags).sort(), [tags])
   const vaultName = vaultPath?.split(/[/\\]/).pop() ?? 'No vault'
 
   const closeAll = useCallback(() => {

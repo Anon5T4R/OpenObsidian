@@ -1,7 +1,7 @@
 // LLM module — main process only.
 // node-llama-cpp is ESM-only: always loaded via dynamic import(), never bundled.
 
-import { app } from 'electron'
+import { app, safeStorage } from 'electron'
 import path from 'path'
 import fs from 'fs'
 
@@ -39,17 +39,45 @@ function settingsPath(): string {
   return path.join(app.getPath('userData'), 'llm-settings.json')
 }
 
+// API key is encrypted at rest via Electron safeStorage (OS keychain-backed).
+// Marker prefix lets us distinguish encrypted values from legacy plaintext ones.
+const ENC_PREFIX = 'enc:v1:'
+
+function encryptSecret(plain: string): string {
+  if (!plain) return ''
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      return ENC_PREFIX + safeStorage.encryptString(plain).toString('base64')
+    }
+  } catch {}
+  return plain // fallback: plaintext (previous behaviour) when encryption unavailable
+}
+
+function decryptSecret(stored: string): string {
+  if (!stored || !stored.startsWith(ENC_PREFIX)) return stored // legacy plaintext or empty
+  try {
+    return safeStorage.decryptString(Buffer.from(stored.slice(ENC_PREFIX.length), 'base64'))
+  } catch {
+    return ''
+  }
+}
+
 export function getLlmSettings(): LlmSettings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), 'utf-8')) }
+    const raw = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), 'utf-8')) }
+    raw.apiKey = decryptSecret(raw.apiKey)
+    return raw
   } catch {
     return { ...DEFAULTS }
   }
 }
 
 export function setLlmSettings(patch: Partial<LlmSettings>): LlmSettings {
-  const next = { ...getLlmSettings(), ...patch }
-  try { fs.writeFileSync(settingsPath(), JSON.stringify(next, null, 2), 'utf-8') } catch {}
+  const next = { ...getLlmSettings(), ...patch } // apiKey held in plaintext in memory
+  try {
+    const onDisk = { ...next, apiKey: encryptSecret(next.apiKey) }
+    fs.writeFileSync(settingsPath(), JSON.stringify(onDisk, null, 2), 'utf-8')
+  } catch {}
   return next
 }
 

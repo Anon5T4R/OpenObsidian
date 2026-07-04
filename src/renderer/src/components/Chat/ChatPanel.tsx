@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Settings, X } from 'lucide-react'
 import type { LlmSettings, ChatMessage } from '../../../../preload/index'
 import { useT } from '../../i18n'
 import './ChatPanel.css'
@@ -149,8 +150,9 @@ export default function ChatPanel({
             className={`chat-icon-btn ${view === 'settings' ? 'active' : ''}`}
             onClick={() => setView((v) => v === 'settings' ? 'chat' : 'settings')}
             title={t('chatSettings')}
-          >⚙</button>
-          <button className="chat-icon-btn" onClick={onClose} title="Close">✕</button>
+            aria-label={t('chatSettings')}
+          ><Settings size={16} /></button>
+          <button className="chat-icon-btn" onClick={onClose} title={t('close')} aria-label={t('close')}><X size={16} /></button>
         </div>
       </div>
 

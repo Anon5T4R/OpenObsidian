@@ -184,6 +184,24 @@ export const en = {
   pluginInstallZip: 'Install from ZIP…',
   pluginOpenDir:    'Open plugins folder',
   ttPlugin:         'Open {name} panel',
+
+  // Modal / a11y
+  close: 'Close',
+
+  // Command palette
+  ttCommandPalette: 'Command palette (Ctrl+P)',
+  cmdkPlaceholder:  'Search notes and commands…',
+  cmdkNotes:        'Notes',
+  cmdkCommands:     'Commands',
+  cmdkEmpty:        'No results',
+  cmdNewNote:       'New note',
+  cmdDailyNote:     "Open today's daily note",
+  cmdSearch:        'Search in vault',
+  cmdGraph:         'Toggle graph view',
+  cmdSettings:      'Open settings',
+  cmdBackup:        'Backup vault',
+  cmdHelp:          'Open help',
+  cmdToggleSidebar: 'Toggle sidebar',
 }
 
 // ── PT-BR ────────────────────────────────────────────────────────────────────
@@ -350,6 +368,22 @@ const ptBR: typeof en = {
   pluginInstallZip: 'Instalar via ZIP…',
   pluginOpenDir:    'Abrir pasta de plugins',
   ttPlugin:         'Abrir painel {name}',
+
+  close: 'Fechar',
+
+  ttCommandPalette: 'Paleta de comandos (Ctrl+P)',
+  cmdkPlaceholder:  'Buscar notas e comandos…',
+  cmdkNotes:        'Notas',
+  cmdkCommands:     'Comandos',
+  cmdkEmpty:        'Nenhum resultado',
+  cmdNewNote:       'Nova nota',
+  cmdDailyNote:     'Abrir a nota diária de hoje',
+  cmdSearch:        'Buscar no vault',
+  cmdGraph:         'Alternar o grafo',
+  cmdSettings:      'Abrir configurações',
+  cmdBackup:        'Fazer backup do vault',
+  cmdHelp:          'Abrir ajuda',
+  cmdToggleSidebar: 'Alternar a barra lateral',
 }
 
 // ── ES-LATAM ─────────────────────────────────────────────────────────────────
@@ -516,6 +550,22 @@ const esLatam: typeof en = {
   pluginInstallZip: 'Instalar desde ZIP…',
   pluginOpenDir:    'Abrir carpeta de plugins',
   ttPlugin:         'Abrir panel {name}',
+
+  close: 'Cerrar',
+
+  ttCommandPalette: 'Paleta de comandos (Ctrl+P)',
+  cmdkPlaceholder:  'Buscar notas y comandos…',
+  cmdkNotes:        'Notas',
+  cmdkCommands:     'Comandos',
+  cmdkEmpty:        'Sin resultados',
+  cmdNewNote:       'Nueva nota',
+  cmdDailyNote:     'Abrir la nota diaria de hoy',
+  cmdSearch:        'Buscar en el vault',
+  cmdGraph:         'Alternar el grafo',
+  cmdSettings:      'Abrir configuración',
+  cmdBackup:        'Respaldar el vault',
+  cmdHelp:          'Abrir ayuda',
+  cmdToggleSidebar: 'Alternar la barra lateral',
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────────

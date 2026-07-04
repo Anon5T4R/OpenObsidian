@@ -183,6 +183,8 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
   transition: background 0.1s, color 0.1s;
 }
 .view-toggle-find:hover { background: var(--hover); color: var(--text-primary); }
@@ -225,12 +227,40 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 .editor-pane {
   display: flex;
   overflow: hidden;
   min-width: 0;
+}
+
+/* Body shown when a vault is open but no note is selected */
+.no-note-body {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Row holding the editor pane + preview pane (split view) */
+.editor-split-row {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Anchor for the export dropdown */
+.toolbar-export-wrap {
+  position: relative;
+}
+
+/* Generic horizontal button row (welcome / empty screens) */
+.btn-row {
+  display: flex;
+  gap: 10px;
 }
 
 /* ── Welcome / Empty ────────────────────────────────────────────────── */

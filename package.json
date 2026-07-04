@@ -1,6 +1,6 @@
 {
   "name": "open-obsidian",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
@@ -11,12 +11,18 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
     "icons": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
@@ -24,8 +30,14 @@
     "electron": "^32.0.0",
     "electron-builder": "^24.9.1",
     "electron-vite": "^2.0.0",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.9.4",
     "typescript": "^5.3.3",
-    "vite": "^5.0.12"
+    "typescript-eslint": "^8.62.1",
+    "vite": "^5.0.12",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",
@@ -47,6 +59,7 @@
     "d3": "^7.9.0",
     "epubjs": "^0.3.93",
     "flexsearch": "^0.7.43",
+    "lucide-react": "^1.23.0",
     "mammoth": "^1.12.0",
     "mermaid": "^11.15.0",
     "node-llama-cpp": "^3.0.0",

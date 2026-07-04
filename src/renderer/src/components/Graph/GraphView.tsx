@@ -272,7 +272,7 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
       )
     })
 
-    return () => simulation.stop()
+    return () => { simulation.stop() }
   }, [files, backlinks, activeFile, localMode, search, theme])
 
   useEffect(() => {
