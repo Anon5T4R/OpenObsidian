@@ -298,7 +298,7 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
     nodeEls.append('title').text((d) => `${d.name}\n${d.connections} connection${d.connections !== 1 ? 's' : ''}`)
 
     // ── Tick ──────────────────────────────────────────────────────────────
-    simulation.on('tick', () => {
+    const ticked = () => {
       linkEls
         .attr('x1', (d) => (d.source as GNode).x ?? 0)
         .attr('y1', (d) => (d.source as GNode).y ?? 0)
@@ -310,23 +310,31 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
       for (const n of nodes) {
         if (n.x != null && n.y != null) positionsRef.current.set(n.id, { x: n.x, y: n.y })
       }
-    })
+    }
+    simulation.on('tick', ticked)
 
-    // Auto-fit once, on the first settle. 'end' fires again every time the
-    // simulation reheats (e.g. after dragging a node) — re-fitting then is the
-    // "camera zooms out on its own" bug, so once a transform exists we keep it.
-    simulation.on('end', () => {
-      if (zoomTransformRef.current) return
+    // Warm up fresh layouts synchronously so the first paint is already
+    // settled. This lets the camera fit happen right here, at render time —
+    // any deferred fit (e.g. on simulation 'end', seconds after opening) is
+    // exactly the "camera zooms out on its own" bug.
+    if (!allRestored) {
+      const warmTicks = nodes.length > 1500 ? 80 : nodes.length > 600 ? 150 : 300
+      simulation.tick(warmTicks) // tick() doesn't emit events — painted below
+    }
+    ticked()
+
+    // Fit the camera instantly when there is none to restore (first open of
+    // the session, Local/search change, vault switch). After this point the
+    // camera only ever moves through user input.
+    if (!zoomTransformRef.current) {
       const bounds = (g.node() as SVGGElement).getBBox()
-      if (!bounds.width || !bounds.height) return
-      const scale = Math.min(0.9, 0.9 * Math.min(width / bounds.width, height / bounds.height))
-      const tx = width / 2 - scale * (bounds.x + bounds.width / 2)
-      const ty = height / 2 - scale * (bounds.y + bounds.height / 2)
-      svg.transition().duration(600).call(
-        zoomBehavior.transform,
-        d3.zoomIdentity.translate(tx, ty).scale(scale)
-      )
-    })
+      if (bounds.width && bounds.height) {
+        const scale = Math.min(0.9, 0.9 * Math.min(width / bounds.width, height / bounds.height))
+        const tx = width / 2 - scale * (bounds.x + bounds.width / 2)
+        const ty = height / 2 - scale * (bounds.y + bounds.height / 2)
+        svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
+      }
+    }
   }, [files, backlinks, activeFile, localMode, search, theme, posKey])
 
   // Changing the visible subset is a deliberate action — reset the camera so
@@ -351,7 +359,12 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
     let first = true
     let timer: ReturnType<typeof setTimeout> | null = null
     const ro = new ResizeObserver(() => {
-      if (first) { first = false; return }
+      // Skip the automatic fire on observe — unless the initial render bailed
+      // out (container had no size yet), in which case this is our chance
+      if (first) {
+        first = false
+        if (svgRef.current?.hasChildNodes()) return
+      }
       if (timer) clearTimeout(timer)
       timer = setTimeout(render, 150)
     })
