@@ -269,8 +269,17 @@ ipcMain.handle('item:move', async (_, sourcePath: string, targetDirPath: string)
   try {
     await fsp.rename(sourcePath, dest)
     return { path: dest }
-  } catch (e) {
-    return { error: String(e) }
+  } catch {
+    // On Windows the vault watcher holds handles inside directories, making
+    // rename fail with EPERM for non-empty folders; copy+delete is immune to
+    // that (and to EXDEV cross-device moves).
+    try {
+      await fsp.cp(sourcePath, dest, { recursive: true })
+      await fsp.rm(sourcePath, { recursive: true, force: true })
+      return { path: dest }
+    } catch (e) {
+      return { error: String(e) }
+    }
   }
 })
 

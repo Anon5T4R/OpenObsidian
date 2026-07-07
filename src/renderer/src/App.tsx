@@ -96,6 +96,7 @@ export default function App() {
 
   // ── Core file select (central hub — defined here so all hooks can receive it) ──
   const handleFileSelect = useCallback(async (file: NoteFile, fromNav = false) => {
+    setGraphOpen(false) // opening a file always leaves graph view
     // Read live state (not the render-time snapshot) so the dirty-flush actually fires
     const s = useVaultStore.getState()
     if (s.isDirty && s.activeFile && !isDocumentFile(s.activeFile.path)) {

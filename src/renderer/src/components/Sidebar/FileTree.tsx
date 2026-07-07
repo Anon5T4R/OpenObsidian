@@ -140,7 +140,7 @@ function TreeNodeRow({
       className="tree-dir-group"
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false) }}
-      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const src = e.dataTransfer.getData('text/plain'); if (src && src !== node.path && !node.path.startsWith(src)) onDropOnDir(src, node.path) }}
+      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const src = e.dataTransfer.getData('text/plain'); if (src && src !== node.path && !node.path.startsWith(src + '\\') && !node.path.startsWith(src + '/')) onDropOnDir(src, node.path) }}
     >
       <div
         className={`tree-item tree-dir ${dragOver ? 'drag-over' : ''}`}
@@ -237,9 +237,9 @@ export default function FileTree({
   const handleDropOnDir = useCallback(async (src: string, dest: string) => {
     if (parentDir(src) === dest.replace(/\\/g, '/')) return
     const result = await window.api.moveItem(src, dest)
-    if (result.error) return
+    if (result.error) { onNotify(result.error); return }
     await refreshTree()
-  }, [refreshTree])
+  }, [refreshTree, onNotify])
 
   const handleDropOnRoot = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
