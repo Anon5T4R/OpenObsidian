@@ -74,7 +74,14 @@
       "Bash(powershell -NoProfile -Command \"Get-Process editors,DesktopEditors -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(cp DesktopEditors_bin/index.html DesktopEditors_bin/index.html.orig)",
       "Bash(cp desktop-apps/common/loginpage/deploy/index.html DesktopEditors_bin/index.html)",
-      "PowerShell(Start-Process explorer.exe \"$env:APPDATA\\\\OpenObsidian\\\\plugins\")"
+      "PowerShell(Start-Process explorer.exe \"$env:APPDATA\\\\OpenObsidian\\\\plugins\")",
+      "Bash(file \"C:/Users/joaof/Downloads/ChatGPT Image 25 de jun. de 2026, 19_45_44.png\")",
+      "Bash(ls electron-builder.*)",
+      "Bash(ls node_modules/sharp)",
+      "Bash(which magick *)",
+      "Bash(git ls-remote *)",
+      "Bash(git rev-list *)",
+      "Bash(xargs wc -l)"
     ]
   }
 }
