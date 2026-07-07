@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react'
 import { useVaultStore } from '../store/vaultStore'
-import { buildMtimeMap } from '../utils/mtimeMap'
 
 export function useAutoSave() {
   const store = useVaultStore()
@@ -16,18 +15,8 @@ export function useAutoSave() {
         await window.api.writeFile(store.activeFile.path, value)
         store.setDirty(false)
         store.buildBacklinks(store.files, contentCacheRef.current)
-        if (store.vaultPath) {
-          const cached = await window.api.loadIndex(store.vaultPath)
-          if (cached) {
-            const tree = await window.api.listTree(store.vaultPath)
-            const mtimeMap = buildMtimeMap(tree)
-            cached.entries[store.activeFile.path] = {
-              mtime: mtimeMap[store.activeFile.path] ?? Date.now(),
-              content: value,
-            }
-            window.api.saveIndex(store.vaultPath, cached)
-          }
-        }
+        // Index maintenance is incremental in the main process (O(note), not O(vault))
+        if (store.vaultPath) window.api.updateIndexEntry(store.vaultPath, store.activeFile.path, value)
       }
     }, 800)
   }, [store.activeFile?.path, store.files])

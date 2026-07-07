@@ -87,7 +87,14 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
   setVault: (path, tree) => set({ vaultPath: path, tree, files: flattenTree(tree) }),
 
-  setTree: (tree) => set({ tree, files: flattenTree(tree) }),
+  setTree: (tree) => set((s) => {
+    // Keep the old files reference when the list is unchanged — watcher events
+    // (e.g. OneDrive sync noise) would otherwise cascade re-renders/graph rebuilds
+    const files = flattenTree(tree)
+    const same = files.length === s.files.length &&
+      files.every((f, i) => f.path === s.files[i].path && f.name === s.files[i].name)
+    return { tree, files: same ? s.files : files }
+  }),
 
   setActiveFile: (file) => set({ activeFile: file }),
 
@@ -112,6 +119,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         if (!tags[tag].includes(file.name)) tags[tag].push(file.name)
       }
     }
+    // Skip the update when nothing changed — auto-save calls this on every
+    // write, and a fresh object identity forces graph/backlink re-renders
+    const prev = get()
+    if (JSON.stringify(backlinks) === JSON.stringify(prev.backlinks) &&
+        JSON.stringify(tags) === JSON.stringify(prev.tags)) return
     set({ backlinks, tags })
   },
 

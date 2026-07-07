@@ -7,8 +7,11 @@ interface BacklinksPanelProps {
   onFileSelect: (noteName: string) => void
 }
 
-export default function BacklinksPanel({ onFileSelect }: BacklinksPanelProps) {
-  const { activeFile, backlinks } = useVaultStore()
+// Memo + narrow selectors: editor keystrokes update activeContent in the store,
+// which must not re-render this panel
+function BacklinksPanel({ onFileSelect }: BacklinksPanelProps) {
+  const activeFile = useVaultStore((s) => s.activeFile)
+  const backlinks  = useVaultStore((s) => s.backlinks)
   const t = useT()
 
   if (!activeFile) {
@@ -44,3 +47,5 @@ export default function BacklinksPanel({ onFileSelect }: BacklinksPanelProps) {
     </div>
   )
 }
+
+export default React.memo(BacklinksPanel)

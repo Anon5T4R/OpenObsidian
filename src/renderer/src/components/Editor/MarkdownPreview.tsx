@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
+import React, { useMemo, useRef, useEffect, useState, useCallback, useDeferredValue } from 'react'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
@@ -82,8 +82,12 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
     setZoom((z) => Math.max(0.2, Math.min(6, z - e.deltaY * 0.0008)))
   }, [])
 
+  // Defer the pipeline (remark + KaTeX + regex passes) so fast typing stays
+  // responsive in split mode — the preview catches up when React is idle
+  const deferredContent = useDeferredValue(content)
+
   const html = useMemo(() => {
-    const withLinks = processWikiLinks(content)
+    const withLinks = processWikiLinks(deferredContent)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
     let h = String(result)
       // Remove "disabled" from checkboxes so they are clickable in preview
@@ -105,7 +109,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       })
     }
     return h
-  }, [content, vaultPath])
+  }, [deferredContent, vaultPath])
 
   // Render mermaid diagrams after HTML is injected into the DOM
   useEffect(() => {

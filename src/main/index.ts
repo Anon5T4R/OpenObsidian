@@ -113,18 +113,63 @@ function getIndexPath(vaultPath: string): string {
   return path.join(dir, `${vaultCacheKey(vaultPath)}.json`)
 }
 
-ipcMain.handle('index:load', async (_, vaultPath: string) => {
+// The index lives in memory here and is flushed to disk with a debounce, so
+// per-note updates (auto-save) don't re-read/re-write the whole vault index.
+type VaultIndex = { vaultPath: string; savedAt: number; entries: Record<string, { mtime: number; content: string }> }
+const indexCache = new Map<string, VaultIndex>()
+const indexFlushTimers = new Map<string, NodeJS.Timeout>()
+
+async function getVaultIndex(vaultPath: string): Promise<VaultIndex | null> {
+  const cached = indexCache.get(vaultPath)
+  if (cached) return cached
   try {
-    const file = getIndexPath(vaultPath)
-    return JSON.parse(await fsp.readFile(file, 'utf-8'))
+    const idx = JSON.parse(await fsp.readFile(getIndexPath(vaultPath), 'utf-8')) as VaultIndex
+    indexCache.set(vaultPath, idx)
+    return idx
   } catch { return null }
+}
+
+function scheduleIndexFlush(vaultPath: string): void {
+  const prev = indexFlushTimers.get(vaultPath)
+  if (prev) clearTimeout(prev)
+  indexFlushTimers.set(vaultPath, setTimeout(async () => {
+    indexFlushTimers.delete(vaultPath)
+    const idx = indexCache.get(vaultPath)
+    if (!idx) return
+    try { await fsp.writeFile(getIndexPath(vaultPath), JSON.stringify(idx), 'utf-8') } catch { /* cache only */ }
+  }, 2000))
+}
+
+// Pending debounced writes must land before quit — synchronous on purpose
+app.on('before-quit', () => {
+  for (const [vp, timer] of indexFlushTimers) {
+    clearTimeout(timer)
+    const idx = indexCache.get(vp)
+    if (!idx) continue
+    try { fs.writeFileSync(getIndexPath(vp), JSON.stringify(idx), 'utf-8') } catch { /* cache only */ }
+  }
+  indexFlushTimers.clear()
 })
+
+ipcMain.handle('index:load', async (_, vaultPath: string) => getVaultIndex(vaultPath))
 
 ipcMain.handle('index:save', async (_, vaultPath: string, data: object) => {
   try {
+    indexCache.set(vaultPath, data as VaultIndex)
     await fsp.writeFile(getIndexPath(vaultPath), JSON.stringify(data), 'utf-8')
     return true
   } catch { return false }
+})
+
+ipcMain.handle('index:update-entry', async (_, vaultPath: string, filePath: string, content: string) => {
+  const idx = await getVaultIndex(vaultPath)
+  if (!idx) return false
+  let mtime = Date.now()
+  try { mtime = (await fsp.stat(filePath)).mtimeMs } catch { /* keep fallback */ }
+  idx.entries[filePath] = { mtime, content }
+  idx.savedAt = Date.now()
+  scheduleIndexFlush(vaultPath)
+  return true
 })
 
 // ── Vault ──────────────────────────────────────────────────────────────────

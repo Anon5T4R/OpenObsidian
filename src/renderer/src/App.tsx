@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Search, List, Download, MessageCircle } from 'lucide-react'
 import { useVaultStore, NoteFile } from './store/vaultStore'
-import { useSettings } from './hooks/useSettings'
+import { useSettings, SidebarSort } from './hooks/useSettings'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useVaultOps } from './hooks/useVaultOps'
 import { useDocOps } from './hooks/useDocOps'
@@ -336,6 +336,12 @@ export default function App() {
     { id: 'sidebar',  icon: '▤',  label: t('cmdToggleSidebar'), run: () => setSidebarCollapsed((c) => !c) },
   ], [t, handleNewNote, handleDailyNote, handleBackup])
 
+  // ── Stable callbacks for memoized children (FileTree, BacklinksPanel, GraphView) ──
+  const handleSortChange      = useCallback((s: SidebarSort) => setSettings({ sidebarSort: s }), [setSettings])
+  const handleToggleCollapse  = useCallback(() => setSidebarCollapsed((c) => !c), [])
+  const handleGraphNodeClick  = useCallback((f: NoteFile) => handleFileSelect(f), [handleFileSelect])
+  const handleGraphClose      = useCallback(() => setGraphOpen(false), [])
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const actualSidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth
   const noVault = !store.vaultPath
@@ -351,11 +357,11 @@ export default function App() {
         <FileTree
           collapsed={sidebarCollapsed}
           sort={settings.sidebarSort}
-          onSortChange={(s) => setSettings({ sidebarSort: s })}
+          onSortChange={handleSortChange}
           onFileSelect={handleFileSelect}
           onNewNote={handleNewNote}
           onNewFolder={handleNewFolder}
-          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+          onToggleCollapse={handleToggleCollapse}
           onOpenVault={handleOpenVault}
           onNotify={notify}
           onFileDeleted={handleFileDeleted}
@@ -387,7 +393,7 @@ export default function App() {
               />
             </div>
             {graphOpen
-              ? <GraphView onNodeClick={(f) => { handleFileSelect(f); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />
+              ? <GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} />
               : <EmptyState onNewNote={() => handleNewNote()} onOpenGraph={() => setGraphOpen(true)} hasNotes={store.files.length > 0} />
             }
           </div>
@@ -446,7 +452,7 @@ export default function App() {
             </div>
 
             <div className="editor-content">
-              {graphOpen && <GraphView onNodeClick={(file) => { handleFileSelect(file); setGraphOpen(false) }} onClose={() => setGraphOpen(false)} />}
+              {graphOpen && <GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} />}
 
               {isPdf ? (
                 <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />

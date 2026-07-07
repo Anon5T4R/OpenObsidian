@@ -14,7 +14,7 @@ interface SearchPanelProps {
 }
 
 export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps) {
-  const { files } = useVaultStore()
+  const files = useVaultStore((s) => s.files)
   const t = useT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -27,9 +27,10 @@ export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps)
     if (!query.trim()) { setResults([]); return }
     setSearching(true)
     const lower = query.toLowerCase()
+    // Guards against a stale in-flight search overwriting newer results
+    let cancelled = false
     const doSearch = async () => {
-      const found: SearchResult[] = []
-      for (const file of files) {
+      const perFile = await Promise.all(files.map(async (file) => {
         const content = await window.api.readFile(file.path)
         const lines = content.split('\n')
         const matches: { line: number; text: string }[] = []
@@ -37,13 +38,14 @@ export default function SearchPanel({ onFileSelect, onClose }: SearchPanelProps)
           if (lines[i].toLowerCase().includes(lower))
             matches.push({ line: i + 1, text: lines[i].trim() })
         }
-        if (matches.length > 0) found.push({ file, matches: matches.slice(0, 5) })
-      }
-      setResults(found)
+        return { file, matches: matches.slice(0, 5) }
+      }))
+      if (cancelled) return
+      setResults(perFile.filter((r) => r.matches.length > 0))
       setSearching(false)
     }
     const timer = setTimeout(doSearch, 200)
-    return () => clearTimeout(timer)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [query, files])
 
   const highlight = (text: string) => {

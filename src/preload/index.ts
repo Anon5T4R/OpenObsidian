@@ -89,6 +89,8 @@ const api = {
     ipcRenderer.invoke('index:load', vaultPath),
   saveIndex: (vaultPath: string, data: object): Promise<boolean> =>
     ipcRenderer.invoke('index:save', vaultPath, data),
+  updateIndexEntry: (vaultPath: string, filePath: string, content: string): Promise<boolean> =>
+    ipcRenderer.invoke('index:update-entry', vaultPath, filePath, content),
 
   // DOCX conversion
   docxToHtml:     (p: string): Promise<{ html: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('docx:to-html', p),

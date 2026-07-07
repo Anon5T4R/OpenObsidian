@@ -179,13 +179,20 @@ function flatHasMatch(node: TreeNode, query: string): boolean {
   return node.children?.some((c) => flatHasMatch(c, query)) ?? false
 }
 
-export default function FileTree({
+// Memo + narrow selectors: the tree must not re-render on every editor
+// keystroke (activeContent changes), only when tree/selection state changes
+function FileTree({
   collapsed, sort, onSortChange, onFileSelect, onNewNote, onNewFolder,
   onToggleCollapse, onOpenVault, onNotify, onFileDeleted
 }: FileTreeProps) {
-  const store = useVaultStore()
+  const tree        = useVaultStore((s) => s.tree)
+  const files       = useVaultStore((s) => s.files)
+  const activeFile  = useVaultStore((s) => s.activeFile)
+  const vaultPath   = useVaultStore((s) => s.vaultPath)
+  const pinnedPaths = useVaultStore((s) => s.pinnedPaths)
+  const tags        = useVaultStore((s) => s.tags)
+  const tagFilter   = useVaultStore((s) => s.tagFilter)
   const t = useT()
-  const { tree, activeFile, vaultPath, pinnedPaths, tags, tagFilter } = store
   const [search, setSearch] = useState('')
 
   // ── Folder creation input ──────────────────────────────────────────────────
@@ -290,9 +297,8 @@ export default function FileTree({
   // ── Derived ────────────────────────────────────────────────────────────────
   const sortedTree  = useMemo(() => sortNodes(tree, sort), [tree, sort])
   const pinnedFiles = useMemo(() => {
-    const all = store.files
-    return pinnedPaths.map((p) => all.find((f) => f.path === p)).filter((f): f is NoteFile => !!f)
-  }, [pinnedPaths, store.files])
+    return pinnedPaths.map((p) => files.find((f) => f.path === p)).filter((f): f is NoteFile => !!f)
+  }, [pinnedPaths, files])
   const vaultName = vaultPath?.split(/[/\\]/).pop() ?? 'No vault'
 
   const closeAll = useCallback(() => {
@@ -471,3 +477,5 @@ function flatHasMatchByName(node: TreeNode, names: string[]): boolean {
   if (node.type === 'file') return names.includes(node.name)
   return node.children?.some((c) => flatHasMatchByName(c, names)) ?? false
 }
+
+export default React.memo(FileTree)

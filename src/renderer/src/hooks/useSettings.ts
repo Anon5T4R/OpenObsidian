@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Locale } from '../i18n'
 import { detectLocale } from '../i18n'
 
@@ -42,8 +42,9 @@ export function useSettings() {
     root.style.setProperty('--editor-font', settings.editorFont)
   }, [settings])
 
-  const setSettings = (patch: Partial<Settings>) =>
-    setSettingsState((s) => ({ ...s, ...patch }))
+  // Stable identity — memoized children receive this (directly or wrapped)
+  const setSettings = useCallback((patch: Partial<Settings>) =>
+    setSettingsState((s) => ({ ...s, ...patch })), [])
 
   return { settings, setSettings }
 }

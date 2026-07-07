@@ -37,6 +37,7 @@ function buildGraph(files: NoteFile[], backlinks: Record<string, string[]>): Gra
   }))
 
   const nodeByName = new Map(files.map((f) => [f.name.toLowerCase(), f.path]))
+  const nodeById = new Map(nodes.map((n) => [n.id, n]))
   const links: GLink[] = []
   const seen = new Set<string>()
 
@@ -50,8 +51,8 @@ function buildGraph(files: NoteFile[], backlinks: Record<string, string[]>): Gra
       if (seen.has(key)) continue
       seen.add(key)
       links.push({ source: srcPath, target: targetPath })
-      const s = nodes.find((n) => n.id === srcPath)
-      const t = nodes.find((n) => n.id === targetPath)
+      const s = nodeById.get(srcPath)
+      const t = nodeById.get(targetPath)
       if (s) s.connections++
       if (t) t.connections++
     }
@@ -90,6 +91,19 @@ function drag(sim: d3.Simulation<GNode, GLink>) {
     })
 }
 
+// ── Layout memory ─────────────────────────────────────────────────────────
+// Node positions and camera survive closing/reopening the graph (per vault,
+// session-scoped) so the layout doesn't reshuffle on every open.
+
+const savedPositions = new Map<string, Map<string, { x: number; y: number }>>()
+const savedTransforms = new Map<string, d3.ZoomTransform>()
+
+function vaultPositions(key: string): Map<string, { x: number; y: number }> {
+  let m = savedPositions.get(key)
+  if (!m) { m = new Map(); savedPositions.set(key, m) }
+  return m
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 interface GraphViewProps {
@@ -97,8 +111,11 @@ interface GraphViewProps {
   onClose: () => void
 }
 
-export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
-  const { files, backlinks, activeFile } = useVaultStore()
+function GraphView({ onNodeClick, onClose }: GraphViewProps) {
+  const files      = useVaultStore((s) => s.files)
+  const backlinks  = useVaultStore((s) => s.backlinks)
+  const activeFile = useVaultStore((s) => s.activeFile)
+  const vaultPath  = useVaultStore((s) => s.vaultPath)
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [localMode, setLocalMode] = useState(false)
@@ -106,12 +123,27 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
   const [nodeCount, setNodeCount] = useState(0)
   const [linkCount, setLinkCount] = useState(0)
 
+  // Survive re-renders triggered by store updates (auto-save, watcher events):
+  // keep the running simulation, the current zoom transform and node positions
+  // so a rebuild doesn't reset the camera or scramble the layout.
+  const posKey = vaultPath ?? ''
+  const simulationRef = useRef<d3.Simulation<GNode, GLink> | null>(null)
+  const zoomTransformRef = useRef<d3.ZoomTransform | null>(savedTransforms.get(posKey) ?? null)
+  const positionsRef = useRef(vaultPositions(posKey))
+
+  // Re-point the layout cache if the vault changes while the graph is mounted
+  useEffect(() => {
+    positionsRef.current = vaultPositions(posKey)
+    zoomTransformRef.current = savedTransforms.get(posKey) ?? null
+  }, [posKey])
+
   const theme = document.documentElement.getAttribute('data-theme') ?? 'dark'
   const isDark = theme !== 'light'
 
   const render = useCallback(() => {
     if (!svgRef.current || !containerRef.current) return
 
+    simulationRef.current?.stop()
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
 
@@ -167,6 +199,15 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
 
     const folders = [...new Set(nodes.map((n) => n.folder).filter(Boolean))]
 
+    // Restore node positions from the previous render so data refreshes
+    // (auto-save, watcher events) don't scramble the layout
+    let restored = 0
+    for (const n of nodes) {
+      const p = positionsRef.current.get(n.id)
+      if (p) { n.x = p.x; n.y = p.y; restored++ }
+    }
+    const allRestored = restored === nodes.length
+
     // ── Simulation ───────────────────────────────────────────────────────
     const simulation = d3
       .forceSimulation<GNode>(nodes)
@@ -174,14 +215,22 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
       .force('charge', d3.forceManyBody<GNode>().strength((d) => -120 - d.connections * 20))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide<GNode>().radius((d) => nodeR(d) + 6))
+    if (allRestored) simulation.alpha(0.1) // layout already settled — just nudge
+    simulationRef.current = simulation
 
     // ── Zoom ─────────────────────────────────────────────────────────────
     const g = svg.append('g')
     const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.05, 6])
-      .on('zoom', (e) => g.attr('transform', e.transform.toString()))
+      .on('zoom', (e) => {
+        g.attr('transform', e.transform.toString())
+        zoomTransformRef.current = e.transform
+        savedTransforms.set(posKey, e.transform)
+      })
     svg.call(zoomBehavior)
     svg.on('dblclick.zoom', null) // disable dblclick zoom
+    // Re-apply the camera from before the rebuild so the view doesn't jump
+    if (zoomTransformRef.current) svg.call(zoomBehavior.transform, zoomTransformRef.current)
 
     // ── Links ─────────────────────────────────────────────────────────────
     const linkEls = g
@@ -257,10 +306,17 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
         .attr('y2', (d) => (d.target as GNode).y ?? 0)
 
       nodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
+
+      for (const n of nodes) {
+        if (n.x != null && n.y != null) positionsRef.current.set(n.id, { x: n.x, y: n.y })
+      }
     })
 
-    // Auto-fit after simulation settles
+    // Auto-fit once, on the first settle. 'end' fires again every time the
+    // simulation reheats (e.g. after dragging a node) — re-fitting then is the
+    // "camera zooms out on its own" bug, so once a transform exists we keep it.
     simulation.on('end', () => {
+      if (zoomTransformRef.current) return
       const bounds = (g.node() as SVGGElement).getBBox()
       if (!bounds.width || !bounds.height) return
       const scale = Math.min(0.9, 0.9 * Math.min(width / bounds.width, height / bounds.height))
@@ -271,21 +327,36 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
         d3.zoomIdentity.translate(tx, ty).scale(scale)
       )
     })
+  }, [files, backlinks, activeFile, localMode, search, theme, posKey])
 
-    return () => { simulation.stop() }
-  }, [files, backlinks, activeFile, localMode, search, theme])
+  // Changing the visible subset is a deliberate action — reset the camera so
+  // the new subset gets auto-fitted (declared before the render effect below).
+  // Skipped on mount, otherwise it would wipe the camera restored from the
+  // previous time the graph was open.
+  const subsetMountRef = useRef(true)
+  useEffect(() => {
+    if (subsetMountRef.current) { subsetMountRef.current = false; return }
+    zoomTransformRef.current = null
+    savedTransforms.delete(posKey)
+  }, [localMode, search])
 
   useEffect(() => {
-    const cleanup = render()
-    return cleanup
+    render()
+    return () => { simulationRef.current?.stop() }
   }, [render])
 
-  // Re-render on resize
+  // Re-render on resize (skip the initial fire on observe, coalesce bursts)
   useEffect(() => {
     if (!containerRef.current) return
-    const ro = new ResizeObserver(() => render())
+    let first = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const ro = new ResizeObserver(() => {
+      if (first) { first = false; return }
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(render, 150)
+    })
     ro.observe(containerRef.current)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); if (timer) clearTimeout(timer) }
   }, [render])
 
   return (
@@ -348,3 +419,5 @@ export default function GraphView({ onNodeClick, onClose }: GraphViewProps) {
 function nodeR(d: GNode) {
   return Math.max(5, Math.min(18, 5 + d.connections * 2.5))
 }
+
+export default React.memo(GraphView)
