@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **0.5.2**
+Current version: **0.7.4**
 
 ---
 
@@ -10,13 +10,16 @@ Current version: **0.5.2**
 
 | Layer | Technology |
 |---|---|
-| Shell | Electron 29, electron-vite 2 |
+| Shell | Electron 32, electron-vite 2 |
 | UI | React 18, TypeScript |
 | Editor | CodeMirror 6 (`@codemirror/*`) |
 | Markdown preview | remark + remark-gfm + remark-html |
 | Math | KaTeX (transitive dep of mermaid, imported directly) |
 | Diagrams | Mermaid v11 (lazy-loaded chunks) |
 | DOCX reading | mammoth (main process only) |
+| EPUB viewer | epub.js (+ adm-zip) |
+| Local AI | node-llama-cpp (GGUF local) + remote APIs (chat panel & text actions) |
+| Plugins | community plugin system (GitHub starter plugin) |
 | DOCX→Markdown | mammoth (HTML step) + turndown (HTML→MD step) |
 | State | Zustand (`vaultStore.ts`) |
 | File watching | chokidar |
@@ -141,7 +144,14 @@ Processing order (all on the HTML string after remark):
 
 ---
 
-## Features Implemented (v0.5.2)
+## Since v0.5.2 → v0.7.4 (summary)
+
+- **AI chat panel** (local GGUF via node-llama-cpp or remote API) + **AI text actions** (v0.5.x)
+- **Community plugin system** with GitHub starter plugin; plugin exec bridge with `neutralLocale` flag
+- **EPUB viewer** (epub.js) + new custom app icon (v0.6.x)
+- v0.7.x: cleanup pass, sidebar lists files before folders, folder move with contents, graph stability/perf (no async camera movement), render/index/search optimizations
+
+## Features Implemented (v0.5.2 baseline)
 
 ### Core editor
 - CodeMirror 6 markdown editor with WikiLink syntax highlighting
