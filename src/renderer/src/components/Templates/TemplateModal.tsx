@@ -37,28 +37,28 @@ function buildTemplates(
       nameKey: 'tplMeeting',
       icon: '🤝',
       content: (title) =>
-        `# ${title}\n\n**Date:** ${new Date().toISOString().slice(0, 10)}\n**Attendees:** \n\n## Agenda\n\n- \n\n## Notes\n\n\n\n## Action items\n\n- [ ] \n`,
+        `# ${title}\n\n**${t('tmDate')}:** ${new Date().toISOString().slice(0, 10)}\n**${t('tmAttendees')}:** \n\n## ${t('tmAgenda')}\n\n- \n\n## ${t('tmNotes')}\n\n\n\n## ${t('tmActionItems')}\n\n- [ ] \n`,
     },
     {
       id: 'project',
       nameKey: 'tplProject',
       icon: '🚀',
       content: (title) =>
-        `# ${title}\n\n## Overview\n\n\n\n## Goals\n\n- \n\n## Tasks\n\n- [ ] \n- [ ] \n- [ ] \n\n## Notes\n\n\n\n## Resources\n\n- \n`,
+        `# ${title}\n\n## ${t('tpOverview')}\n\n\n\n## ${t('tpGoals')}\n\n- \n\n## ${t('tpTasks')}\n\n- [ ] \n- [ ] \n- [ ] \n\n## ${t('tmNotes')}\n\n\n\n## ${t('tpResources')}\n\n- \n`,
     },
     {
       id: 'book',
       nameKey: 'tplBook',
       icon: '📚',
       content: (title) =>
-        `# ${title}\n\n**Author:** \n**Rating:** ⭐⭐⭐⭐⭐\n\n## Summary\n\n\n\n## Key ideas\n\n- \n\n## Quotes\n\n> \n\n## My takeaways\n\n\n`,
+        `# ${title}\n\n**${t('tbAuthor')}:** \n**${t('tbRating')}:** ⭐⭐⭐⭐⭐\n\n## ${t('tbSummary')}\n\n\n\n## ${t('tbKeyIdeas')}\n\n- \n\n## ${t('tbQuotes')}\n\n> \n\n## ${t('tbTakeaways')}\n\n\n`,
     },
     {
       id: 'idea',
       nameKey: 'tplIdea',
       icon: '💡',
       content: (title) =>
-        `# ${title}\n\n## The idea\n\n\n\n## Why it matters\n\n\n\n## How to explore it\n\n- \n\n## Related\n\n- [[  ]]\n`,
+        `# ${title}\n\n## ${t('tiIdea')}\n\n\n\n## ${t('tiWhy')}\n\n\n\n## ${t('tiHow')}\n\n- \n\n## ${t('tiRelated')}\n\n- [[  ]]\n`,
     },
   ]
 }

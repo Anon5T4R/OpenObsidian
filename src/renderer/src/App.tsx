@@ -190,8 +190,8 @@ export default function App() {
   const handlePluginInstallZip = useCallback(async () => {
     const r = await window.api.pluginInstallZip()
     if ('error' in r && r.error !== 'cancelled') { notify(r.error); return }
-    if ('name' in r) { refreshPlugins(); notify(`Plugin "${r.name}" installed`) }
-  }, [refreshPlugins, notify])
+    if ('name' in r) { refreshPlugins(); notify(t('toastPluginInstalled', { name: r.name })) }
+  }, [refreshPlugins, notify, t])
 
   const handlePluginOpenDir = useCallback(() => { window.api.pluginOpenDir() }, [])
 

@@ -71,6 +71,7 @@ function TreeNodeRow({
   onFileSelect, onNewNote, onNewFolder, openCtx, onDropOnDir,
   onRenameChange, onRenameCommit, onRenameCancel
 }: TreeNodeRowProps) {
+  const t = useT()
   const [expanded, setExpanded] = useState(true)
   const [dragOver, setDragOver] = useState(false)
   const isPinned = pinnedPaths.includes(node.path)
@@ -124,7 +125,7 @@ function TreeNodeRow({
           <>
             <span className="tree-icon">{fileIcon}</span>
             {isRenaming ? renameInput : <span className="tree-label">{node.name}</span>}
-            {!isRenaming && isPinned && <span className="tree-pin-dot" title="Pinned">📌</span>}
+            {!isRenaming && isPinned && <span className="tree-pin-dot" title={t('ttPinned')}>📌</span>}
           </>
         )}
       </div>
@@ -299,7 +300,7 @@ function FileTree({
   const pinnedFiles = useMemo(() => {
     return pinnedPaths.map((p) => files.find((f) => f.path === p)).filter((f): f is NoteFile => !!f)
   }, [pinnedPaths, files])
-  const vaultName = vaultPath?.split(/[/\\]/).pop() ?? 'No vault'
+  const vaultName = vaultPath?.split(/[/\\]/).pop() ?? t('noVaultName')
 
   const closeAll = useCallback(() => {
     closeCtx()
@@ -321,7 +322,7 @@ function FileTree({
 
       <div className="file-tree-header">
         {!collapsed && (
-          <button className="vault-name-btn" onClick={vaultPath ? undefined : onOpenVault} title={vaultPath ?? 'Click to open vault'}>
+          <button className="vault-name-btn" onClick={vaultPath ? undefined : onOpenVault} title={vaultPath ?? t('clickToOpenVault')}>
             {vaultName}
           </button>
         )}
@@ -335,7 +336,7 @@ function FileTree({
                 className="sort-select"
                 value={sort}
                 onChange={(e) => onSortChange(e.target.value as SidebarSort)}
-                title="Sort order"
+                title={t('ttSortOrder')}
               >
                 <option value="name">{t('sortAZ')}</option>
                 <option value="name-desc">{t('sortZA')}</option>

@@ -206,6 +206,7 @@ type CtxMenuState = {
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   ({ content, onChange, onWikiLinkClick, vaultPath, files, theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
+    const t               = useT()
     const editorRef       = useRef<HTMLDivElement>(null)
     const viewRef         = useRef<EditorView | null>(null)
     const onChangeRef     = useRef(onChange)
@@ -451,7 +452,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     return (
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex' }}>
         <div ref={editorRef} className="markdown-editor" />
-        {aiLoading && <div className="editor-ai-loading">✦ Transformando…</div>}
+        {aiLoading && <div className="editor-ai-loading">✦ {t('aiTransforming')}</div>}
         {ctxMenu && (
           <EditorContextMenu
             x={ctxMenu.x} y={ctxMenu.y}
@@ -513,44 +514,44 @@ function EditorContextMenu({ x, y, hasSelection, selFrom, selTo, selText, onClos
       <div ref={menuRef} className="context-menu editor-context-menu" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
 
         {/* Clipboard */}
-        {hasSelection && <button onClick={onCut}><span className="ctx-icon">✂</span> Cut</button>}
-        {hasSelection && <button onClick={onCopy}><span className="ctx-icon">⎘</span> Copy</button>}
-        <button onClick={onPaste}><span className="ctx-icon">⎗</span> Paste</button>
-        <button onClick={onSelectAll}>Select All</button>
+        {hasSelection && <button onClick={onCut}><span className="ctx-icon">✂</span> {t('ctxCut')}</button>}
+        {hasSelection && <button onClick={onCopy}><span className="ctx-icon">⎘</span> {t('ctxCopy')}</button>}
+        <button onClick={onPaste}><span className="ctx-icon">⎗</span> {t('ctxPaste')}</button>
+        <button onClick={onSelectAll}>{t('ctxSelectAll')}</button>
         <hr />
 
         {/* Format selection */}
         {hasSelection && (
           <>
-            <div className="ctx-section-label">Format</div>
-            <button onClick={() => onWrap('**', '**', 'bold')}><span className="ctx-icon">B</span> Bold</button>
-            <button onClick={() => onWrap('*', '*', 'italic')}><span className="ctx-icon ctx-italic">I</span> Italic</button>
-            <button onClick={() => onWrap('~~', '~~', 'text')}><span className="ctx-icon ctx-strike">S</span> Strikethrough</button>
-            <button onClick={() => onWrap('`', '`', 'code')}><span className="ctx-icon">&lt;/&gt;</span> Inline code</button>
-            <button onClick={() => onWrap('[', '](https://)', 'text')}><span className="ctx-icon">🔗</span> Link</button>
-            <button onClick={() => onWrap('[[', ']]', '')}><span className="ctx-icon">⬡</span> WikiLink</button>
+            <div className="ctx-section-label">{t('ctxFormat')}</div>
+            <button onClick={() => onWrap('**', '**', 'bold')}><span className="ctx-icon">B</span> {t('insBold')}</button>
+            <button onClick={() => onWrap('*', '*', 'italic')}><span className="ctx-icon ctx-italic">I</span> {t('insItalic')}</button>
+            <button onClick={() => onWrap('~~', '~~', 'text')}><span className="ctx-icon ctx-strike">S</span> {t('ctxStrikethrough')}</button>
+            <button onClick={() => onWrap('`', '`', 'code')}><span className="ctx-icon">&lt;/&gt;</span> {t('insInlineCode')}</button>
+            <button onClick={() => onWrap('[', '](https://)', 'text')}><span className="ctx-icon">🔗</span> {t('ctxLink')}</button>
+            <button onClick={() => onWrap('[[', ']]', '')}><span className="ctx-icon">⬡</span> {t('ctxWikiLink')}</button>
             <hr />
           </>
         )}
 
         {/* Insert */}
-        <div className="ctx-section-label">Insert</div>
-        <button onClick={() => onInsert('# ', 0)}>Heading 1</button>
-        <button onClick={() => onInsert('## ', 0)}>Heading 2</button>
-        <button onClick={() => onInsert('### ', 0)}>Heading 3</button>
+        <div className="ctx-section-label">{t('ctxInsertLabel')}</div>
+        <button onClick={() => onInsert('# ', 0)}>{t('insHeading1')}</button>
+        <button onClick={() => onInsert('## ', 0)}>{t('insHeading2')}</button>
+        <button onClick={() => onInsert('### ', 0)}>{t('insHeading3')}</button>
         <hr />
-        <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>Table</button>
-        <button onClick={() => onInsert('```\n\n```', -4)}>Code block</button>
-        <button onClick={() => onInsert('> ', 0)}>Blockquote</button>
-        <button onClick={() => onInsert('- [ ] \n- [ ] \n- [ ] ', -14)}>Task list</button>
-        <button onClick={() => onInsert('\n---\n', 0)}>Horizontal rule</button>
-        <button onClick={() => onInsert(today, 0)}>Today's date</button>
+        <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>{t('insTable')}</button>
+        <button onClick={() => onInsert('```\n\n```', -4)}>{t('insCodeBlock')}</button>
+        <button onClick={() => onInsert('> ', 0)}>{t('insBlockquote')}</button>
+        <button onClick={() => onInsert('- [ ] \n- [ ] \n- [ ] ', -14)}>{t('insTaskList')}</button>
+        <button onClick={() => onInsert('\n---\n', 0)}>{t('insHr')}</button>
+        <button onClick={() => onInsert(today, 0)}>{t('ctxTodayDate')}</button>
 
         {/* AI actions */}
         {hasSelection && (
           <>
             <hr />
-            <div className="ctx-section-label">✦ AI</div>
+            <div className="ctx-section-label">✦ {t('ctxAiLabel')}</div>
             <button onClick={() => onAiTransform('fix', selFrom, selTo, selText)}>
               <span className="ctx-icon">✓</span> {t('aiFixText')}
             </button>

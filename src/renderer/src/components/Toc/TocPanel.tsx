@@ -42,7 +42,7 @@ export default function TocPanel({ content, onJump, onClose }: TocPanelProps) {
     <div className="toc-panel">
       <div className="toc-header">
         <span className="toc-title">{t('tocTitle')}</span>
-        <button className="toc-close" onClick={onClose} title={t('ctxCancelBtn')}>✕</button>
+        <button className="toc-close" onClick={onClose} title={t('close')}>✕</button>
       </div>
       <div className="toc-list">
         {headings.length === 0 ? (

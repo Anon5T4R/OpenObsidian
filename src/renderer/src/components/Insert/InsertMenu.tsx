@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { NoteFile } from '../../store/vaultStore'
+import { useT } from '../../i18n'
+import type { TranslationKey } from '../../i18n'
 import './InsertMenu.css'
 
 interface InsertMenuProps {
@@ -8,67 +10,68 @@ interface InsertMenuProps {
 }
 
 type Item = {
-  label: string
+  labelKey: TranslationKey
   icon: string
   shortcut?: string
   apply: string
   cursor?: number
 }
 
-type Group = { title: string; items: Item[] }
+type Group = { titleKey: TranslationKey; items: Item[] }
 
 const GROUPS: Group[] = [
   {
-    title: 'Headings',
+    titleKey: 'insGroupHeadings',
     items: [
-      { label: 'Heading 1',   icon: 'H1',  shortcut: '/h1',  apply: '# ',   cursor: 2 },
-      { label: 'Heading 2',   icon: 'H2',  shortcut: '/h2',  apply: '## ',  cursor: 3 },
-      { label: 'Heading 3',   icon: 'H3',  shortcut: '/h3',  apply: '### ', cursor: 4 },
+      { labelKey: 'insHeading1',   icon: 'H1',  shortcut: '/h1',  apply: '# ',   cursor: 2 },
+      { labelKey: 'insHeading2',   icon: 'H2',  shortcut: '/h2',  apply: '## ',  cursor: 3 },
+      { labelKey: 'insHeading3',   icon: 'H3',  shortcut: '/h3',  apply: '### ', cursor: 4 },
     ]
   },
   {
-    title: 'Structure',
+    titleKey: 'insGroupStructure',
     items: [
-      { label: 'Table',          icon: '⊞',   shortcut: '/table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
-      { label: 'Code block',     icon: '</>',  shortcut: '/code',    apply: '```\n\n```', cursor: -4 },
-      { label: 'Blockquote',     icon: '❝',   shortcut: '/quote',   apply: '> ' },
-      { label: 'Horizontal rule',icon: '—',   shortcut: '/hr',      apply: '\n---\n' },
-      { label: 'Task list',       icon: '✅',   shortcut: '/check',   apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
-      { label: 'Bullet list',    icon: '•',   shortcut: '/list',    apply: '- ' },
+      { labelKey: 'insTable',       icon: '⊞',   shortcut: '/table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
+      { labelKey: 'insCodeBlock',   icon: '</>',  shortcut: '/code',    apply: '```\n\n```', cursor: -4 },
+      { labelKey: 'insBlockquote',  icon: '❝',   shortcut: '/quote',   apply: '> ' },
+      { labelKey: 'insHr',          icon: '—',   shortcut: '/hr',      apply: '\n---\n' },
+      { labelKey: 'insTaskList',    icon: '✅',   shortcut: '/check',   apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
+      { labelKey: 'insBulletList',  icon: '•',   shortcut: '/list',    apply: '- ' },
     ]
   },
   {
-    title: 'Inline',
+    titleKey: 'insGroupInline',
     items: [
-      { label: 'Bold',         icon: 'B',   shortcut: '/bold',    apply: '**text**', cursor: -2 },
-      { label: 'Italic',       icon: 'I',   shortcut: '/italic',  apply: '*text*',   cursor: -1 },
-      { label: 'Inline code',  icon: '`',   shortcut: '/inline',  apply: '`code`',   cursor: -1 },
+      { labelKey: 'insBold',        icon: 'B',   shortcut: '/bold',    apply: '**text**', cursor: -2 },
+      { labelKey: 'insItalic',      icon: 'I',   shortcut: '/italic',  apply: '*text*',   cursor: -1 },
+      { labelKey: 'insInlineCode',  icon: '`',   shortcut: '/inline',  apply: '`code`',   cursor: -1 },
     ]
   },
   {
-    title: 'Links',
+    titleKey: 'insGroupLinks',
     items: [
-      { label: 'Link to note', icon: '[[]]', shortcut: '/wikilink', apply: '[[', cursor: 0 },
-      { label: 'Web link',     icon: '🔗',  shortcut: '/link',     apply: '[text](https://)', cursor: -1 },
-      { label: 'Image',        icon: '🖼',  shortcut: '/image',    apply: '![alt](url)', cursor: -1 },
+      { labelKey: 'insLinkToNote', icon: '[[]]', shortcut: '/wikilink', apply: '[[', cursor: 0 },
+      { labelKey: 'insWebLink',    icon: '🔗',  shortcut: '/link',     apply: '[text](https://)', cursor: -1 },
+      { labelKey: 'insImage',      icon: '🖼',  shortcut: '/image',    apply: '![alt](url)', cursor: -1 },
     ]
   },
   {
-    title: 'Symbols',
+    titleKey: 'insGroupSymbols',
     items: [
-      { label: 'Right arrow', icon: '→', shortcut: '/rarr',  apply: '→' },
-      { label: 'Left arrow',  icon: '←', shortcut: '/larr',  apply: '←' },
-      { label: 'Up arrow',    icon: '↑', shortcut: '/uarr',  apply: '↑' },
-      { label: 'Down arrow',  icon: '↓', shortcut: '/darr',  apply: '↓' },
-      { label: 'Check mark',  icon: '✓', shortcut: '/tick',  apply: '✓' },
-      { label: 'Cross mark',  icon: '✗', shortcut: '/cross', apply: '✗' },
-      { label: 'Em dash',     icon: '—', shortcut: '/mdash', apply: '—' },
-      { label: 'Ellipsis',    icon: '…', shortcut: '/dots',  apply: '…' },
+      { labelKey: 'insArrowRight', icon: '→', shortcut: '/rarr',  apply: '→' },
+      { labelKey: 'insArrowLeft',  icon: '←', shortcut: '/larr',  apply: '←' },
+      { labelKey: 'insArrowUp',    icon: '↑', shortcut: '/uarr',  apply: '↑' },
+      { labelKey: 'insArrowDown',  icon: '↓', shortcut: '/darr',  apply: '↓' },
+      { labelKey: 'insCheckMark',  icon: '✓', shortcut: '/tick',  apply: '✓' },
+      { labelKey: 'insCrossMark',  icon: '✗', shortcut: '/cross', apply: '✗' },
+      { labelKey: 'insEmDash',     icon: '—', shortcut: '/mdash', apply: '—' },
+      { labelKey: 'insEllipsis',   icon: '…', shortcut: '/dots',  apply: '…' },
     ]
   }
 ]
 
 export default function InsertMenu({ onInsert }: InsertMenuProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -91,31 +94,31 @@ export default function InsertMenu({ onInsert }: InsertMenuProps) {
       <button
         className={`insert-trigger ${open ? 'open' : ''}`}
         onClick={() => setOpen((o) => !o)}
-        title="Insert element (or type / in editor)"
+        title={t('insTriggerTitle')}
       >
         <span className="insert-trigger-plus">+</span>
-        Insert
+        {t('insTrigger')}
         <span className="insert-trigger-chevron">{open ? '▴' : '▾'}</span>
       </button>
 
       {open && (
         <div className="insert-dropdown">
           <div className="insert-hint">
-            Tip: type <kbd>/</kbd> in the editor for slash commands, or <kbd>[[</kbd> for note links
+            {t('insHintPre')} <kbd>/</kbd> {t('insHintMid')} <kbd>[[</kbd> {t('insHintPost')}
           </div>
           {GROUPS.map((group) => (
-            <div key={group.title} className="insert-group">
-              <div className="insert-group-title">{group.title}</div>
+            <div key={group.titleKey} className="insert-group">
+              <div className="insert-group-title">{t(group.titleKey)}</div>
               <div className="insert-group-items">
                 {group.items.map((item) => (
                   <button
-                    key={item.label}
+                    key={item.labelKey}
                     className="insert-item"
                     onClick={() => doInsert(item)}
-                    title={item.shortcut ? `Slash command: ${item.shortcut}` : undefined}
+                    title={item.shortcut ? t('insSlashCmd', { cmd: item.shortcut }) : undefined}
                   >
                     <span className="insert-icon">{item.icon}</span>
-                    <span className="insert-label">{item.label}</span>
+                    <span className="insert-label">{t(item.labelKey)}</span>
                     {item.shortcut && <kbd className="insert-shortcut">{item.shortcut}</kbd>}
                   </button>
                 ))}

@@ -14,6 +14,7 @@ import {
   processWikiLinks,
   toggleCheckbox,
 } from './markdownTransforms'
+import { useT } from '../../i18n'
 import './MarkdownPreview.css'
 
 // ── Math (KaTeX) ───────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ interface MarkdownPreviewProps {
 }
 
 export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath }: MarkdownPreviewProps) {
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
 
   // ── Mermaid zoom modal ────────────────────────────────────────────────────
@@ -171,9 +173,9 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
               <button onClick={() => setZoom((z) => Math.min(6, z + 0.25))}>+</button>
               <span className="mermaid-zoom-pct">{Math.round(zoom * 100)}%</span>
               <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))}>−</button>
-              <button onClick={() => setZoom(1)}>Reset</button>
-              <span className="mermaid-zoom-hint">scroll wheel to zoom · drag to scroll</span>
-              <button className="mermaid-zoom-close" onClick={() => setZoomModal(null)} title="Close (Esc)">✕</button>
+              <button onClick={() => setZoom(1)}>{t('mermaidReset')}</button>
+              <span className="mermaid-zoom-hint">{t('mermaidZoomHint')}</span>
+              <button className="mermaid-zoom-close" onClick={() => setZoomModal(null)} title={t('mermaidCloseTip')}>✕</button>
             </div>
             <div className="mermaid-zoom-view" onWheel={handleWheel}>
               <div style={{ width: zoomModal.w * zoom, height: zoomModal.h * zoom, position: 'relative', flexShrink: 0 }}>

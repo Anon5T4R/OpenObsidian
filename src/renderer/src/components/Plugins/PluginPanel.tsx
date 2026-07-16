@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import type { PluginInfo } from '../../../../preload/index'
+import { useT } from '../../i18n'
 import './PluginPanel.css'
 
 interface PluginPanelProps {
@@ -12,17 +13,18 @@ interface PluginPanelProps {
 }
 
 export default function PluginPanel({ plugin, vaultPath, theme, onClose, onNotify }: PluginPanelProps) {
+  const t = useT()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [html, setHtml] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Load panel HTML from disk
   useEffect(() => {
-    if (!plugin.panelPath) { setError('No panel defined for this plugin.'); return }
+    if (!plugin.panelPath) { setError(t('pluginNoPanel')); return }
     window.api.readFile(plugin.panelPath)
       .then((raw) => setHtml(buildSrcDoc(raw, vaultPath, theme)))
       .catch((e) => setError(String(e)))
-  }, [plugin.panelPath, vaultPath, theme])
+  }, [plugin.panelPath, vaultPath, theme, t])
 
   // Handle bridge messages from iframe
   const handleMessage = useCallback(async (e: MessageEvent) => {
@@ -72,14 +74,14 @@ export default function PluginPanel({ plugin, vaultPath, theme, onClose, onNotif
         <span className="plugin-panel-title">
           {plugin.icon ?? '⬡'} {plugin.name}
         </span>
-        <button className="plugin-panel-close" onClick={onClose} title="Close" aria-label="Close"><X size={16} /></button>
+        <button className="plugin-panel-close" onClick={onClose} title={t('close')} aria-label={t('close')}><X size={16} /></button>
       </div>
 
       <div className="plugin-panel-body">
         {error ? (
           <div className="plugin-panel-error">{error}</div>
         ) : html === null ? (
-          <div className="plugin-panel-loading">Loading…</div>
+          <div className="plugin-panel-loading">{t('pluginLoading')}</div>
         ) : (
           <iframe
             ref={iframeRef}

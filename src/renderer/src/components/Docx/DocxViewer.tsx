@@ -29,14 +29,14 @@ export default function DocxViewer({ filePath, onOpenInApp, onConvertToMd, isCon
     <div className="docx-viewer">
       <div className="docx-toolbar">
         <span className="docx-title">📝 {fileName}</span>
-        <button className="docx-btn" onClick={onOpenInApp} title="Open in Word, LibreOffice or system default app">
+        <button className="docx-btn" onClick={onOpenInApp} title={t('docxOpenInAppTip')}>
           {t('docxOpenInApp')}
         </button>
         <button
           className="docx-btn docx-btn-primary"
           onClick={onConvertToMd}
           disabled={isConverting || loading || !!error}
-          title="Convert document content to a Markdown note"
+          title={t('docxConvertTip')}
         >
           {isConverting ? t('docxConverting') : t('docxConvert')}
         </button>

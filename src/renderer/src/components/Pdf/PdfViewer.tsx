@@ -16,7 +16,7 @@ export default function PdfViewer({ filePath, onOpenNotes }: PdfViewerProps) {
     <div className="pdf-viewer">
       <div className="pdf-toolbar">
         <span className="pdf-title">📕 {fileName}</span>
-        <button className="pdf-notes-btn" onClick={onOpenNotes} title="Open companion notes for this PDF">
+        <button className="pdf-notes-btn" onClick={onOpenNotes} title={t('pdfOpenNotesTip')}>
           {t('pdfOpenNotes')}
         </button>
       </div>

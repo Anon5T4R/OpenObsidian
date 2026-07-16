@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { useModalA11y } from '../../hooks/useModalA11y'
+import { useT } from '../../i18n'
+import type { TranslationKey } from '../../i18n'
 import './HelpModal.css'
 
 interface HelpModalProps {
@@ -10,6 +12,7 @@ interface HelpModalProps {
 type Tab = 'interface' | 'markdown' | 'features' | 'shortcuts'
 
 export default function HelpModal({ onClose }: HelpModalProps) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('interface')
   const dialogRef = useModalA11y<HTMLDivElement>(onClose)
 
@@ -20,22 +23,22 @@ export default function HelpModal({ onClose }: HelpModalProps) {
         className="help-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Help & Reference"
+        aria-label={t('hlpTitle')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="help-header">
           <div className="help-title">
             <span className="help-icon">?</span>
-            Help & Reference
+            {t('hlpTitle')}
           </div>
-          <button className="help-close" onClick={onClose} aria-label="Close"><X size={16} /></button>
+          <button className="help-close" onClick={onClose} aria-label={t('close')}><X size={16} /></button>
         </div>
 
         <div className="help-tabs">
-          <button className={tab === 'interface'  ? 'active' : ''} onClick={() => setTab('interface')}>Interface</button>
-          <button className={tab === 'features'   ? 'active' : ''} onClick={() => setTab('features')}>Features</button>
-          <button className={tab === 'markdown'   ? 'active' : ''} onClick={() => setTab('markdown')}>Markdown</button>
-          <button className={tab === 'shortcuts'  ? 'active' : ''} onClick={() => setTab('shortcuts')}>Shortcuts</button>
+          <button className={tab === 'interface'  ? 'active' : ''} onClick={() => setTab('interface')}>{t('hlpTabInterface')}</button>
+          <button className={tab === 'features'   ? 'active' : ''} onClick={() => setTab('features')}>{t('hlpTabFeatures')}</button>
+          <button className={tab === 'markdown'   ? 'active' : ''} onClick={() => setTab('markdown')}>{t('hlpTabMarkdown')}</button>
+          <button className={tab === 'shortcuts'  ? 'active' : ''} onClick={() => setTab('shortcuts')}>{t('hlpTabShortcuts')}</button>
         </div>
 
         <div className="help-body">
@@ -52,81 +55,76 @@ export default function HelpModal({ onClose }: HelpModalProps) {
 // ── Interface overview ────────────────────────────────────────────────────
 
 function InterfaceTab() {
+  const t = useT()
   return (
     <div className="help-content">
-      <Section title="Toolbar (top bar)">
-        <p className="help-para">
-          The toolbar appears above the editor whenever a note is open. From left to right:
-        </p>
+      <Section title={t('hlpSecToolbar')}>
+        <p className="help-para">{t('hlpToolbarIntro')}</p>
         <ul className="help-list">
-          <li><strong>Note title</strong> — name of the active file. A purple dot appears when there are unsaved changes.</li>
-          <li><strong>Insert menu</strong> — drop-down with snippets: table, code block, checkbox, image, date, WikiLink and more.</li>
-          <li><strong>Edit / Split / Preview</strong> — switches between editor-only, side-by-side, and rendered preview.</li>
-          <li><strong>↓ Export</strong> — saves the current note as HTML or PDF.</li>
-          <li><strong>◎ Graph</strong> — opens the connection graph (Ctrl+G).</li>
-          <li><strong>? Help</strong> — opens this window (F1).</li>
-          <li><strong>⚙ Settings</strong> — opens settings (Ctrl+,).</li>
+          <li><strong>{t('hlpTbNoteTitle')}</strong> — {t('hlpTbNoteTitleD')}</li>
+          <li><strong>{t('hlpTbInsert')}</strong> — {t('hlpTbInsertD')}</li>
+          <li><strong>{t('hlpTbViews')}</strong> — {t('hlpTbViewsD')}</li>
+          <li><strong>{t('hlpTbExport')}</strong> — {t('hlpTbExportD')}</li>
+          <li><strong>{t('hlpTbGraph')}</strong> — {t('hlpTbGraphD')}</li>
+          <li><strong>{t('hlpTbHelp')}</strong> — {t('hlpTbHelpD')}</li>
+          <li><strong>{t('hlpTbSettings')}</strong> — {t('hlpTbSettingsD')}</li>
         </ul>
       </Section>
 
-      <Section title="Sidebar (left panel)">
+      <Section title={t('hlpSecSidebar')}>
         <ul className="help-list">
-          <li><strong>Vault name</strong> — top-left. Click to change vault.</li>
-          <li><strong>+ button</strong> — creates a new note (opens template picker).</li>
-          <li><strong>📁 button</strong> — creates a new folder at vault root.</li>
-          <li><strong>A→Z / Z→A / Recent</strong> — sort order dropdown.</li>
-          <li><strong>← / → button</strong> — collapses or expands the sidebar (Ctrl+\).</li>
-          <li><strong>Filter box</strong> — filters the tree by note name as you type.</li>
-          <li><strong>📌 Pinned</strong> — pinned notes appear here, above the file tree.</li>
-          <li><strong>Tag chips</strong> — click a tag to filter the tree by that tag. Click ✕ to clear.</li>
-          <li><strong>File tree</strong> — click a folder to expand/collapse; click a file to open it.</li>
+          <li><strong>{t('hlpSbVault')}</strong> — {t('hlpSbVaultD')}</li>
+          <li><strong>{t('hlpSbNew')}</strong> — {t('hlpSbNewD')}</li>
+          <li><strong>{t('hlpSbFolder')}</strong> — {t('hlpSbFolderD')}</li>
+          <li><strong>{t('hlpSbSort')}</strong> — {t('hlpSbSortD')}</li>
+          <li><strong>{t('hlpSbCollapse')}</strong> — {t('hlpSbCollapseD')}</li>
+          <li><strong>{t('hlpSbFilter')}</strong> — {t('hlpSbFilterD')}</li>
+          <li><strong>{t('hlpSbPinned')}</strong> — {t('hlpSbPinnedD')}</li>
+          <li><strong>{t('hlpSbTags')}</strong> — {t('hlpSbTagsD')}</li>
+          <li><strong>{t('hlpSbTree')}</strong> — {t('hlpSbTreeD')}</li>
         </ul>
       </Section>
 
-      <Section title="File tree — right-click menu">
+      <Section title={t('hlpSecCtx')}>
         <ul className="help-list">
-          <li><strong>📄 New Note Here</strong> — opens the template picker inside that folder.</li>
-          <li><strong>📁 New Folder Here</strong> — creates a subfolder.</li>
-          <li><strong>✏️ Rename</strong> — renames the file or folder.</li>
-          <li><strong>📋 Duplicate</strong> — creates a copy of the note.</li>
-          <li><strong>📌 Pin / Unpin</strong> — pins the note to the top of the sidebar.</li>
-          <li><strong>📎 Copy Path</strong> — copies the absolute path to clipboard.</li>
-          <li><strong>📂 Show in File Manager</strong> — reveals the file in Explorer / Nautilus.</li>
-          <li><strong>🗑 Delete</strong> — permanently deletes the file or folder.</li>
+          <li><strong>{t('hlpCtxNew')}</strong> — {t('hlpCtxNewD')}</li>
+          <li><strong>{t('hlpCtxFolder')}</strong> — {t('hlpCtxFolderD')}</li>
+          <li><strong>{t('hlpCtxRename')}</strong> — {t('hlpCtxRenameD')}</li>
+          <li><strong>{t('hlpCtxDup')}</strong> — {t('hlpCtxDupD')}</li>
+          <li><strong>{t('hlpCtxPin')}</strong> — {t('hlpCtxPinD')}</li>
+          <li><strong>{t('hlpCtxCopy')}</strong> — {t('hlpCtxCopyD')}</li>
+          <li><strong>{t('hlpCtxShow')}</strong> — {t('hlpCtxShowD')}</li>
+          <li><strong>{t('hlpCtxDelete')}</strong> — {t('hlpCtxDeleteD')}</li>
         </ul>
         <div className="help-tip">
-          <strong>Drag & drop:</strong> grab any file or folder and drop it onto another folder to move it. Drop onto empty space to move to vault root.
+          <strong>{t('hlpCtxDragLabel')}</strong> {t('hlpCtxDrag')}
         </div>
       </Section>
 
-      <Section title="Status bar (bottom bar)">
-        <p className="help-para">
-          Shown below the editor. Displays live statistics for the current note:
-        </p>
+      <Section title={t('hlpSecStatus')}>
+        <p className="help-para">{t('hlpStatusIntro')}</p>
         <ul className="help-list">
-          <li><strong>N words</strong> — word count (updates as you type).</li>
-          <li><strong>N chars</strong> — character count.</li>
-          <li><strong>Ln N Col N</strong> — cursor line and column position.</li>
-          <li><strong>Find</strong> — opens the find & replace panel (same as Ctrl+F).</li>
+          <li><strong>{t('hlpStWords')}</strong> — {t('hlpStWordsD')}</li>
+          <li><strong>{t('hlpStChars')}</strong> — {t('hlpStCharsD')}</li>
+          <li><strong>{t('hlpStLnCol')}</strong> — {t('hlpStLnColD')}</li>
+          <li><strong>{t('hlpStFind')}</strong> — {t('hlpStFindD')}</li>
         </ul>
       </Section>
 
-      <Section title="Backlinks panel">
+      <Section title={t('hlpSecBacklinks')}>
         <p className="help-para">
-          Below the sidebar file tree. Lists every note that contains a <code>[[WikiLink]]</code> pointing to the currently open note. Click any entry to navigate to it.
+          {t('hlpBacklinksPre')} <code>[[WikiLink]]</code> {t('hlpBacklinksPost')}
         </p>
       </Section>
 
-      <Section title="Graph view">
-        <p className="help-para">
-          Overlays the editor area. Each node is a note; each line is a WikiLink connection.
-        </p>
+      <Section title={t('hlpSecGraph')}>
+        <p className="help-para">{t('hlpGraphIntro')}</p>
         <ul className="help-list">
-          <li>Node size reflects number of connections.</li>
-          <li>Hover to highlight direct neighbours.</li>
-          <li>Click a node to open that note.</li>
-          <li>Drag nodes, scroll to zoom, drag background to pan.</li>
-          <li><strong>Local mode</strong> — shows only notes connected to the active note.</li>
+          <li>{t('hlpGraph1')}</li>
+          <li>{t('hlpGraph2')}</li>
+          <li>{t('hlpGraph3')}</li>
+          <li>{t('hlpGraph4')}</li>
+          <li><strong>{t('hlpGraphLocal')}</strong> — {t('hlpGraphLocalD')}</li>
         </ul>
       </Section>
     </div>
@@ -136,125 +134,121 @@ function InterfaceTab() {
 // ── Features ──────────────────────────────────────────────────────────────
 
 function FeaturesTab() {
+  const t = useT()
+  const tplItems: [string, TranslationKey, TranslationKey][] = [
+    ['📄', 'tplBlank',   'hlpTplBlankD'],
+    ['📅', 'tplDaily',   'hlpTplDailyD'],
+    ['🤝', 'tplMeeting', 'hlpTplMeetingD'],
+    ['🚀', 'tplProject', 'hlpTplProjectD'],
+    ['📚', 'tplBook',    'hlpTplBookD'],
+    ['💡', 'tplIdea',    'hlpTplIdeaD'],
+  ]
   return (
     <div className="help-content">
-      <Section title="Templates">
-        <p className="help-para">
-          Every time you create a note (Ctrl+N, sidebar + button, or right-click → New Note Here) a template picker opens. Choose from:
-        </p>
+      <Section title={t('hlpSecTemplates')}>
+        <p className="help-para">{t('hlpTplIntro')}</p>
         <div className="help-tpl-grid">
-          {[
-            ['📄', 'Blank note',       'Just the title heading.'],
-            ['📅', 'Daily note',       "Focus, notes and done sections with today's date."],
-            ['🤝', 'Meeting notes',    'Date, attendees, agenda, notes and action items.'],
-            ['🚀', 'Project plan',     'Overview, goals, task checklist and resources.'],
-            ['📚', 'Book notes',       'Author, rating, summary, key ideas and quotes.'],
-            ['💡', 'Idea / brainstorm','The idea, why it matters, how to explore and related links.'],
-          ].map(([icon, name, desc]) => (
-            <div key={name} className="help-tpl-item">
+          {tplItems.map(([icon, nameKey, descKey]) => (
+            <div key={nameKey} className="help-tpl-item">
               <span className="help-tpl-icon">{icon}</span>
               <div>
-                <div className="help-tpl-name">{name}</div>
-                <div className="help-tpl-desc">{desc}</div>
+                <div className="help-tpl-name">{t(nameKey)}</div>
+                <div className="help-tpl-desc">{t(descKey)}</div>
               </div>
             </div>
           ))}
         </div>
       </Section>
 
-      <Section title="Tags">
+      <Section title={t('hlpSecTags')}>
         <p className="help-para">
-          Write <code>#tag</code> anywhere in a note. Tags are automatically extracted as you save. In the sidebar, tag chips appear above the file tree — click one to filter notes by that tag. Click <strong>✕</strong> to clear the filter.
+          {t('hlpTagsPre')} <code>#tag</code> {t('hlpTagsPost')}
         </p>
         <div className="help-tip">
-          Valid tag characters: letters, numbers, <code>_</code> and <code>-</code>.<br />
-          Example: <code>#project</code> <code>#study-notes</code> <code>#idea_2025</code>
+          {t('hlpTagCharsPre')} <code>_</code> {t('hlpTagCharsAnd')} <code>-</code>.<br />
+          {t('hlpTagExample')} <code>#project</code> <code>#study-notes</code> <code>#idea_2025</code>
         </div>
       </Section>
 
-      <Section title="Find & Replace">
+      <Section title={t('hlpSecFind')}>
         <p className="help-para">
-          Press <kbd>Ctrl+F</kbd> or click <strong>Find</strong> in the status bar to open the search panel inside the editor. Supports:
+          {t('hlpFindPre')} <kbd>Ctrl+F</kbd> {t('hlpFindMid')} <strong>{t('hlpStFind')}</strong> {t('hlpFindPost')}
         </p>
         <ul className="help-list">
-          <li>Case-sensitive and case-insensitive search.</li>
-          <li>Regular expressions.</li>
-          <li>Replace one occurrence or all occurrences.</li>
-          <li>Navigate results with <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>.</li>
-          <li>Close with <kbd>Escape</kbd>.</li>
+          <li>{t('hlpFind1')}</li>
+          <li>{t('hlpFind2')}</li>
+          <li>{t('hlpFind3')}</li>
+          <li>{t('hlpFindNav')} <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>.</li>
+          <li>{t('hlpFindClose')} <kbd>Escape</kbd>.</li>
         </ul>
       </Section>
 
-      <Section title="Export">
+      <Section title={t('hlpSecExport')}>
         <p className="help-para">
-          Click the <strong>↓</strong> button in the toolbar to export the current note:
+          {t('hlpExportPre')} <strong>↓</strong> {t('hlpExportPost')}
         </p>
         <ul className="help-list">
-          <li><strong>Export as HTML</strong> — saves a fully styled standalone HTML file. Opens a save dialog.</li>
-          <li><strong>Export as PDF</strong> — switches to Preview mode and uses Electron's print engine to generate a PDF. Opens a save dialog.</li>
+          <li><strong>{t('exportHtml')}</strong> — {t('hlpExportHtmlD')}</li>
+          <li><strong>{t('exportPdf')}</strong> — {t('hlpExportPdfD')}</li>
         </ul>
       </Section>
 
-      <Section title="Zoom">
-        <p className="help-para">
-          Adjusts the editor font size without affecting the rest of the UI:
-        </p>
+      <Section title={t('hlpSecZoom')}>
+        <p className="help-para">{t('hlpZoomIntro')}</p>
         <ul className="help-list">
-          <li><kbd>Ctrl</kbd>+<kbd>=</kbd> — increase font size.</li>
-          <li><kbd>Ctrl</kbd>+<kbd>-</kbd> — decrease font size.</li>
-          <li><kbd>Ctrl</kbd>+<kbd>0</kbd> — reset to default (14 px).</li>
-          <li>Range: 10 px – 26 px. Persisted across sessions.</li>
+          <li><kbd>Ctrl</kbd>+<kbd>=</kbd> — {t('hlpZoomIn')}</li>
+          <li><kbd>Ctrl</kbd>+<kbd>-</kbd> — {t('hlpZoomOut')}</li>
+          <li><kbd>Ctrl</kbd>+<kbd>0</kbd> — {t('hlpZoomReset')}</li>
+          <li>{t('hlpZoomRange')}</li>
         </ul>
       </Section>
 
-      <Section title="Pin notes">
+      <Section title={t('hlpSecPin')}>
         <p className="help-para">
-          Right-click any file → <strong>📌 Pin to top</strong>. Pinned notes appear in their own section at the top of the sidebar, regardless of sort order or tag filter. Right-click again to unpin. Pins survive app restarts.
+          {t('hlpPinPre')} <strong>{t('ctxPin')}</strong>{t('hlpPinPost')}
         </p>
       </Section>
 
-      <Section title="Sidebar sort">
-        <p className="help-para">
-          Use the dropdown in the sidebar header to change order:
-        </p>
+      <Section title={t('hlpSecSort')}>
+        <p className="help-para">{t('hlpSortIntro')}</p>
         <ul className="help-list">
-          <li><strong>A→Z</strong> — alphabetical ascending (default).</li>
-          <li><strong>Z→A</strong> — alphabetical descending.</li>
-          <li><strong>Recent</strong> — most recently modified file first.</li>
+          <li><strong>{t('sortAZ')}</strong> — {t('hlpSortAZD')}</li>
+          <li><strong>{t('sortZA')}</strong> — {t('hlpSortZAD')}</li>
+          <li><strong>{t('sortRecent')}</strong> — {t('hlpSortRecentD')}</li>
         </ul>
-        <p className="help-para">Folders always appear before files.</p>
+        <p className="help-para">{t('hlpSortFolders')}</p>
       </Section>
 
-      <Section title="Full-text search">
+      <Section title={t('hlpSecSearch')}>
         <p className="help-para">
-          Press <kbd>Ctrl+Shift+F</kbd> to open the search panel. It searches the content of every note in the vault in real time. Results show the matching line with context. Click a result to open that note.
+          {t('hlpSearchPre')} <kbd>Ctrl+Shift+F</kbd> {t('hlpSearchPost')}
         </p>
       </Section>
 
-      <Section title="Vault backup">
+      <Section title={t('hlpSecBackup')}>
         <p className="help-para">
-          Press <kbd>Ctrl+Shift+B</kbd> or use the File menu → Backup vault. You'll be asked to choose a destination folder. OpenObsidian copies the entire vault there with a timestamp in the folder name.
+          {t('hlpBackupPre')} <kbd>Ctrl+Shift+B</kbd> {t('hlpBackupPost')}
         </p>
       </Section>
 
-      <Section title="Image paste">
+      <Section title={t('hlpSecImage')}>
         <p className="help-para">
-          Copy any image to the clipboard and press <kbd>Ctrl+V</kbd> inside the editor. The image is saved to a <code>_attachments/</code> folder inside the vault and an <code>![…](…)</code> link is inserted at the cursor.
+          {t('hlpImagePre')} <kbd>Ctrl+V</kbd> {t('hlpImageMid')} <code>_attachments/</code> {t('hlpImageMid2')} <code>![…](…)</code> {t('hlpImagePost')}
         </p>
       </Section>
 
-      <Section title="Interactive task lists">
+      <Section title={t('hlpSecTasks')}>
         <p className="help-para">
-          In <strong>Preview</strong> mode, task list checkboxes are clickable. Tick or untick any <code>- [ ]</code> item and the change is saved to the markdown source automatically — no need to switch back to the editor.
+          {t('hlpTasksPre')} <strong>{t('hlpPreviewMode')}</strong>{t('hlpTasksMid')} <code>- [ ]</code> {t('hlpTasksPost')}
         </p>
         <div className="help-tip">
-          Use <kbd>/check</kbd> or the <strong>Insert → Task list</strong> menu to insert a 3-line task list at the cursor.
+          {t('hlpTasksTipPre')} <kbd>/check</kbd> {t('hlpTasksTipMid')} <strong>{t('hlpTasksTipStrong')}</strong> {t('hlpTasksTipPost')}
         </div>
       </Section>
 
-      <Section title="Vault index cache">
+      <Section title={t('hlpSecCache')}>
         <p className="help-para">
-          OpenObsidian keeps a local cache of your vault contents (<code>userData/indices/</code>). On the next open, only files that changed on disk are re-read — unchanged notes load instantly from the cache. The cache is updated automatically every time you save a note.
+          {t('hlpCachePre')}<code>userData/indices/</code>{t('hlpCachePost')}
         </p>
       </Section>
     </div>
@@ -264,50 +258,59 @@ function FeaturesTab() {
 // ── Markdown reference ────────────────────────────────────────────────────
 
 function MarkdownTab() {
+  const t = useT()
+  const slashItems: [string, TranslationKey][] = [
+    ['/h1', 'insHeading1'],  ['/h2', 'insHeading2'],   ['/h3', 'insHeading3'],
+    ['/table', 'insTable'],  ['/code', 'insCodeBlock'], ['/quote', 'insBlockquote'],
+    ['/bold', 'insBold'],    ['/italic', 'insItalic'],  ['/check', 'insTaskList'],
+    ['/list', 'hlpSlashBullet'], ['/numlist', 'hlpSlashNumbered'], ['/hr', 'hlpSlashDivider'],
+    ['/link', 'insWebLink'], ['/image', 'insImage'],    ['/date', 'ctxTodayDate'],
+    ['/wikilink', 'ctxWikiLink'],
+  ]
   return (
     <div className="help-content">
-      <Section title="Text formatting">
-        <Row syntax="**bold**"         result={<><strong>bold</strong></>} />
-        <Row syntax="*italic*"         result={<><em>italic</em></>} />
-        <Row syntax="~~strikethrough~~" result={<><s>strikethrough</s></>} />
-        <Row syntax="`inline code`"    result={<><code>inline code</code></>} />
-        <Row syntax="==highlight=="    result={<><mark>highlight</mark></>} />
+      <Section title={t('hlpMdText')}>
+        <Row syntax="**bold**"         result={<><strong>{t('hlpMdBold')}</strong></>} />
+        <Row syntax="*italic*"         result={<><em>{t('hlpMdItalic')}</em></>} />
+        <Row syntax="~~strikethrough~~" result={<><s>{t('hlpMdStrike')}</s></>} />
+        <Row syntax="`inline code`"    result={<><code>{t('hlpMdInlineCode')}</code></>} />
+        <Row syntax="==highlight=="    result={<><mark>{t('hlpMdHighlight')}</mark></>} />
       </Section>
 
-      <Section title="Headings">
-        <Row syntax="# Heading 1"  result={<span style={{ fontSize: '1.3em', fontWeight: 700 }}>Heading 1</span>} />
-        <Row syntax="## Heading 2" result={<span style={{ fontSize: '1.1em', fontWeight: 700 }}>Heading 2</span>} />
-        <Row syntax="### Heading 3" result={<span style={{ fontWeight: 700 }}>Heading 3</span>} />
+      <Section title={t('hlpMdHeadings')}>
+        <Row syntax="# Heading 1"  result={<span style={{ fontSize: '1.3em', fontWeight: 700 }}>{t('insHeading1')}</span>} />
+        <Row syntax="## Heading 2" result={<span style={{ fontSize: '1.1em', fontWeight: 700 }}>{t('insHeading2')}</span>} />
+        <Row syntax="### Heading 3" result={<span style={{ fontWeight: 700 }}>{t('insHeading3')}</span>} />
       </Section>
 
-      <Section title="Lists">
-        <Row syntax="- item"     result={<>• Bullet list</>} />
-        <Row syntax="1. item"    result={<>1. Numbered list</>} />
-        <Row syntax="- [ ] task" result={<>☐ Task (unchecked)</>} />
-        <Row syntax="- [x] done" result={<>☑ Task (checked)</>} />
-        <Row syntax="  - nested" result={<span style={{ paddingLeft: 12 }}>→ Indent with 2 spaces</span>} />
+      <Section title={t('hlpMdLists')}>
+        <Row syntax="- item"     result={<>• {t('hlpMdBullet')}</>} />
+        <Row syntax="1. item"    result={<>1. {t('hlpMdNumbered')}</>} />
+        <Row syntax="- [ ] task" result={<>☐ {t('hlpMdTaskUnchecked')}</>} />
+        <Row syntax="- [x] done" result={<>☑ {t('hlpMdTaskChecked')}</>} />
+        <Row syntax="  - nested" result={<span style={{ paddingLeft: 12 }}>→ {t('hlpMdIndent')}</span>} />
         <div className="help-tip" style={{ marginTop: 10 }}>
-          <strong>Interactive tasks:</strong> in <strong>Preview</strong> mode, click any checkbox to check/uncheck it — the markdown source is updated automatically.
+          <strong>{t('hlpMdInteractiveTasks')}</strong> {t('hlpMdTaskTip1')} <strong>{t('hlpPreviewMode')}</strong>{t('hlpMdTaskTip2')}
         </div>
       </Section>
 
-      <Section title="Links & media">
-        <Row syntax="[text](https://url.com)" result={<a href="#">text</a>} />
-        <Row syntax="![alt](image.png)"       result={<>🖼 Embedded image</>} />
+      <Section title={t('hlpMdLinks')}>
+        <Row syntax="[text](https://url.com)" result={<a href="#">{t('hlpMdLinkText')}</a>} />
+        <Row syntax="![alt](image.png)"       result={<>🖼 {t('hlpMdEmbeddedImage')}</>} />
         <Row syntax="[[Note Name]]"           result={<span style={{ color: '#a78bfa' }}>Note Name</span>} />
         <Row syntax="[[Note|Alias]]"          result={<span style={{ color: '#a78bfa' }}>Alias → Note</span>} />
       </Section>
 
-      <Section title="Blocks">
-        <Row syntax="> quote" result={<blockquote style={{ borderLeft: '3px solid #7c3aed', paddingLeft: 8 }}>Blockquote</blockquote>} />
+      <Section title={t('hlpMdBlocks')}>
+        <Row syntax="> quote" result={<blockquote style={{ borderLeft: '3px solid #7c3aed', paddingLeft: 8 }}>{t('insBlockquote')}</blockquote>} />
         <Row syntax="---"     result={<hr style={{ border: '1px solid var(--border)' }} />} />
         <Row
           syntax={'```\ncode block\n```'}
-          result={<code style={{ background: 'var(--bg-code)', padding: '2px 6px', borderRadius: 3 }}>code block</code>}
+          result={<code style={{ background: 'var(--bg-code)', padding: '2px 6px', borderRadius: 3 }}>{t('hlpMdCodeBlockDemo')}</code>}
         />
       </Section>
 
-      <Section title="Tables">
+      <Section title={t('hlpMdTables')}>
         <div className="help-code-block">
 {`| Column 1 | Column 2 |
 | --- | --- |
@@ -319,28 +322,21 @@ function MarkdownTab() {
         </table>
       </Section>
 
-      <Section title="WikiLinks & autocomplete">
-        <Row syntax="[[Note Name]]"   result={<span style={{ color: '#a78bfa' }}>Links to "Note Name"</span>} />
-        <Row syntax="[[Note|Alias]]"  result={<span style={{ color: '#a78bfa' }}>Shows "Alias", links to "Note"</span>} />
+      <Section title={t('hlpMdWiki')}>
+        <Row syntax="[[Note Name]]"   result={<span style={{ color: '#a78bfa' }}>{t('hlpMdWikiLinks')}</span>} />
+        <Row syntax="[[Note|Alias]]"  result={<span style={{ color: '#a78bfa' }}>{t('hlpMdWikiAlias')}</span>} />
         <div className="help-tip" style={{ marginTop: 10 }}>
-          Type <kbd>[[</kbd> to open autocomplete. Use <kbd>↑</kbd><kbd>↓</kbd> to navigate and <kbd>Enter</kbd> to confirm.
+          {t('hlpMdWikiTipPre')} <kbd>[[</kbd> {t('hlpMdWikiTipMid')} <kbd>↑</kbd><kbd>↓</kbd> {t('hlpMdWikiTipPost')} <kbd>Enter</kbd> {t('hlpMdWikiTipEnd')}
         </div>
       </Section>
 
-      <Section title="Slash commands">
-        <p className="help-para">Type <kbd>/</kbd> at the start of a line to open the command palette.</p>
+      <Section title={t('hlpMdSlash')}>
+        <p className="help-para">{t('hlpMdSlashPre')} <kbd>/</kbd> {t('hlpMdSlashPost')}</p>
         <div className="help-slash-grid">
-          {[
-            ['/h1', 'Heading 1'],    ['/h2', 'Heading 2'],    ['/h3', 'Heading 3'],
-            ['/table', 'Table'],     ['/code', 'Code block'],  ['/quote', 'Blockquote'],
-            ['/bold', 'Bold'],       ['/italic', 'Italic'],    ['/check', 'Task list'],
-            ['/list', 'Bullet'],     ['/numlist', 'Numbered'], ['/hr', 'Divider'],
-            ['/link', 'Web link'],   ['/image', 'Image'],      ['/date', 'Today\'s date'],
-            ['/wikilink', 'WikiLink'],
-          ].map(([cmd, desc]) => (
+          {slashItems.map(([cmd, descKey]) => (
             <div key={cmd} className="help-slash-item">
               <code>{cmd}</code>
-              <span>{desc}</span>
+              <span>{t(descKey)}</span>
             </div>
           ))}
         </div>
@@ -352,36 +348,37 @@ function MarkdownTab() {
 // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
 function ShortcutsTab() {
+  const t = useT()
   return (
     <div className="help-content">
-      <Section title="Vault & navigation">
-        <ShortcutRow keys={['Ctrl', 'Shift', 'O']} label="Open vault folder" />
-        <ShortcutRow keys={['Ctrl', 'N']}           label="New note (opens template picker)" />
-        <ShortcutRow keys={['Ctrl', 'Shift', 'F']}  label="Full-text search across all notes" />
-        <ShortcutRow keys={['Ctrl', 'G']}            label="Toggle graph view" />
-        <ShortcutRow keys={['Ctrl', '\\']}           label="Collapse / expand sidebar" />
+      <Section title={t('hlpScVault')}>
+        <ShortcutRow keys={['Ctrl', 'Shift', 'O']} label={t('hlpScOpenVault')} />
+        <ShortcutRow keys={['Ctrl', 'N']}           label={t('hlpScNewNote')} />
+        <ShortcutRow keys={['Ctrl', 'Shift', 'F']}  label={t('hlpScSearch')} />
+        <ShortcutRow keys={['Ctrl', 'G']}            label={t('cmdGraph')} />
+        <ShortcutRow keys={['Ctrl', '\\']}           label={t('hlpScSidebar')} />
       </Section>
 
-      <Section title="Editor">
-        <ShortcutRow keys={['Ctrl', 'F']}           label="Find & Replace inside current note" />
-        <ShortcutRow keys={['Ctrl', 'Z']}           label="Undo" />
-        <ShortcutRow keys={['Ctrl', 'Y']}           label="Redo" />
-        <ShortcutRow keys={['Ctrl', 'V']}           label="Paste image from clipboard" />
-        <ShortcutRow keys={['/']}                    label="Slash command palette (start of line)" />
-        <ShortcutRow keys={['[', '[']}              label="WikiLink autocomplete" />
-        <ShortcutRow keys={['Right-click']}         label="Context menu: bold, italic, link, WikiLink…" />
+      <Section title={t('hlpScEditor')}>
+        <ShortcutRow keys={['Ctrl', 'F']}           label={t('hlpScFind')} />
+        <ShortcutRow keys={['Ctrl', 'Z']}           label={t('hlpScUndo')} />
+        <ShortcutRow keys={['Ctrl', 'Y']}           label={t('hlpScRedo')} />
+        <ShortcutRow keys={['Ctrl', 'V']}           label={t('hlpScPaste')} />
+        <ShortcutRow keys={['/']}                    label={t('hlpScSlash')} />
+        <ShortcutRow keys={['[', '[']}              label={t('hlpScWiki')} />
+        <ShortcutRow keys={['Right-click']}         label={t('hlpScCtx')} />
       </Section>
 
-      <Section title="Zoom (editor font size)">
-        <ShortcutRow keys={['Ctrl', '=']}  label="Increase font size" />
-        <ShortcutRow keys={['Ctrl', '-']}  label="Decrease font size" />
-        <ShortcutRow keys={['Ctrl', '0']}  label="Reset font size to default (14 px)" />
+      <Section title={t('hlpScZoom')}>
+        <ShortcutRow keys={['Ctrl', '=']}  label={t('hlpScZoomIn')} />
+        <ShortcutRow keys={['Ctrl', '-']}  label={t('hlpScZoomOut')} />
+        <ShortcutRow keys={['Ctrl', '0']}  label={t('hlpScZoomReset')} />
       </Section>
 
-      <Section title="App">
-        <ShortcutRow keys={['Ctrl', ',']}           label="Settings" />
-        <ShortcutRow keys={['Ctrl', 'Shift', 'B']}  label="Backup vault" />
-        <ShortcutRow keys={['F1']}                  label="Open this help window" />
+      <Section title={t('hlpScApp')}>
+        <ShortcutRow keys={['Ctrl', ',']}           label={t('settings')} />
+        <ShortcutRow keys={['Ctrl', 'Shift', 'B']}  label={t('cmdBackup')} />
+        <ShortcutRow keys={['F1']}                  label={t('hlpScHelp')} />
       </Section>
     </div>
   )

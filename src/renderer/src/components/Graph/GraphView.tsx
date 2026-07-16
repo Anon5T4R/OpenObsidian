@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import * as d3 from 'd3'
 import { useVaultStore, NoteFile } from '../../store/vaultStore'
+import { useT } from '../../i18n'
 import './GraphView.css'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ interface GraphViewProps {
 }
 
 function GraphView({ onNodeClick, onClose }: GraphViewProps) {
+  const t = useT()
   const files      = useVaultStore((s) => s.files)
   const backlinks  = useVaultStore((s) => s.backlinks)
   const activeFile = useVaultStore((s) => s.activeFile)
@@ -295,7 +297,9 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
       .attr('pointer-events', 'none')
       .attr('class', (d) => (d.connections > 2 ? 'label-always' : 'label-zoom'))
 
-    nodeEls.append('title').text((d) => `${d.name}\n${d.connections} connection${d.connections !== 1 ? 's' : ''}`)
+    nodeEls.append('title').text((d) =>
+      `${d.name}\n${d.connections === 1 ? t('graphConnection', { n: d.connections }) : t('graphConnections', { n: d.connections })}`
+    )
 
     // ── Tick ──────────────────────────────────────────────────────────────
     const ticked = () => {
@@ -335,7 +339,7 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
         svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
       }
     }
-  }, [files, backlinks, activeFile, localMode, search, theme, posKey])
+  }, [files, backlinks, activeFile, localMode, search, theme, posKey, t])
 
   // Changing the visible subset is a deliberate action — reset the camera so
   // the new subset gets auto-fitted (declared before the render effect below).
@@ -377,14 +381,14 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
       <div className="graph-header">
         <div className="graph-title">
           <span className="graph-icon">◎</span>
-          <span>Graph View</span>
-          <span className="graph-stats">{nodeCount} notes · {linkCount} links</span>
+          <span>{t('graphTitle')}</span>
+          <span className="graph-stats">{t('graphStats', { notes: nodeCount, links: linkCount })}</span>
         </div>
 
         <div className="graph-controls">
           <div className="graph-search-wrap">
             <input
-              placeholder="Search nodes…"
+              placeholder={t('graphSearchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -394,12 +398,12 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
           <button
             className={`graph-btn ${localMode ? 'active' : ''}`}
             onClick={() => setLocalMode((l) => !l)}
-            title="Show only notes connected to current note"
+            title={t('graphLocalTip')}
           >
-            Local
+            {t('graphLocal')}
           </button>
 
-          <button className="graph-close" onClick={onClose} title="Close (Ctrl+G)">✕</button>
+          <button className="graph-close" onClick={onClose} title={t('graphCloseTip')}>✕</button>
         </div>
       </div>
 
@@ -408,22 +412,22 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
         {nodeCount === 0 && (
           <div className="graph-empty">
             {files.length === 0
-              ? 'Open a vault with notes to see the graph'
+              ? t('graphEmptyNoVault')
               : localMode
-              ? 'Current note has no connections'
-              : 'No connections found — add [[WikiLinks]] between notes'}
+              ? t('graphEmptyLocal')
+              : t('graphEmptyNoLinks')}
           </div>
         )}
       </div>
 
       <div className="graph-legend">
-        <span>Scroll to zoom</span>
+        <span>{t('graphLegendZoom')}</span>
         <span>·</span>
-        <span>Drag to pan</span>
+        <span>{t('graphLegendPan')}</span>
         <span>·</span>
-        <span>Click node to open</span>
+        <span>{t('graphLegendOpen')}</span>
         <span>·</span>
-        <span>Hover to highlight</span>
+        <span>{t('graphLegendHighlight')}</span>
       </div>
     </div>
   )
