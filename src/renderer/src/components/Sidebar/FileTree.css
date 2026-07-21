@@ -288,13 +288,16 @@
   flex-shrink: 0;
 }
 
-/* Tag strip */
+/* Tag strip — bounded so a vault with many tags never eats the file tree */
 .tag-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  max-height: 22%;
+  overflow-y: auto;
 }
 
 .tag-chip {

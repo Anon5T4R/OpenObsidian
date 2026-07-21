@@ -13,6 +13,7 @@ import {
   addHeadingIds,
   decodeMermaidCode,
   processWikiLinks,
+  processTags,
   toggleCheckbox,
 } from './markdownTransforms'
 import { useT } from '../../i18n'
@@ -88,9 +89,10 @@ interface MarkdownPreviewProps {
   linkExists?: (target: string) => boolean
   /** Markdown behind an ![[embed]] target, or null when there is no such note */
   resolveEmbed?: (target: string) => string | null
+  onTagClick?: (tag: string) => void
 }
 
-export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists, resolveEmbed }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists, resolveEmbed, onTagClick }: MarkdownPreviewProps) {
   const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -131,6 +133,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       .replace(/(<input\b[^>]*?) disabled/g, '$1')
     h = processCallouts(h)
     h = processHighlights(h)
+    h = processTags(h)
     h = processMath(h)
     h = addHeadingIds(h)
     // Wrap mermaid code blocks
@@ -189,6 +192,14 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       e.preventDefault()
       const noteName = target.getAttribute('data-target')
       if (noteName) onWikiLinkClick(noteName)
+      return
+    }
+
+    // Clicking a tag filters the sidebar by it
+    if (target.classList.contains('tag')) {
+      e.preventDefault()
+      const tag = target.getAttribute('data-tag')
+      if (tag) onTagClick?.(tag)
     }
   }
 

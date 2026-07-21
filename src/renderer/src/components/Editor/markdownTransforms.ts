@@ -89,6 +89,27 @@ export function processHighlights(html: string): string {
   }).join('')
 }
 
+// ── Inline tags ───────────────────────────────────────────────────────────
+
+// Same shape as extractTags in the store, so what is rendered as a tag and
+// what gets indexed as a tag never disagree
+const TAG_RE = /(^|[\s(>])#([\p{L}\p{N}_/-]+)/gu
+const NUMERIC_RE = /^\d+$/
+const HEX_COLOUR_RE = /^(?=.*\d)[0-9a-fA-F]{3}$|^(?=.*\d)[0-9a-fA-F]{6}$|^(?=.*\d)[0-9a-fA-F]{8}$/
+
+export function processTags(html: string): string {
+  const parts = html.split(CODE_BLOCK_RE)
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part
+    return part.replace(TAG_RE, (whole, lead: string, raw: string) => {
+      const tag = raw.replace(/[/-]+$/, '')
+      if (!tag || NUMERIC_RE.test(tag) || HEX_COLOUR_RE.test(tag)) return whole
+      const trailing = raw.slice(tag.length)
+      return `${lead}<a href="#" class="tag" data-tag="${tag.toLowerCase()}">#${tag}</a>${trailing}`
+    })
+  }).join('')
+}
+
 // ── Heading IDs for TOC anchor scrolling ─────────────────────────────────
 
 // Heading text → anchor id. Shared with wikilink anchors ([[Nota#Seção]]) so a

@@ -46,4 +46,18 @@ describe('matchesSidebarFilter', () => {
   it('ignores case on both sides', () => {
     expect(matchesSidebarFilter(note, 'SCA')).toBe(true)
   })
+
+  it('narrows with several terms separated by comma', () => {
+    expect(matchesSidebarFilter(note, '#emergencia, cardio')).toBe(true)
+    expect(matchesSidebarFilter(note, '#emergencia, pediatria')).toBe(false)
+  })
+
+  it('narrows with several terms separated by space', () => {
+    expect(matchesSidebarFilter(note, '#uti cardio')).toBe(false)
+    expect(matchesSidebarFilter(note, 'iam cardio')).toBe(true)
+  })
+
+  it('still matches a name that contains spaces', () => {
+    expect(matchesSidebarFilter(note, 'coronariana aguda')).toBe(true)
+  })
 })

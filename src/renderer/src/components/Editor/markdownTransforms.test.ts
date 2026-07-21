@@ -4,6 +4,7 @@ import {
   processCallouts,
   addHeadingIds,
   processWikiLinks,
+  processTags,
   toggleCheckbox,
   decodeMermaidCode,
   slugify,
@@ -96,6 +97,34 @@ describe('processWikiLinks', () => {
     const out = processWikiLinks('[[Sepse]]', () => true)
     expect(out).toContain('class="wikilink"')
     expect(out).not.toContain('unresolved')
+  })
+})
+
+describe('processTags', () => {
+  it('turns a tag into a clickable chip', () => {
+    expect(processTags('veja #cardio aqui'))
+      .toBe('veja <a href="#" class="tag" data-tag="cardio">#cardio</a> aqui')
+  })
+
+  it('keeps accents and nesting', () => {
+    expect(processTags('#pré-natal #sistema/cardio')).toContain('data-tag="pré-natal"')
+    expect(processTags('#sistema/cardio')).toContain('data-tag="sistema/cardio"')
+  })
+
+  it('leaves a hex colour alone', () => {
+    expect(processTags('cor #ff0000')).toBe('cor #ff0000')
+  })
+
+  it('leaves tags inside code blocks alone', () => {
+    expect(processTags('<pre><code>#cardio</code></pre>')).toBe('<pre><code>#cardio</code></pre>')
+  })
+
+  it('does not touch a heading id or an anchor href', () => {
+    expect(processTags('<a href="#conduta">x</a>')).toBe('<a href="#conduta">x</a>')
+  })
+
+  it('keeps the trailing separator out of the tag', () => {
+    expect(processTags('#cardio/')).toContain('data-tag="cardio"')
   })
 })
 

@@ -674,6 +674,7 @@ export default function App() {
                           vaultPath={store.vaultPath}
                           linkExists={linkExists}
                           resolveEmbed={resolveEmbed}
+                          onTagClick={(tag) => store.setTagFilter(tag)}
                         />
                       </div>
                     )}

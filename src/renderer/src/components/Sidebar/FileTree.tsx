@@ -227,6 +227,14 @@ function FileTree({
     return map
   }, [frontmatter])
 
+  // Most-used tags first: in a big vault the alphabetical tail is noise
+  const sortedTags = useMemo(
+    () => Object.entries(tags)
+      .map(([tag, names]) => [tag, names.length] as [string, number])
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    [tags],
+  )
+
   // One predicate for both the text box and the tag chip, applied at every
   // depth — the chip used to filter only top-level nodes
   const matchFile = useMemo(() => {
@@ -454,6 +462,27 @@ function FileTree({
             }}
             placeholder={t('folderNamePlaceholder')}
           />
+        </div>
+      )}
+
+      {/* Tag chips — the only place the tag index is visible */}
+      {!collapsed && sortedTags.length > 0 && (
+        <div className="tag-strip">
+          {tagFilter && (
+            <button
+              className="tag-chip tag-chip-clear"
+              onClick={() => useVaultStore.getState().setTagFilter(null)}
+              title={t('tagClear')}
+            >✕</button>
+          )}
+          {sortedTags.map(([tag, count]) => (
+            <button
+              key={tag}
+              className={`tag-chip ${tagFilter === tag ? 'active' : ''}`}
+              onClick={() => useVaultStore.getState().setTagFilter(tagFilter === tag ? null : tag)}
+              title={t('tagChipTip', { count })}
+            >#{tag}</button>
+          ))}
         </div>
       )}
 

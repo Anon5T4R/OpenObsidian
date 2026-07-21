@@ -10,6 +10,24 @@
   user-select: text;
 }
 
+/* Inline tags — visible proof of what the indexer considers a tag */
+.markdown-preview a.tag {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--accent-bg, var(--hover));
+  color: var(--accent);
+  font-size: 0.85em;
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.markdown-preview a.tag:hover {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+
 /* Transclusion — ![[Nota]] */
 .markdown-preview .embed {
   margin: 1em 0;
