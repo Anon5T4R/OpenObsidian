@@ -65,6 +65,36 @@
   color: var(--text-primary);
 }
 
+/* Regex toggle */
+.search-regex {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-family: var(--editor-font, monospace);
+  font-size: 13px;
+}
+
+.search-regex:hover { background: var(--hover); color: var(--text-primary); }
+
+.search-regex.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Operator cheat sheet — the grammar is useless if nobody knows it exists */
+.search-hint {
+  padding: 6px 16px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
 .search-results {
   flex: 1;
   overflow-y: auto;
@@ -77,6 +107,29 @@
   padding: 20px;
   text-align: center;
 }
+
+.search-status.search-invalid { color: #f87171; }
+
+.search-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 8px 10px;
+}
+
+.search-more {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  text-align: left;
+  padding: 4px 8px 4px 34px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.search-more:hover { background: var(--hover); }
 
 .search-result-group {
   margin-bottom: 12px;

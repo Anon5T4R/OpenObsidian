@@ -90,6 +90,12 @@ export const en = {
 
   // Search panel
   searchPlaceholder: 'Search all notes...',
+  searchHint:        'tag:cardio · path:folder · file:name · "exact phrase" · -exclude',
+  searchRegexTip:    'Regular expression',
+  searchRegexInvalid:'Invalid regular expression',
+  searchSummary:     '{matches} occurrences in {notes} notes',
+  searchMore:        '+{count} occurrences',
+  searchLess:        'Show fewer',
   searchClose:       'Close',
 
   // Find in the reading view
@@ -642,6 +648,12 @@ const ptBR: typeof en = {
   backlinksToggle: 'Mostrar/ocultar backlinks',
 
   searchPlaceholder: 'Buscar em todas as notas...',
+  searchHint:        'tag:cardio · path:pasta · file:nome · "frase exata" · -excluir',
+  searchRegexTip:    'Expressão regular',
+  searchRegexInvalid:'Expressão regular inválida',
+  searchSummary:     '{matches} ocorrências em {notes} notas',
+  searchMore:        '+{count} ocorrências',
+  searchLess:        'Mostrar menos',
   searchClose:       'Fechar',
 
   findPlaceholder: 'Buscar na nota…',
@@ -1182,6 +1194,12 @@ const esLatam: typeof en = {
   backlinksToggle: 'Mostrar/ocultar backlinks',
 
   searchPlaceholder: 'Buscar en todas las notas...',
+  searchHint:        'tag:cardio · path:carpeta · file:nombre · "frase exacta" · -excluir',
+  searchRegexTip:    'Expresión regular',
+  searchRegexInvalid:'Expresión regular inválida',
+  searchSummary:     '{matches} coincidencias en {notes} notas',
+  searchMore:        '+{count} coincidencias',
+  searchLess:        'Mostrar menos',
   searchClose:       'Cerrar',
 
   findPlaceholder: 'Buscar en la nota…',

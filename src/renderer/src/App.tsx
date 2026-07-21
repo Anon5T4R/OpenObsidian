@@ -486,7 +486,11 @@ export default function App() {
       {/* Main */}
       <main className="main">
         {store.searchOpen ? (
-          <SearchPanel onFileSelect={(file) => { store.setSearchOpen(false); handleFileSelect(file) }} onClose={() => store.setSearchOpen(false)} />
+          <SearchPanel
+            onFileSelect={(file) => { store.setSearchOpen(false); handleFileSelect(file) }}
+            onClose={() => store.setSearchOpen(false)}
+            contentsRef={contentCacheRef}
+          />
         ) : noVault ? (
           <WelcomeScreen onOpenVault={handleOpenVault} onHelp={() => setHelpOpen(true)} lastVault={lastVault} onReopenVault={handleReopenVault} />
         ) : !store.activeFile ? (
