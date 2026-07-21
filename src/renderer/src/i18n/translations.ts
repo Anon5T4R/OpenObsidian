@@ -86,6 +86,7 @@ export const en = {
   backlinks:   'Backlinks',
   noFileOpen:  'No file open',
   noBacklinks: 'No notes link here',
+  backlinksToggle: 'Show/hide backlinks',
 
   // Search panel
   searchPlaceholder: 'Search all notes...',
@@ -628,6 +629,7 @@ const ptBR: typeof en = {
   backlinks:   'Backlinks',
   noFileOpen:  'Nenhum arquivo aberto',
   noBacklinks: 'Nenhuma nota aponta aqui',
+  backlinksToggle: 'Mostrar/ocultar backlinks',
 
   searchPlaceholder: 'Buscar em todas as notas...',
   searchClose:       'Fechar',
@@ -1158,6 +1160,7 @@ const esLatam: typeof en = {
   backlinks:   'Backlinks',
   noFileOpen:  'Ningún archivo abierto',
   noBacklinks: 'Ninguna nota apunta aquí',
+  backlinksToggle: 'Mostrar/ocultar backlinks',
 
   searchPlaceholder: 'Buscar en todas las notas...',
   searchClose:       'Cerrar',

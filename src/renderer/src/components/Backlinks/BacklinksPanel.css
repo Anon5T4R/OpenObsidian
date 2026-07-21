@@ -1,21 +1,46 @@
+/* Bounded strip at the bottom of the sidebar: a note with 30 backlinks used to
+   push the file tree out of view entirely */
 .backlinks-panel {
   display: flex;
   flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 38%;
   border-top: 1px solid var(--border);
   padding: 8px 0;
+  overflow: hidden;
 }
+
+.backlinks-panel.collapsed { max-height: none; }
 
 .backlinks-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  flex-shrink: 0;
   padding: 6px 12px;
+  background: none;
+  border: none;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
 }
+
+.backlinks-header:hover { color: var(--text-secondary); }
+
+.backlinks-fold {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.backlinks-panel.collapsed .backlinks-fold { transform: rotate(-90deg); }
 
 .backlinks-count {
   background: var(--accent-bg);
@@ -37,6 +62,8 @@
   flex-direction: column;
   gap: 1px;
   padding: 2px 6px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .backlink-item {

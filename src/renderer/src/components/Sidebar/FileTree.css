@@ -1,7 +1,10 @@
+/* flex (not height:100%) so the backlinks panel below can never squeeze the
+   tree out of the sidebar — the file list must always stay usable */
 .file-tree {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   background: var(--bg-sidebar);
   overflow: hidden;
   transition: width 0.2s;
