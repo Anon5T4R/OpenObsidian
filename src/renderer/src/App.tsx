@@ -113,6 +113,7 @@ export default function App() {
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [tocOpen,          setTocOpen]          = useState(false)
   const [previewFindOpen,  setPreviewFindOpen]  = useState(false)
+  const [previewFindToken, setPreviewFindToken] = useState(0)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -314,8 +315,10 @@ export default function App() {
 
   // Reading view has no CodeMirror, so it gets its own find bar
   const handleOpenFind = useCallback(() => {
-    if (viewMode === 'preview') setPreviewFindOpen(true)
-    else editorRef.current?.openFind()
+    if (viewMode !== 'preview') { editorRef.current?.openFind(); return }
+    setPreviewFindOpen(true)
+    // Pressing Ctrl+F again re-focuses the bar instead of doing nothing
+    setPreviewFindToken((n) => n + 1)
   }, [viewMode])
 
   // ── Sidebar resize ────────────────────────────────────────────────────────
@@ -427,7 +430,9 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward])
+    // handleOpenFind must be here: it closes over viewMode, and a stale
+    // listener would keep routing Ctrl+F to an editor the reading view has no
+  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward, handleOpenFind])
 
   // ── Command palette commands ──────────────────────────────────────────────
   const paletteCommands: Command[] = useMemo(() => [
@@ -605,7 +610,11 @@ export default function App() {
                     {(viewMode === 'preview' || viewMode === 'split') && (
                       <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
                         {previewFindOpen && (
-                          <PreviewFind content={store.activeContent} onClose={() => setPreviewFindOpen(false)} />
+                          <PreviewFind
+                            content={store.activeContent}
+                            focusToken={previewFindToken}
+                            onClose={() => setPreviewFindOpen(false)}
+                          />
                         )}
                         <MarkdownPreview
                           content={store.activeContent}

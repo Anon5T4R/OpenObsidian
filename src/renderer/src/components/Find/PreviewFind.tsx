@@ -6,6 +6,8 @@ import './PreviewFind.css'
 interface PreviewFindProps {
   /** Re-runs the search when the rendered note changes underneath it */
   content: string
+  /** Bumped on every Ctrl+F so the shortcut re-focuses an already open bar */
+  focusToken?: number
   onClose: () => void
 }
 
@@ -22,7 +24,7 @@ function clearHighlights(): void {
   CSS.highlights.delete(CURRENT)
 }
 
-export default function PreviewFind({ content, onClose }: PreviewFindProps) {
+export default function PreviewFind({ content, focusToken = 0, onClose }: PreviewFindProps) {
   const t = useT()
   const [query, setQuery] = useState('')
   const [total, setTotal] = useState(0)
@@ -30,7 +32,7 @@ export default function PreviewFind({ content, onClose }: PreviewFindProps) {
   const rangesRef = useRef<Range[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select() }, [focusToken])
   useEffect(() => clearHighlights, [])
 
   const scrollTo = useCallback((range: Range) => {
