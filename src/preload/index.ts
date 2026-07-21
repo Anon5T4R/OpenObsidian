@@ -151,7 +151,7 @@ const api = {
   srsReport: (vault: string): Promise<SrsReport> => ipcRenderer.invoke('srs:report', vault),
   srsExportAnki: (cards: { q: string; a: string }[]): Promise<string | null> =>
     ipcRenderer.invoke('srs:export-anki', cards),
-  srsImportAnki: (vault: string): Promise<{ path?: string; count?: number; error?: string } | null> =>
+  srsImportAnki: (vault: string): Promise<{ path?: string; count?: number; notes?: number; withMedia?: number; error?: string } | null> =>
     ipcRenderer.invoke('srs:import-anki', vault),
 
   // Shell

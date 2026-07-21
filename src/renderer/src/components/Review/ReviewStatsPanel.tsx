@@ -24,7 +24,7 @@ export default function ReviewStatsPanel({ onClose, onNotify }: ReviewStatsPanel
     const r = await window.api.srsImportAnki(vaultPath)
     if (!r) return
     if (r.error) { onNotify(r.error); return }
-    onNotify(t('reviewImported', { count: r.count ?? 0 }))
+    onNotify(t('reviewImported', { count: r.count ?? 0, notes: r.notes ?? 1 }))
   }
 
   const peak = Math.max(1, ...(data?.forecast.map((f) => f.count) ?? [1]))

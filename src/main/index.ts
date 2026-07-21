@@ -614,6 +614,10 @@ ipcMain.handle('srs:export-anki', async (_, cards: { q: string; a: string }[]) =
   return result.filePath
 })
 
+// Cards per note. One note of 2000 cards takes ~900ms to render every time it
+// is opened; at this size it is ~45ms.
+const ANKI_CHUNK = 100
+
 ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
   const picked = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -622,15 +626,50 @@ ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
   })
   if (picked.canceled || picked.filePaths.length === 0) return null
   const raw = await fsp.readFile(picked.filePaths[0], 'utf-8')
-  const cards = srs.fromAnkiText(raw)
+  const { cards, withMedia } = srs.fromAnkiText(raw)
   if (cards.length === 0) return { error: 'no cards found in that file' }
 
-  const title = path.basename(picked.filePaths[0]).replace(/\.[^.]+$/, '')
-  let target = path.join(vaultPath, `${title}.md`)
-  let i = 2
-  while (fs.existsSync(target)) { target = path.join(vaultPath, `${title} ${i}.md`); i++ }
-  await fsp.writeFile(target, srs.ankiToMarkdown(path.basename(target, '.md'), cards), 'utf-8')
-  return { path: target, count: cards.length }
+  const deck = path.basename(picked.filePaths[0]).replace(/\.[^.]+$/, '')
+  const chunks = srs.chunkCards(cards, ANKI_CHUNK)
+
+  // Tell the user what is about to land in the vault before writing anything
+  const confirm = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Import', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    message: `Import ${cards.length} cards from "${deck}"?`,
+    detail: [
+      chunks.length === 1
+        ? `They go into a single note: ${deck}.md`
+        : `They go into ${chunks.length} notes inside the folder ${deck}/, ${ANKI_CHUNK} cards each.`,
+      withMedia > 0
+        ? `\n${withMedia} cards reference images or audio. Anki's text export does not carry media, so those references are dropped.`
+        : '',
+    ].filter(Boolean).join('\n'),
+  })
+  if (confirm.response !== 0) return null
+
+  const written: string[] = []
+  if (chunks.length === 1) {
+    let target = path.join(vaultPath, `${deck}.md`)
+    let i = 2
+    while (fs.existsSync(target)) { target = path.join(vaultPath, `${deck} ${i}.md`); i++ }
+    await fsp.writeFile(target, srs.ankiToMarkdown(path.basename(target, '.md'), chunks[0]), 'utf-8')
+    written.push(target)
+  } else {
+    let dir = path.join(vaultPath, deck)
+    let i = 2
+    while (fs.existsSync(dir)) { dir = path.join(vaultPath, `${deck} ${i}`); i++ }
+    await fsp.mkdir(dir, { recursive: true })
+    for (let c = 0; c < chunks.length; c++) {
+      const name = `${deck} ${c + 1}`
+      const target = path.join(dir, `${name}.md`)
+      await fsp.writeFile(target, srs.ankiToMarkdown(name, chunks[c]), 'utf-8')
+      written.push(target)
+    }
+  }
+  return { path: written[0], count: cards.length, notes: written.length, withMedia }
 })
 
 // ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────

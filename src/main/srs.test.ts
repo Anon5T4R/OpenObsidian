@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   newCard, grade, isDue, dueCards, stats, syncFile, todayISO, addDays,
-  report, toAnkiText, fromAnkiText, ankiToMarkdown,
+  report, toAnkiText, fromAnkiText, ankiToMarkdown, ankiFieldToMarkdown, chunkCards,
   CardState, SrsFile,
 } from './srs'
 
@@ -172,6 +172,50 @@ describe('report', () => {
 })
 
 describe('Anki text exchange', () => {
+  it('keeps the tags column out of the answer', () => {
+    const { cards } = fromAnkiText(['#separator:tab', '#tags column:3', 'P\tR\tcardio uti'].join('\n'))
+    expect(cards[0]).toEqual({ q: 'P', a: 'R', tags: ['cardio', 'uti'] })
+  })
+
+  it('treats a trailing third column as tags even without the directive', () => {
+    const { cards } = fromAnkiText('P\tR\tcardio')
+    expect(cards[0].a).toBe('R')
+    expect(cards[0].tags).toEqual(['cardio'])
+  })
+
+  it('maps an Anki cloze onto the app cloze syntax', () => {
+    const { cards } = fromAnkiText('A enzima {{c1::citrato sintase}} age\tcontexto')
+    expect(cards[0].q).toBe('A enzima ==citrato sintase== age')
+  })
+
+  it('drops the hint of a cloze with one', () => {
+    expect(ankiFieldToMarkdown('{{c1::termo::dica}}')).toBe('==termo==')
+  })
+
+  it('converts Anki LaTeX to the syntax KaTeX already renders', () => {
+    expect(ankiFieldToMarkdown('Fórmula [$]x^2[/$]')).toBe('Fórmula $x^2$')
+    expect(ankiFieldToMarkdown('[$$]y[/$$]')).toBe('$$y$$')
+  })
+
+  it('removes media references instead of leaving them raw', () => {
+    expect(ankiFieldToMarkdown('Veja <img src="p.jpg"> aqui [sound:a.mp3]')).toBe('Veja aqui')
+  })
+
+  it('counts the cards whose media could not come along', () => {
+    const { withMedia } = fromAnkiText('P1\t<img src="a.jpg">\nP2\tR2')
+    expect(withMedia).toBe(1)
+  })
+
+  it('honours a semicolon separator declared in the header', () => {
+    const { cards } = fromAnkiText('#separator:semicolon\nP;R')
+    expect(cards[0]).toMatchObject({ q: 'P', a: 'R' })
+  })
+
+  it('puts the deck tags at the top of the note', () => {
+    const md = ankiToMarkdown('Baralho', [{ q: 'P', a: 'R', tags: ['cardio', 'uti'] }])
+    expect(md).toContain('#cardio #uti')
+  })
+
   it('exports one tab-separated line per card', () => {
     expect(toAnkiText([{ q: 'P1', a: 'R1' }, { q: 'P2', a: 'R2' }])).toBe('P1\tR1\nP2\tR2')
   })
@@ -185,31 +229,50 @@ describe('Anki text exchange', () => {
   })
 
   it('imports tab-separated lines', () => {
-    expect(fromAnkiText('P1\tR1\nP2\tR2')).toEqual([{ q: 'P1', a: 'R1' }, { q: 'P2', a: 'R2' }])
+    expect(fromAnkiText('P1\tR1\nP2\tR2').cards)
+      .toMatchObject([{ q: 'P1', a: 'R1' }, { q: 'P2', a: 'R2' }])
   })
 
   it('accepts semicolons when there is no tab', () => {
-    expect(fromAnkiText('P;R')).toEqual([{ q: 'P', a: 'R' }])
+    expect(fromAnkiText('P;R').cards).toMatchObject([{ q: 'P', a: 'R' }])
   })
 
   it('skips blank lines and # directives', () => {
-    expect(fromAnkiText('#separator:tab\n\nP\tR')).toEqual([{ q: 'P', a: 'R' }])
+    expect(fromAnkiText('#separator:tab\n\nP\tR').cards).toMatchObject([{ q: 'P', a: 'R' }])
   })
 
   it('strips the HTML Anki puts in its fields', () => {
-    expect(fromAnkiText('<b>P</b>\tlinha1<br>linha2')).toEqual([{ q: 'P', a: 'linha1 · linha2' }])
+    expect(fromAnkiText('<b>P</b>\tlinha1<br>linha2').cards)
+      .toMatchObject([{ q: 'P', a: 'linha1 · linha2' }])
   })
 
-  it('joins extra columns into the answer instead of dropping them', () => {
-    expect(fromAnkiText('P\tR\textra')).toEqual([{ q: 'P', a: 'R extra' }])
+  it('reads a trailing extra column as tags, not as part of the answer', () => {
+    expect(fromAnkiText('P\tR\textra').cards)
+      .toMatchObject([{ q: 'P', a: 'R', tags: ['extra'] }])
   })
 
   it('ignores a line with no answer', () => {
-    expect(fromAnkiText('só pergunta')).toEqual([])
+    expect(fromAnkiText('só pergunta').cards).toEqual([])
+  })
+
+  it('splits a big deck so no single note becomes unusable', () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({ q: `P${i}`, a: `R${i}`, tags: [] }))
+    const chunks = chunkCards(many, 100)
+    expect(chunks.map((c) => c.length)).toEqual([100, 100, 50])
+  })
+
+  it('keeps a small deck in one piece', () => {
+    const few = [{ q: 'P', a: 'R', tags: [] }]
+    expect(chunkCards(few, 100)).toEqual([few])
+  })
+
+  it('does not lose a card while splitting', () => {
+    const many = Array.from({ length: 205 }, (_, i) => ({ q: `P${i}`, a: 'R', tags: [] }))
+    expect(chunkCards(many, 100).flat()).toHaveLength(205)
   })
 
   it('round-trips through markdown as card callouts', () => {
-    const md = ankiToMarkdown('Baralho', [{ q: 'P', a: 'R' }])
+    const md = ankiToMarkdown('Baralho', [{ q: 'P', a: 'R', tags: [] }])
     expect(md).toContain('# Baralho')
     expect(md).toContain('> [!card]- P\n> R')
   })

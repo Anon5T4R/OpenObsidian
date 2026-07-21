@@ -164,38 +164,116 @@ export function toAnkiText(cards: { q: string; a: string }[]): string {
   return cards.map((c) => `${clean(c.q)}\t${clean(c.a)}`).join('\n')
 }
 
-/** Parses tab- (or semicolon-) separated Anki text into question/answer pairs. */
-export function fromAnkiText(text: string): { q: string; a: string }[] {
-  const out: { q: string; a: string }[] = []
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim()
-    if (!line || line.startsWith('#')) continue // Anki puts directives on # lines
-    const parts = line.includes('\t') ? line.split('\t') : line.split(';')
-    if (parts.length < 2) continue
-    const q = parts[0].trim()
-    const a = parts.slice(1).join(' ').trim()
-    if (q && a) out.push({ q: htmlToText(q), a: htmlToText(a) })
-  }
-  return out
+export interface AnkiCard {
+  q: string
+  a: string
+  tags: string[]
 }
 
-function htmlToText(s: string): string {
+export interface AnkiImport {
+  cards: AnkiCard[]
+  /** Cards that referenced an image or audio the text export cannot carry */
+  withMedia: number
+}
+
+/**
+ * Anki's newer exports declare their layout on `#` lines, e.g.
+ * `#separator:tab`, `#tags column:3`. Reading that is what keeps the tags
+ * from being glued onto the answer.
+ */
+function readDirectives(text: string): { tagsColumn: number | null; separator: string | null } {
+  let tagsColumn: number | null = null
+  let separator: string | null = null
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.startsWith('#')) break
+    const tags = /^#tags column:\s*(\d+)/i.exec(line)
+    if (tags) tagsColumn = Number(tags[1]) - 1 // Anki counts from 1
+    const sep = /^#separator:\s*(\w+)/i.exec(line)
+    if (sep) separator = sep[1].toLowerCase()
+  }
+  return { tagsColumn, separator }
+}
+
+const MEDIA_RE = /<img\b[^>]*>|\[sound:[^\]]*\]/i
+
+/** Parses an Anki text export into cards, tags included. */
+export function fromAnkiText(text: string): AnkiImport {
+  const { tagsColumn, separator } = readDirectives(text)
+  const splitOn = separator === 'semicolon' ? ';' : separator === 'comma' ? ',' : null
+  const cards: AnkiCard[] = []
+  let withMedia = 0
+
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue // directives and comments
+    const parts = splitOn
+      ? line.split(splitOn)
+      : line.includes('\t') ? line.split('\t') : line.split(';')
+    if (parts.length < 2) continue
+
+    if (MEDIA_RE.test(line)) withMedia++
+
+    // The tags column is metadata, never part of the answer
+    const tagIdx = tagsColumn !== null && tagsColumn < parts.length
+      ? tagsColumn
+      : parts.length > 2 ? parts.length - 1 : -1
+    const tags = tagIdx > 1 ? splitTags(parts[tagIdx]) : []
+    const answerParts = parts.slice(1).filter((_, i) => i + 1 !== tagIdx)
+
+    const q = ankiFieldToMarkdown(parts[0])
+    const a = ankiFieldToMarkdown(answerParts.join(' '))
+    if (q && a) cards.push({ q, a, tags })
+  }
+  return { cards, withMedia }
+}
+
+function splitTags(raw: string): string[] {
+  return raw.trim().split(/\s+/).filter(Boolean).map((t) => t.replace(/^#/, ''))
+}
+
+/**
+ * One Anki field → Markdown.
+ * `{{c1::term}}` becomes `==term==`, which is exactly this app's cloze syntax,
+ * and `[$]x[/$]` becomes `$x$`, which KaTeX already renders.
+ */
+export function ankiFieldToMarkdown(s: string): string {
   return s
+    .replace(/\{\{c\d+::(.*?)(?:::.*?)?\}\}/g, '==$1==')
+    .replace(/\[\$\$\]([\s\S]*?)\[\/\$\$\]/g, '$$$$$1$$$$')
+    .replace(/\[\$\]([\s\S]*?)\[\/\$\]/g, '$$$1$$')
+    .replace(/\[sound:[^\]]*\]/gi, '')
+    .replace(/<img\b[^>]*>/gi, '')
     .replace(/<br\s*\/?>/gi, ' · ')
+    .replace(/<\/?(div|p)\b[^>]*>/gi, ' ')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+    .replace(/\s{2,}/g, ' ')
     .trim()
 }
 
-/** Anki pairs → a Markdown note made of card callouts. */
-export function ankiToMarkdown(title: string, cards: { q: string; a: string }[]): string {
+/** Anki cards → a Markdown note made of card callouts. */
+export function ankiToMarkdown(title: string, cards: AnkiCard[]): string {
+  const tags = [...new Set(cards.flatMap((c) => c.tags))]
+  const header = tags.length > 0 ? `${tags.map((t) => `#${t}`).join(' ')}\n\n` : ''
   const body = cards
     .map((c) => `> [!card]- ${c.q}\n> ${c.a.replace(/\n/g, '\n> ')}`)
     .join('\n\n')
-  return `# ${title}\n\n${body}\n`
+  return `# ${title}\n\n${header}${body}\n`
+}
+
+/**
+ * Splits a deck into notes of at most `size` cards.
+ * A single note of 2000 cards takes ~900ms to render every time it is opened;
+ * at 100 per note that is ~45ms, which is the difference between usable and not.
+ */
+export function chunkCards(cards: AnkiCard[], size = 100): AnkiCard[][] {
+  if (cards.length <= size) return [cards]
+  const out: AnkiCard[][] = []
+  for (let i = 0; i < cards.length; i += size) out.push(cards.slice(i, i + size))
+  return out
 }
 
 /**
