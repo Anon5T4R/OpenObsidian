@@ -25,6 +25,13 @@ plus any frontmatter field of your own. Sort by `titulo`, `modificado`,
 `criado` or `caminho`, with `desc` at the end to reverse. A line starting with
 `#` is a comment and is not read.
 
+**`criado` needs `YYYY-MM-DD`.** There is no creation date on disk that survives
+a sync or a copy, so it can only come from a `created:` (or `criado:`) field you
+write yourself — and it is compared as text. `2026-07-21` sorts chronologically
+because ISO was designed that way; `21/07/2026` sorts by day, then month, and
+the year never gets a say. The app says so above the results rather than
+guessing which half of the world you write dates like.
+
 Two `tag:` lines in one block **add up** — a note has to carry both. For
 "either one", use two blocks.
 

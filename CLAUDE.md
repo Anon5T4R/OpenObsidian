@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **1.2.0**
+Current version: **1.2.1**
 
 ---
 
@@ -185,6 +185,25 @@ Processing order:
   query blocks, `.apkg` import, aliases and vault diagnostics. See below.
 
 ---
+
+## v1.2.1 — `sort: criado` stops lying
+
+The one place a query gave a **wrong** answer instead of an empty one or a
+warning. There is no creation date on disk that survives a sync or a copy, so it
+can only come from a frontmatter field, and it is compared as text:
+
+- Nobody declares it → every value ties → a stable sort returns the **vault scan
+  order**, which looks sorted.
+- `21/07/2026` sorts by day, then month; the year never gets a say.
+
+`sortIssues()` reports both, into the same warning box an unreadable line uses.
+
+**Normalising `DD/MM/YYYY` was considered and rejected**: `03/01/2026` is the
+3rd of January to half the world and the 1st of March to the other half.
+Guessing would swap a visible error for an invisible one, which is backwards
+from the rule this codebase follows — *a parser that cannot do the job says so.*
+ISO is the supported form because lexicographic order on ISO 8601 is
+chronological order; that is asserted, not assumed.
 
 ## v1.2.0 — Filling the block in, not just inserting it
 

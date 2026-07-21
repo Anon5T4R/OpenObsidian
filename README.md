@@ -115,7 +115,7 @@ it quietly creates a new tag with one note in it.
 | `path:` / `pasta:` | notes whose path contains this |
 | `has:` / `tem:` | notes where a frontmatter field is present |
 | any other name | a frontmatter field: `tipo: patologia` |
-| `sort:` / `ordenar:` | `titulo`, `modificado`, `criado`, `caminho` — add `desc` to reverse |
+| `sort:` / `ordenar:` | `titulo`, `modificado`, `criado`, `caminho` — add `desc` to reverse. `criado` reads a `created:` field you write yourself and needs `YYYY-MM-DD`; anything else is compared as text and the block says so above the results |
 | `limit:` / `limite:` | how many at most |
 
 Two conditions in one block **add up** — this is protocols *and* intensive care:

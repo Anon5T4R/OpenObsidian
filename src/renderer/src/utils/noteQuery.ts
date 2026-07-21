@@ -161,3 +161,62 @@ export function isEmptySpec(spec: QuerySpec): boolean {
   return spec.tags.length === 0 && spec.paths.length === 0 &&
     spec.has.length === 0 && Object.keys(spec.fields).length === 0
 }
+
+// ── Sorting by creation date ───────────────────────────────────────────────
+//
+// `criado` is the one sort key the app cannot always honour, and until now it
+// failed silently — the only place a query gave a *wrong* answer instead of an
+// empty one or a warning.
+//
+// There is no creation date on disk that survives a sync or a copy, so it can
+// only come from the frontmatter, and it arrives as text. Two ways that goes
+// wrong:
+//
+//   - No note declares the field. Every value is '', every comparison ties,
+//     and a stable sort hands back the vault scan order — which looks sorted.
+//   - The value is not ISO. Comparison is textual, so `03/01/2026` sorts before
+//     `21/07/2025`: by day, then month, and the year never gets a say.
+//
+// Deliberately *not* fixed by normalising `DD/MM/YYYY`: `03/01/2026` is the 3rd
+// of January to half the world and the 1st of March to the other half. Guessing
+// would trade a visible-once-you-look error for an invisible one. The app's rule
+// is the other way round — say what cannot be done.
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/
+
+export type SortIssue =
+  | { kind: 'created-missing'; missing: number; total: number }
+  | { kind: 'created-not-iso'; sample: string }
+
+/** Reads the creation date a note declares, if any. */
+export function createdValue(note: QueryNote): string {
+  const fm = note.frontmatter ?? {}
+  const raw = fm.created ?? fm.criado
+  return raw == null ? '' : String(raw).trim()
+}
+
+/**
+ * Whether the result can actually be ordered the way the block asked.
+ *
+ * Returns what is wrong rather than a message, so the wording stays in the
+ * locale files and this stays testable.
+ */
+export function sortIssues(notes: QueryNote[], spec: QuerySpec): SortIssue[] {
+  if (spec.sort !== 'criado' && spec.sort !== 'created') return []
+  if (notes.length === 0) return []
+
+  const values = notes.map(createdValue)
+  const missing = values.filter((v) => v === '').length
+  if (missing === values.length) {
+    return [{ kind: 'created-missing', missing, total: values.length }]
+  }
+
+  const issues: SortIssue[] = []
+  // Partly missing is still worth flagging: those notes clump at one end and
+  // the list looks ordered
+  if (missing > 0) issues.push({ kind: 'created-missing', missing, total: values.length })
+
+  const offender = values.find((v) => v !== '' && !ISO_DATE.test(v))
+  if (offender) issues.push({ kind: 'created-not-iso', sample: offender })
+  return issues
+}

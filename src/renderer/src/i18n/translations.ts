@@ -126,6 +126,8 @@ export const en = {
 
   ttReview:        'Review flashcards',
   ttReviewDue:     '{count} cards due',
+  querySortNoCreated: 'sort: criado — {missing} of {total} notes do not declare a creation date, so this order is not meaningful',
+  querySortNotIso:    'sort: criado — {sample} is not YYYY-MM-DD, and dates are compared as text; write the date as 2026-07-21',
   queryResults:   '{count} results',
 
   // Anki import
@@ -632,7 +634,7 @@ export const en = {
   hlpQueryIntro:    'A manual index goes stale, and a stale index is worse than none because you trust it. A query block keeps the list derived from what the notes already say:',
   hlpQueryTag:      'tag: and path: filter by tag (a parent finds its children) and by folder.',
   hlpQueryField:    'any other key is a frontmatter field — tipo: patologia. Use has: field to require only that it exists.',
-  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, with desc to reverse; limit: caps the list.',
+  hlpQuerySort:     'sort: titulo | modificado | criado (needs YYYY-MM-DD in the frontmatter) | caminho, with desc to reverse; limit: caps the list.',
   hlpQueryUnknown:  'a line it cannot read is shown above the results instead of being ignored.',
   hlpSecCalendar:   'Calendar and daily notes',
   hlpCalIntro:      'The calendar button in the toolbar opens a month grid instead of jumping straight into today.',
@@ -945,6 +947,8 @@ const ptBR: typeof en = {
 
   ttReview:        'Revisar flashcards',
   ttReviewDue:     '{count} cartões a revisar',
+  querySortNoCreated: 'sort: criado — {missing} de {total} notas não declaram data de criação, então esta ordem não quer dizer nada',
+  querySortNotIso:    'sort: criado — {sample} não é AAAA-MM-DD, e datas são comparadas como texto; escreva a data como 2026-07-21',
   queryResults:   '{count} resultados',
   ankiTitle:      'Importar do Anki',
   ankiCards:      'cartões encontrados',
@@ -1435,7 +1439,7 @@ const ptBR: typeof en = {
   hlpQueryIntro:    'Índice manual desatualiza, e índice desatualizado é pior que nenhum, porque você confia nele. Um bloco de consulta mantém a lista derivada do que as notas já dizem:',
   hlpQueryTag:      'tag: e path: filtram por tag (a tag pai acha as filhas) e por pasta.',
   hlpQueryField:    'qualquer outra chave é um campo do frontmatter — tipo: patologia. Use has: campo para exigir só que ele exista.',
-  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, com desc para inverter; limit: corta a lista.',
+  hlpQuerySort:     'sort: titulo | modificado | criado (exige AAAA-MM-DD no frontmatter) | caminho, com desc para inverter; limit: corta a lista.',
   hlpQueryUnknown:  'linha que ele não entende aparece acima dos resultados, em vez de ser ignorada.',
   hlpSecCalendar:   'Calendário e notas diárias',
   hlpCalIntro:      'O botão de calendário na barra abre uma grade do mês, em vez de pular direto para hoje.',
@@ -1748,6 +1752,8 @@ const esLatam: typeof en = {
 
   ttReview:        'Repasar flashcards',
   ttReviewDue:     '{count} tarjetas por repasar',
+  querySortNoCreated: 'sort: criado — {missing} de {total} notas no declaran fecha de creación, así que este orden no significa nada',
+  querySortNotIso:    'sort: criado — {sample} no es AAAA-MM-DD, y las fechas se comparan como texto; escribe la fecha como 2026-07-21',
   queryResults:   '{count} resultados',
   ankiTitle:      'Importar de Anki',
   ankiCards:      'tarjetas encontradas',
@@ -2238,7 +2244,7 @@ const esLatam: typeof en = {
   hlpQueryIntro:    'Un índice manual se desactualiza, y un índice desactualizado es peor que ninguno, porque confías en él. Un bloque de consulta mantiene la lista derivada de lo que las notas ya dicen:',
   hlpQueryTag:      'tag: y path: filtran por etiqueta (la padre encuentra las hijas) y por carpeta.',
   hlpQueryField:    'cualquier otra clave es un campo del frontmatter — tipo: patologia. Usa has: campo para exigir solo que exista.',
-  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, con desc para invertir; limit: corta la lista.',
+  hlpQuerySort:     'sort: titulo | modificado | criado (exige AAAA-MM-DD en el frontmatter) | caminho, con desc para invertir; limit: corta la lista.',
   hlpQueryUnknown:  'una línea que no entiende se muestra sobre los resultados, en vez de ser ignorada.',
   hlpSecCalendar:   'Calendario y notas diarias',
   hlpCalIntro:      'El botón de calendario en la barra abre una cuadrícula del mes, en vez de saltar directo a hoy.',

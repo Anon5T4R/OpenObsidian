@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseQueryBlock, runQuery, matchesQuery, isEmptySpec, QueryNote } from './noteQuery'
+import { parseQueryBlock, runQuery, matchesQuery, isEmptySpec, sortIssues, QueryNote } from './noteQuery'
 
 const note = (
   name: string,
@@ -116,5 +116,65 @@ describe('runQuery', () => {
 
   it('returns nothing when nothing matches', () => {
     expect(runQuery(NOTES, parseQueryBlock('tag: inexistente'))).toEqual([])
+  })
+})
+
+describe('sortIssues — ordenar por criado', () => {
+  const nota = (name: string, criado?: string): QueryNote => ({
+    file: { name, path: name, relativePath: `${name}.md` } as never,
+    tags: ['x'],
+    frontmatter: criado === undefined ? {} : { criado },
+    mtime: 0,
+  })
+  const porCriado = parseQueryBlock('tag: x\nsort: criado')
+
+  it('says nothing when every note has an ISO date', () => {
+    expect(sortIssues([nota('A', '2026-01-05'), nota('B', '2026-07-21')], porCriado)).toEqual([])
+  })
+
+  it('reports that nobody declares the field', () => {
+    // This is the silent one: all values tie, a stable sort returns scan order,
+    // and the list looks ordered
+    expect(sortIssues([nota('A'), nota('B')], porCriado)).toEqual([
+      { kind: 'created-missing', missing: 2, total: 2 },
+    ])
+  })
+
+  it('reports a partly filled set, where the gaps clump at one end', () => {
+    const issues = sortIssues([nota('A', '2026-01-05'), nota('B')], porCriado)
+    expect(issues).toContainEqual({ kind: 'created-missing', missing: 1, total: 2 })
+  })
+
+  it('reports a date that is not ISO, quoting the offender', () => {
+    const issues = sortIssues([nota('A', '21/07/2025'), nota('B', '2026-01-05')], porCriado)
+    expect(issues).toContainEqual({ kind: 'created-not-iso', sample: '21/07/2025' })
+  })
+
+  it('does not try to guess what 03/01/2026 means', () => {
+    // 3 January or 1 March depending on where you live. Reported, never fixed.
+    const issues = sortIssues([nota('A', '03/01/2026'), nota('B', '2026-05-01')], porCriado)
+    expect(issues.some((i) => i.kind === 'created-not-iso')).toBe(true)
+    // and the order is left exactly as it was — no silent rewrite
+    const r = runQuery([nota('A', '03/01/2026'), nota('B', '2026-05-01')], porCriado)
+    expect(r).toHaveLength(2)
+  })
+
+  it('accepts an ISO date carrying a time', () => {
+    expect(sortIssues([nota('A', '2026-01-05T10:30:00')], porCriado)).toEqual([])
+  })
+
+  it('stays quiet for every other sort key', () => {
+    for (const key of ['titulo', 'modificado', 'caminho']) {
+      expect(sortIssues([nota('A'), nota('B')], parseQueryBlock(`tag: x\nsort: ${key}`)), key).toEqual([])
+    }
+  })
+
+  it('stays quiet when the query matched nothing — there is nothing to mis-order', () => {
+    expect(sortIssues([], porCriado)).toEqual([])
+  })
+
+  it('still sorts ISO dates correctly, which is why ISO is the supported form', () => {
+    const r = runQuery([nota('Jul', '2026-07-21'), nota('Jan', '2026-01-05')], porCriado)
+    expect(r.map((n) => n.file.name)).toEqual(['Jan', 'Jul'])
   })
 })

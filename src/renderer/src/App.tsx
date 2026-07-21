@@ -28,7 +28,7 @@ import ReviewStatsPanel from './components/Review/ReviewStatsPanel'
 import AnkiImportModal from './components/Review/AnkiImportModal'
 import CalendarPopover from './components/Calendar/CalendarPopover'
 import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
-import { parseQueryBlock, runQuery, isEmptySpec, QueryNote } from './utils/noteQuery'
+import { parseQueryBlock, runQuery, isEmptySpec, sortIssues, QueryNote } from './utils/noteQuery'
 import { buildMtimeMap } from './utils/mtimeMap'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
@@ -283,8 +283,18 @@ export default function App() {
     const spec = parseQueryBlock(source)
     // An empty spec would list the whole vault, which is never the intent
     if (isEmptySpec(spec)) return { names: [], unknown: spec.unknown }
-    return { names: runQuery(queryNotes, spec).map((n) => n.file.name), unknown: spec.unknown }
-  }, [queryNotes])
+    const found = runQuery(queryNotes, spec)
+    // `sort: criado` is the one key that can be read but not always honoured,
+    // and it used to fail silently — a list in vault-scan order looks sorted.
+    // The warning goes in the same box as an unreadable line, because it is the
+    // same kind of problem: the block asked for something it did not get.
+    const warnings = sortIssues(found, spec).map((issue) =>
+      issue.kind === 'created-missing'
+        ? t('querySortNoCreated', { missing: issue.missing, total: issue.total })
+        : t('querySortNotIso', { sample: issue.sample }),
+    )
+    return { names: found.map((n) => n.file.name), unknown: [...spec.unknown, ...warnings] }
+  }, [queryNotes, t])
 
   // The content cache already holds every note of the vault (filled on open),
   // so an embed resolves synchronously — no IPC round-trip while rendering
