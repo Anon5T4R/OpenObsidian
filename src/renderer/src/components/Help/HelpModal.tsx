@@ -165,7 +165,8 @@ function FeaturesTab() {
           {t('hlpTagsPre')} <code>#tag</code> {t('hlpTagsPost')}
         </p>
         <div className="help-tip">
-          {t('hlpTagCharsPre')} <code>_</code> {t('hlpTagCharsAnd')} <code>-</code>.<br />
+          {t('hlpTagCharsPre')} <code>_</code>, <code>-</code> {t('hlpTagCharsAnd')} <code>/</code>.<br />
+          {t('hlpTagNested')}<br />
           {t('hlpTagExample')} <code>#project</code> <code>#study-notes</code> <code>#idea_2025</code>
         </div>
       </Section>

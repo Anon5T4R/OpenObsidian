@@ -437,8 +437,9 @@ export const en = {
   hlpSecTags:       'Tags',
   hlpTagsPre:       'Write',
   hlpTagsPost:      'anywhere in a note. Tags are automatically extracted as you save. In the sidebar, tag chips appear above the file tree — click one to filter notes by that tag. Click ✕ to clear the filter.',
-  hlpTagCharsPre:   'Valid tag characters: letters, numbers,',
+  hlpTagCharsPre:   'Valid tag characters: letters (accents included), numbers,',
   hlpTagCharsAnd:   'and',
+  hlpTagNested:     'Nested tags work: #system/cardio also counts as #system. Tags inside code blocks are ignored.',
   hlpTagExample:    'Example:',
 
   hlpSecFind:  'Find & Replace',
@@ -976,8 +977,9 @@ const ptBR: typeof en = {
   hlpSecTags:       'Tags',
   hlpTagsPre:       'Escreva',
   hlpTagsPost:      'em qualquer lugar de uma nota. As tags são extraídas automaticamente ao salvar. Na barra lateral, os chips de tags aparecem acima da árvore de arquivos — clique num deles para filtrar as notas por essa tag. Clique em ✕ para limpar o filtro.',
-  hlpTagCharsPre:   'Caracteres válidos de tag: letras, números,',
+  hlpTagCharsPre:   'Caracteres válidos de tag: letras (com acento), números,',
   hlpTagCharsAnd:   'e',
+  hlpTagNested:     'Tags aninhadas funcionam: #sistema/cardio também conta como #sistema. Tags dentro de blocos de código são ignoradas.',
   hlpTagExample:    'Exemplo:',
 
   hlpSecFind:  'Buscar e substituir',
@@ -1515,8 +1517,9 @@ const esLatam: typeof en = {
   hlpSecTags:       'Etiquetas',
   hlpTagsPre:       'Escribe',
   hlpTagsPost:      'en cualquier parte de una nota. Las etiquetas se extraen automáticamente al guardar. En la barra lateral, los chips de etiquetas aparecen encima del árbol de archivos — haz clic en uno para filtrar las notas por esa etiqueta. Haz clic en ✕ para limpiar el filtro.',
-  hlpTagCharsPre:   'Caracteres válidos de etiqueta: letras, números,',
+  hlpTagCharsPre:   'Caracteres válidos de etiqueta: letras (con acentos), números,',
   hlpTagCharsAnd:   'y',
+  hlpTagNested:     'Las etiquetas anidadas funcionan: #sistema/cardio también cuenta como #sistema. Las etiquetas dentro de bloques de código se ignoran.',
   hlpTagExample:    'Ejemplo:',
 
   hlpSecFind:  'Buscar y reemplazar',

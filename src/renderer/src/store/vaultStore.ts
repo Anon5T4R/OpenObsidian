@@ -5,9 +5,20 @@ import { parseFrontmatter, frontmatterTags, FrontmatterData } from '../utils/fro
 export type NoteFile = FileInfo
 export type { TreeNode }
 
-const TAG_RE    = /#([a-zA-Z0-9_-]+)/g
+// \p{L} with the u flag so accents and any alphabet count: a Brazilian user
+// writes #pré-natal and #nutrição, which the old ASCII class truncated to #pr.
+// The `/` enables nested tags (#sistema/cardio), as in Obsidian.
+const TAG_RE    = /#([\p{L}\p{N}_/-]+)/gu
 const LINK_RE   = /\[\[([^\]]+)\]\]/g
 const PINNED_KEY = 'oo-pinned'
+
+// Tags inside code blocks are examples, not metadata (this is also where
+// mermaid's `#ff0000` colours live)
+const MD_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g
+const NUMERIC_RE = /^\d+$/
+// A bare colour literal outside code: hex-only, right length, and has a digit —
+// so real words like #cafe or #beefed are not thrown away with it
+const HEX_COLOUR_RE = /^(?=.*\d)[0-9a-fA-F]{3}$|^(?=.*\d)[0-9a-fA-F]{6}$|^(?=.*\d)[0-9a-fA-F]{8}$/
 
 interface VaultState {
   vaultPath: string | null
@@ -46,10 +57,29 @@ export function extractLinks(content: string): string[] {
 
 export function extractTags(content: string): string[] {
   const result: string[] = []
-  let m: RegExpExecArray | null
-  TAG_RE.lastIndex = 0
-  while ((m = TAG_RE.exec(content)) !== null) result.push(m[1].toLowerCase())
+  const chunks = content.split(MD_CODE_RE)
+  for (let i = 0; i < chunks.length; i++) {
+    if (i % 2 === 1) continue // inside code
+    let m: RegExpExecArray | null
+    TAG_RE.lastIndex = 0
+    while ((m = TAG_RE.exec(chunks[i])) !== null) {
+      // Trailing separators come from prose ("veja #cardio/"), not the tag
+      const tag = m[1].replace(/[/-]+$/, '').toLowerCase()
+      if (!tag || NUMERIC_RE.test(tag) || HEX_COLOUR_RE.test(tag)) continue
+      result.push(tag)
+    }
+  }
   return [...new Set(result)]
+}
+
+/** `#sistema/cardio` also counts as `#sistema`, so a parent tag finds its children. */
+export function expandTagHierarchy(tags: string[]): string[] {
+  const all = new Set<string>()
+  for (const tag of tags) {
+    const parts = tag.split('/')
+    for (let i = 1; i <= parts.length; i++) all.add(parts.slice(0, i).join('/'))
+  }
+  return [...all]
 }
 
 function loadPinned(): string[] {
@@ -128,7 +158,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       if (data) frontmatter[file.path] = data
 
       // Tags come from both `#inline` and the frontmatter `tags:` field
-      for (const tag of [...extractTags(content), ...frontmatterTags(data)]) {
+      for (const tag of expandTagHierarchy([...extractTags(content), ...frontmatterTags(data)])) {
         if (!tags[tag]) tags[tag] = []
         if (!tags[tag].includes(file.name)) tags[tag].push(file.name)
       }
