@@ -42,10 +42,68 @@ export const CALLOUT_META: Record<string, { icon: string; color: string }> = {
 
 // `?` marks a mnemonic as reviewable (see utils/cards.ts). It is captured here
 // so it never leaks into the rendered title, but it does not fold the callout.
-const CALLOUT_RE = /<blockquote>\n?<p>\[!([\wÀ-ɏ]+)\]([-+?])?([^\n<]*)(?:\n([\s\S]*?))?<\/p>([\s\S]*?)<\/blockquote>/g
+const CALLOUT_HEAD_RE = /^\s*<p>\[!([\wÀ-ɏ]+)\]([-+?])?([^\n<]*)(?:\n([\s\S]*?))?<\/p>/
 
+const BQ_OPEN = '<blockquote>'
+const BQ_CLOSE = '</blockquote>'
+
+/**
+ * Index just past the `</blockquote>` that closes the one opening at `start`,
+ * or -1 if the HTML is unbalanced. A regex cannot do this: `[\s\S]*?` stops at
+ * the first close tag, which is the *inner* one whenever quotes are nested.
+ */
+function blockquoteEnd(html: string, start: number): number {
+  let depth = 0
+  let i = start
+  while (i < html.length) {
+    const open = html.indexOf(BQ_OPEN, i)
+    const close = html.indexOf(BQ_CLOSE, i)
+    if (close === -1) return -1
+    if (open !== -1 && open < close) {
+      depth++
+      i = open + BQ_OPEN.length
+    } else {
+      depth--
+      i = close + BQ_CLOSE.length
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+/**
+ * `> [!warning]` blocks → callouts, at any nesting depth. A quote holding a
+ * callout, a callout holding a quote and a card inside an admonition all come
+ * out intact; whatever is not a callout stays the blockquote it was.
+ */
 export function processCallouts(html: string): string {
-  return html.replace(CALLOUT_RE, (_, type, fold, titleRest, bodyInP, bodyExtra) => {
+  let out = ''
+  let i = 0
+  for (;;) {
+    const start = html.indexOf(BQ_OPEN, i)
+    if (start === -1) break
+    const end = blockquoteEnd(html, start)
+    if (end === -1) break
+    out += html.slice(i, start) + renderBlockquote(html.slice(start, end))
+    i = end
+  }
+  return out + html.slice(i)
+}
+
+function renderBlockquote(block: string): string {
+  const inner = block.slice(BQ_OPEN.length, block.length - BQ_CLOSE.length)
+  // Innermost first, so what this one holds is already rendered
+  const body = processCallouts(inner)
+  const head = CALLOUT_HEAD_RE.exec(body)
+  if (!head) return BQ_OPEN + body + BQ_CLOSE
+  return renderCallout(
+    head[0], head[1], head[2], head[3], head[4], body.slice(head[0].length),
+  )
+}
+
+function renderCallout(
+  _match: string, type: string, fold: string, titleRest: string, bodyInP: string, bodyExtra: string,
+): string {
     const t = type.toLowerCase()
     const meta = CALLOUT_META[t] ?? { icon: '📌', color: '#6b7280' }
     const title = titleRest.trim() || (t.charAt(0).toUpperCase() + t.slice(1))
@@ -73,7 +131,6 @@ ${bodyHtml}</details>`
     return `<div class="callout callout-${t}" ${style}>
 <div class="callout-title"><span class="callout-icon">${meta.icon}</span><span class="callout-title-text">${title}</span></div>
 ${bodyHtml}</div>`
-  })
 }
 
 // Split on code blocks so inline transforms never touch content inside ``` … ```

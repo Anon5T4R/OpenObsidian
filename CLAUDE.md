@@ -378,6 +378,20 @@ Key variables (defined in `renderer/src/assets/main.css` or similar):
 
 ## Known Limitations / Decisions Made
 
+### Closed on purpose — do not reopen without a new reason
+
+- **No table preview while editing.** The editor stays plain text; split view is
+  the answer. A WYSIWYG table widget inside CodeMirror is a large surface for a
+  problem the split view already solves.
+- **No per-note version history.** Notes are plain files in a folder the user
+  already syncs (OneDrive/Drive/git), and those version them. The one case it
+  would help is a rename rewriting links across dozens of notes — which asks for
+  confirmation and reports the count first.
+
+Nested callouts *were* on this list and came off it: once a card became a
+callout, `> > [!card]` inside a `> [!warning]` was dropped by `extractCards`
+with no error — a rendering wart had turned into silent data loss.
+
 - **`window.confirm` / `window.prompt`** are unreliable in Electron (steal focus). All destructive actions use inline React UI instead. Errors use `notify()` toast.
 - **DOCX headings**: only converts correctly if the DOCX uses Word's built-in Heading styles. Manually formatted "headings" (bold + large font) are invisible to any converter.
 - **DOCX images**: mammoth drops embedded images during conversion (they don't appear in the .md output).

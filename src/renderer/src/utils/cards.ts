@@ -65,8 +65,11 @@ interface Callout {
   body: string
 }
 
+/** How deep a callout may sit inside other callouts before we stop looking. */
+const MAX_NESTING = 3
+
 /** Callout blocks in raw markdown, with their `> ` prefixes removed. */
-function parseCallouts(md: string): Callout[] {
+function parseCallouts(md: string, depth = 0): Callout[] {
   const out: Callout[] = []
   const lines = md.split('\n')
   for (let i = 0; i < lines.length; i++) {
@@ -78,7 +81,15 @@ function parseCallouts(md: string): Callout[] {
       body.push(lines[j].replace(/^>\s?/, ''))
       j++
     }
-    out.push({ type: head[1].toLowerCase(), fold: head[2], title: head[3].trim(), body: body.join('\n').trim() })
+    const text = body.join('\n')
+    out.push({ type: head[1].toLowerCase(), fold: head[2], title: head[3].trim(), body: text.trim() })
+
+    // A card written inside another callout — `> > [!card]` under a
+    // `> [!warning]` — is natural to write and used to be dropped without a
+    // word: no card, no error, and you only found out when the review never
+    // asked for it. Removing one `>` level makes the inner one top-level.
+    if (depth < MAX_NESTING && /^>\s*\[!/m.test(text)) out.push(...parseCallouts(text, depth + 1))
+
     i = j - 1
   }
   return out

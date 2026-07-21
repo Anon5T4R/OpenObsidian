@@ -93,6 +93,25 @@ describe('extractCards', () => {
     expect(extractCards('a.md', '# Título\n\ntexto comum')).toEqual([])
   })
 
+  it('finds a card nested inside another callout', () => {
+    const md = '> [!warning] Emergência\n> Conduta:\n> > [!card]- Dose da adrenalina?\n> > 0,5 mg IM'
+    const cards = extractCards('a.md', md)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].q).toBe('Dose da adrenalina?')
+    expect(cards[0].a).toBe('0,5 mg IM')
+  })
+
+  it('finds a nested cloze card too', () => {
+    const md = '> [!info] Resumo\n> > [!card] Sepse\n> > exige ==lactato== na primeira hora'
+    const cards = extractCards('a.md', md)
+    expect(cards.map((c) => c.a)).toEqual(['lactato'])
+  })
+
+  it('does not count a nested card twice', () => {
+    const md = '> [!warning] A\n> > [!card]- P\n> > R\n\n> [!card]- Solto\n> R2'
+    expect(extractCards('a.md', md).map((c) => c.q)).toEqual(['P', 'Solto'])
+  })
+
   it('keeps the id stable when only the answer is edited', () => {
     const a = extractCards('a.md', '> [!card]- P?\n> resposta velha')[0]
     const b = extractCards('a.md', '> [!card]- P?\n> resposta nova')[0]

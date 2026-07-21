@@ -327,6 +327,15 @@
 .markdown-preview .callout-content p:first-child { margin-top: 0; }
 .markdown-preview .callout-content p:last-child  { margin-bottom: 0; }
 
+/* A callout inside another one: it has to read as contained, not as a sibling
+   that happens to be indented */
+.markdown-preview .callout-content > .callout {
+  margin: 10px 0;
+  background: color-mix(in srgb, var(--callout-color) 6%, transparent);
+}
+.markdown-preview .callout-content > .callout:last-child  { margin-bottom: 0; }
+.markdown-preview .callout-content > .callout:first-child { margin-top: 0; }
+
 /* Collapsible via <details> */
 .markdown-preview details.callout { border-radius: 6px; }
 .markdown-preview details.callout > summary.callout-title {

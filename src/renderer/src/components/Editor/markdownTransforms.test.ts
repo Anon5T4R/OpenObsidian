@@ -39,6 +39,44 @@ describe('processCallouts', () => {
     expect(out).toContain('<details')
     expect(out).not.toContain(' open>')
   })
+
+  it('renders a callout inside another one, innermost first', () => {
+    // What remark produces for `> [!warning] X` holding `> > [!card]- Q`
+    const html = '<blockquote>\n<p>[!warning] Emergência</p>\n' +
+      '<blockquote>\n<p>[!card]- Dose?\n0,5 mg IM</p></blockquote>\n</blockquote>'
+    const out = processCallouts(html)
+    expect(out).toContain('callout-warning')
+    expect(out).toContain('callout-card')
+    // The inner one is inside the outer one's body, not a sibling left over
+    expect(out.indexOf('callout-warning')).toBeLessThan(out.indexOf('callout-card'))
+    // And no raw blockquote survives
+    expect(out).not.toContain('<blockquote>')
+  })
+
+  it('keeps a plain quote inside a callout balanced', () => {
+    const html = '<blockquote>\n<p>[!info] Com citação</p>\n' +
+      '<blockquote>\n<p>só uma citação</p>\n</blockquote>\n</blockquote>'
+    const out = processCallouts(html)
+    expect(out).toContain('callout-info')
+    // The quote stays a quote, and its tags still pair up
+    expect(out.match(/<blockquote>/g)).toHaveLength(1)
+    expect(out.match(/<\/blockquote>/g)).toHaveLength(1)
+  })
+
+  it('leaves a blockquote that is not a callout alone', () => {
+    const html = '<blockquote>\n<p>citação comum</p>\n</blockquote>'
+    expect(processCallouts(html)).toBe(html)
+  })
+
+  it('leaves no stray text when the nesting is three deep', () => {
+    const html = '<blockquote>\n<p>[!info] A</p>\n<blockquote>\n<p>[!tip] B</p>\n' +
+      '<blockquote>\n<p>[!card] C</p></blockquote>\n</blockquote>\n</blockquote>'
+    const out = processCallouts(html)
+    expect(out).not.toContain('<blockquote>')
+    expect(out).toContain('callout-info')
+    expect(out).toContain('callout-tip')
+    expect(out).toContain('callout-card')
+  })
 })
 
 describe('addHeadingIds', () => {
