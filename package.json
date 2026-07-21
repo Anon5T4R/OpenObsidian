@@ -1,10 +1,16 @@
 {
   "name": "open-obsidian",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Open source Obsidian-like markdown note manager",
   "author": {
     "name": "João Ferreira",
     "email": "dev.joaoferreira@proton.me"
+  },
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/Anon5T4R/OpenObsidian",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Anon5T4R/OpenObsidian.git"
   },
   "main": "out/main/index.js",
   "scripts": {

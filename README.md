@@ -106,6 +106,13 @@ GitHub Actions builds Windows and Linux and publishes the release.
 
 ---
 
+## Licence
+
+[GNU GPL v3 or later](LICENSE). Use it, change it, share it — a modified version you
+distribute has to stay open under the same terms.
+
+---
+
 ## Support
 
 Donate via Patreon: <https://www.patreon.com/cw/joaoferreirav>

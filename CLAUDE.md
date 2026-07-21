@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **0.10.0**
+Current version: **0.11.0**
 
 ---
 
