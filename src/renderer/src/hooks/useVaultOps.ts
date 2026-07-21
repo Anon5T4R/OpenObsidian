@@ -3,6 +3,7 @@ import { useVaultStore, NoteFile, flattenTree } from '../store/vaultStore'
 import { useSettings } from './useSettings'
 import { t } from '../i18n'
 import { buildMtimeMap } from '../utils/mtimeMap'
+import { extractCards } from '../utils/cards'
 
 export function useVaultOps(
   contentCacheRef: MutableRefObject<Record<string, string>>,
@@ -56,6 +57,18 @@ export function useVaultOps(
       entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content: contents[file.path] ?? '' }
     }
     window.api.saveIndex(vaultPath, { vaultPath, savedAt: Date.now(), entries })
+
+    // Flashcards of the whole vault, not just of notes you happen to edit
+    const notes = files
+      .map((file) => ({
+        file: file.relativePath,
+        cards: extractCards(file.relativePath, contents[file.path] ?? '')
+          .map((c) => ({ id: c.id, q: c.q })),
+      }))
+      .filter((n) => n.cards.length > 0)
+    window.api.srsSyncAll(vaultPath, notes)
+      .then((r) => useVaultStore.getState().setSrsStats(r.stats))
+      .catch(() => { /* review state must never block opening a vault */ })
   }, [resetNav])
 
   const handleOpenVault = useCallback(async () => {

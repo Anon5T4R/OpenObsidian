@@ -605,6 +605,8 @@ export default function App() {
               <div className="toolbar-left" />
               <ToolbarRight
                 onDailyNote={handleDailyNote}
+                onReview={() => setReviewDeck({ kind: 'all' })}
+                cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}
                 onToggleGraph={() => setGraphOpen((o) => !o)}
                 plugins={plugins}
@@ -648,6 +650,8 @@ export default function App() {
 
               <ToolbarRight
                 onDailyNote={handleDailyNote}
+                onReview={() => setReviewDeck({ kind: 'all' })}
+                cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}
                 onToggleGraph={() => setGraphOpen((o) => !o)}
                 plugins={plugins}

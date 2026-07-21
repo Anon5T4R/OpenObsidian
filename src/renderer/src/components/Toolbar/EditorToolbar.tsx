@@ -1,5 +1,5 @@
 import React from 'react'
-import { CalendarDays, Share2, CircleHelp, Settings } from 'lucide-react'
+import { CalendarDays, Layers, Share2, CircleHelp, Settings } from 'lucide-react'
 import type { PluginInfo } from '../../../../preload/index'
 import { useT } from '../../i18n'
 
@@ -7,6 +7,9 @@ const ICON = 17
 
 interface ToolbarRightProps {
   onDailyNote: () => void
+  onReview: () => void
+  /** Cards waiting: shown as a dot on the review button */
+  cardsDue: number
   graphOpen: boolean
   onToggleGraph: () => void
   plugins: PluginInfo[]
@@ -25,6 +28,8 @@ interface ToolbarRightProps {
  */
 export function ToolbarRight({
   onDailyNote,
+  onReview,
+  cardsDue,
   graphOpen,
   onToggleGraph,
   plugins,
@@ -39,6 +44,15 @@ export function ToolbarRight({
     <div className="toolbar-right">
       <button className="toolbar-icon-btn" onClick={onDailyNote} title={t('ttDailyNote')} aria-label={t('ttDailyNote')}>
         <CalendarDays size={ICON} />
+      </button>
+      <button
+        className={`toolbar-icon-btn ${cardsDue > 0 ? 'has-badge' : ''}`}
+        onClick={onReview}
+        title={cardsDue > 0 ? t('ttReviewDue', { count: cardsDue }) : t('ttReview')}
+        aria-label={t('ttReview')}
+      >
+        <Layers size={ICON} />
+        {cardsDue > 0 && <span className="toolbar-badge">{cardsDue > 99 ? '99+' : cardsDue}</span>}
       </button>
       {children}
       <button

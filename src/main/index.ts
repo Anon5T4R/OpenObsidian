@@ -497,6 +497,21 @@ function srsPath(vaultPath: string): string {
 
 const srsCache = new Map<string, srs.SrsFile>()
 
+// Cards written before the tree stopped handing out absolute relativePaths
+// carry an absolute `file`, and their ids were hashed from it. They cannot be
+// matched to a note any more, so drop them: the next sync recreates them.
+const ABSOLUTE_PATH_RE = /^([a-zA-Z]:[\\/]|[\\/])/
+
+function dropAbsolutePathCards(file: srs.SrsFile): { file: srs.SrsFile; dropped: number } {
+  const cards: typeof file.cards = {}
+  let dropped = 0
+  for (const [id, card] of Object.entries(file.cards)) {
+    if (ABSOLUTE_PATH_RE.test(card.file)) { dropped++; continue }
+    cards[id] = card
+  }
+  return { file: { version: 1, cards }, dropped }
+}
+
 async function readSrs(vaultPath: string): Promise<srs.SrsFile> {
   const cached = srsCache.get(vaultPath)
   if (cached) return cached
@@ -505,8 +520,10 @@ async function readSrs(vaultPath: string): Promise<srs.SrsFile> {
     const parsed = JSON.parse(await fsp.readFile(srsPath(vaultPath), 'utf-8'))
     if (parsed && typeof parsed === 'object' && parsed.cards) file = parsed as srs.SrsFile
   } catch { /* first run, or unreadable — start clean rather than crash */ }
-  srsCache.set(vaultPath, file)
-  return file
+  const migrated = dropAbsolutePathCards(file)
+  srsCache.set(vaultPath, migrated.file)
+  if (migrated.dropped > 0) await writeSrs(vaultPath, migrated.file)
+  return migrated.file
 }
 
 async function writeSrs(vaultPath: string, file: srs.SrsFile): Promise<void> {
@@ -526,6 +543,22 @@ ipcMain.handle('srs:sync', async (_, vaultPath: string, file: string, found: { i
     await writeSrs(vaultPath, next)
   }
   return { added, removed, stats: srs.stats(next) }
+})
+
+// Whole-vault sync: syncing only on save meant a card existed for the review
+// panel only after you happened to edit its note
+ipcMain.handle('srs:sync-all', async (_, vaultPath: string, notes: { file: string; cards: { id: string; q: string }[] }[]) => {
+  let current = await readSrs(vaultPath)
+  let added = 0
+  let removed = 0
+  for (const note of notes) {
+    const r = srs.syncFile(current, note.file, note.cards)
+    current = r.srs
+    added += r.added
+    removed += r.removed
+  }
+  await writeSrs(vaultPath, current)
+  return { added, removed, stats: srs.stats(current) }
 })
 
 ipcMain.handle('srs:due', async (_, vaultPath: string, files?: string[]) => {

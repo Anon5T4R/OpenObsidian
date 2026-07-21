@@ -137,6 +137,8 @@ const api = {
   // Spaced repetition
   srsSync:   (vault: string, file: string, found: { id: string; q: string }[]): Promise<{ added: number; removed: number; stats: SrsStats }> =>
     ipcRenderer.invoke('srs:sync', vault, file, found),
+  srsSyncAll: (vault: string, notes: { file: string; cards: { id: string; q: string }[] }[]): Promise<{ added: number; removed: number; stats: SrsStats }> =>
+    ipcRenderer.invoke('srs:sync-all', vault, notes),
   srsDue:    (vault: string, files?: string[]): Promise<{ id: string; card: SrsCard }[]> =>
     ipcRenderer.invoke('srs:due', vault, files),
   srsGrade:  (vault: string, id: string, grade: SrsGrade): Promise<{ card?: SrsCard; stats?: SrsStats; error?: string }> =>

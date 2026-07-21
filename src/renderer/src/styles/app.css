@@ -395,3 +395,21 @@
   transition: background 0.15s, transform 0.1s;
 }
 .chat-fab:hover { background: var(--accent-hover); transform: scale(1.08); }
+
+/* Badge on the review button — the count is the whole point of the button */
+.toolbar-icon-btn.has-badge { position: relative; color: var(--accent); }
+
+.toolbar-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+}
