@@ -171,6 +171,15 @@ function FeaturesTab() {
         </ul>
       </Section>
 
+      <Section title={t('hlpSecCalendar')}>
+        <p className="help-para">{t('hlpCalIntro')}</p>
+        <ul className="help-list">
+          <li>{t('hlpCalDot')}</li>
+          <li>{t('hlpCalClick')}</li>
+          <li>{t('hlpCalTemplate')}</li>
+        </ul>
+      </Section>
+
       <Section title={t('hlpSecCards')}>
         <p className="help-para">{t('hlpCardsIntro')}</p>
         <pre className="help-code-block">{'> [!card]- Qual a tríade do qSOFA?\n> FR ≥ 22 · PAS ≤ 100 · Glasgow < 15.\n\n> [!card] Ciclo de Krebs\n> A ==citrato sintase== condensa ==acetil-CoA==.\n\n> [!mnemonic]? Causas de PEA — 5H e 5T\n> Hipovolemia, Hipóxia…'}</pre>

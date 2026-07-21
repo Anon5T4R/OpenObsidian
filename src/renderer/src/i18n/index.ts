@@ -60,11 +60,11 @@ export function detectLocale(): Locale {
 // ── formatDailyDate() ─────────────────────────────────────────────────────────
 // Returns the display date for the daily note heading (localized, long format).
 // The filename always stays YYYY-MM-DD for correct sorting.
-export function formatDailyDate(locale: Locale): string {
+export function formatDailyDate(locale: Locale, date: Date = new Date()): string {
   return new Intl.DateTimeFormat(DATE_LOCALE[locale], {
     weekday: 'long',
     year:    'numeric',
     month:   'long',
     day:     'numeric',
-  }).format(new Date())
+  }).format(date)
 }

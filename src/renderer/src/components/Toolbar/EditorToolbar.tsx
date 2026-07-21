@@ -6,7 +6,11 @@ import { useT } from '../../i18n'
 const ICON = 17
 
 interface ToolbarRightProps {
+  /** Toggles the calendar popover (today's note is one click inside it) */
   onDailyNote: () => void
+  calendarOpen: boolean
+  /** Rendered inside the toolbar so the popover can anchor to the button */
+  calendar?: React.ReactNode
   onReview: () => void
   /** Cards waiting: shown as a dot on the review button */
   cardsDue: number
@@ -28,6 +32,8 @@ interface ToolbarRightProps {
  */
 export function ToolbarRight({
   onDailyNote,
+  calendarOpen,
+  calendar,
   onReview,
   cardsDue,
   graphOpen,
@@ -42,9 +48,17 @@ export function ToolbarRight({
   const t = useT()
   return (
     <div className="toolbar-right">
-      <button className="toolbar-icon-btn" onClick={onDailyNote} title={t('ttDailyNote')} aria-label={t('ttDailyNote')}>
-        <CalendarDays size={ICON} />
-      </button>
+      <div className="toolbar-calendar-wrap">
+        <button
+          className={`toolbar-icon-btn ${calendarOpen ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onDailyNote() }}
+          title={t('ttCalendar')}
+          aria-label={t('ttCalendar')}
+        >
+          <CalendarDays size={ICON} />
+        </button>
+        {calendarOpen && calendar}
+      </div>
       <button
         className={`toolbar-icon-btn ${cardsDue > 0 ? 'has-badge' : ''}`}
         onClick={onReview}

@@ -2,6 +2,8 @@ import { MutableRefObject, useCallback, useState } from 'react'
 import { useVaultStore, NoteFile, flattenTree } from '../store/vaultStore'
 import { useSettings } from './useSettings'
 import { t, formatDailyDate } from '../i18n'
+import { todayISO, fromISO } from '../utils/calendar'
+import { expandTemplateVars, isTemplatePath } from '../utils/templateVars'
 
 export function useFileOps(
   contentCacheRef: MutableRefObject<Record<string, string>>,
@@ -14,10 +16,16 @@ export function useFileOps(
   const [templateOpen,   setTemplateOpen]   = useState(false)
   const [templateFolder, setTemplateFolder] = useState<string | undefined>(undefined)
 
-  const handleDailyNote = useCallback(async () => {
+  /**
+   * Opens the note for a given day, creating it when missing. A past or future
+   * day is the same thing as today — the date just stopped being hardcoded to
+   * `now` so the calendar can ask for any of them. A `_templates/daily.md`
+   * wins over the built-in layout.
+   */
+  const handleDailyNoteFor = useCallback(async (iso: string) => {
     if (!store.vaultPath) { notify(t(settings.locale, 'toastOpenVaultFirst')); return }
-    const today = new Date().toISOString().slice(0, 10)   // YYYY-MM-DD — filename stays ISO
-    const displayDate = formatDailyDate(settings.locale)  // localized long date for heading
+    const today = iso                                             // YYYY-MM-DD — filename stays ISO
+    const displayDate = formatDailyDate(settings.locale, fromISO(iso))
     const existing = store.files.find((f) => f.name === today)
     if (existing) { await handleFileSelect(existing); return }
     const result = await window.api.createFile(store.vaultPath, today)
@@ -27,6 +35,18 @@ export function useFileOps(
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
+      const userTemplate = store.files.find(
+        (f) => isTemplatePath(f.relativePath) && f.name.toLowerCase() === 'daily',
+      )
+      if (userTemplate) {
+        let raw: string
+        try { raw = await window.api.readFile(userTemplate.path) } catch { raw = '' }
+        const fromTemplate = expandTemplateVars(raw, { title: today, now: fromISO(iso) })
+        contentCacheRef.current[newFile.path] = fromTemplate
+        await window.api.writeFile(newFile.path, fromTemplate)
+        await handleFileSelect(newFile)
+        return
+      }
       const initialContent = [
         `# ${today}`,
         '',
@@ -48,6 +68,8 @@ export function useFileOps(
       await handleFileSelect(newFile)
     }
   }, [store.vaultPath, store.files, handleFileSelect, notify, settings.locale])
+
+  const handleDailyNote = useCallback(() => handleDailyNoteFor(todayISO()), [handleDailyNoteFor])
 
   const handleNewNote = useCallback(async (folderPath?: string) => {
     if (!store.vaultPath) { await handleOpenVault(); return }
@@ -81,7 +103,7 @@ export function useFileOps(
   }, [store.vaultPath, notify])
 
   return {
-    handleDailyNote, handleNewNote, handleTemplateConfirm, handleNewFolder,
+    handleDailyNote, handleDailyNoteFor, handleNewNote, handleTemplateConfirm, handleNewFolder,
     templateOpen, templateFolder, setTemplateOpen,
   }
 }

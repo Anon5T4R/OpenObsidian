@@ -413,3 +413,6 @@
   text-align: center;
   pointer-events: none;
 }
+
+/* Anchors the calendar popover to its toolbar button */
+.toolbar-calendar-wrap { position: relative; display: flex; }

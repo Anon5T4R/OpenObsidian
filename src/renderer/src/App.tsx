@@ -27,6 +27,7 @@ import PreviewFind from './components/Find/PreviewFind'
 import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
 import ReviewPanel, { ReviewDeck } from './components/Review/ReviewPanel'
 import ReviewStatsPanel from './components/Review/ReviewStatsPanel'
+import CalendarPopover from './components/Calendar/CalendarPopover'
 import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
@@ -121,6 +122,7 @@ export default function App() {
   const [brokenOpen,       setBrokenOpen]       = useState(false)
   const [reviewDeck,       setReviewDeck]       = useState<ReviewDeck | null>(null)
   const [statsOpen,        setStatsOpen]        = useState(false)
+  const [calendarOpen,     setCalendarOpen]     = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -282,7 +284,7 @@ export default function App() {
   const { handleOpenCompanionNote, handleConvertToMd, handleOpenInApp, isConverting } =
     useDocOps(contentCacheRef, handleFileSelect, notify)
 
-  const { handleDailyNote, handleNewNote, handleTemplateConfirm, handleNewFolder, templateOpen, templateFolder, setTemplateOpen } =
+  const { handleDailyNote, handleDailyNoteFor, handleNewNote, handleTemplateConfirm, handleNewFolder, templateOpen, templateFolder, setTemplateOpen } =
     useFileOps(contentCacheRef, handleFileSelect, handleOpenVault, notify)
 
   const { handleExportHTML, handleExportPDF, exportMenuOpen, setExportMenuOpen } =
@@ -345,6 +347,13 @@ export default function App() {
     await navigator.clipboard.writeText(prompt)
     notify(t('toastPromptCopied'))
   }, [notify, t, settings.locale])
+
+  const calendarPopover = (
+    <CalendarPopover
+      onPickDate={(iso) => { setCalendarOpen(false); handleDailyNoteFor(iso) }}
+      onClose={() => setCalendarOpen(false)}
+    />
+  )
 
   // Reading view has no CodeMirror, so it gets its own find bar
   const handleOpenFind = useCallback(() => {
@@ -604,7 +613,9 @@ export default function App() {
             <div className="editor-toolbar">
               <div className="toolbar-left" />
               <ToolbarRight
-                onDailyNote={handleDailyNote}
+                onDailyNote={() => setCalendarOpen((o) => !o)}
+                calendarOpen={calendarOpen}
+                calendar={calendarPopover}
                 onReview={() => setReviewDeck({ kind: 'all' })}
                 cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}
@@ -649,7 +660,9 @@ export default function App() {
               )}
 
               <ToolbarRight
-                onDailyNote={handleDailyNote}
+                onDailyNote={() => setCalendarOpen((o) => !o)}
+                calendarOpen={calendarOpen}
+                calendar={calendarPopover}
                 onReview={() => setReviewDeck({ kind: 'all' })}
                 cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}

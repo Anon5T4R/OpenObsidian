@@ -1,0 +1,132 @@
+.cal-popover {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 40;
+  width: 250px;
+  padding: 10px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.34);
+  user-select: none;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cal-month {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.cal-nav:hover { background: var(--hover); color: var(--text-primary); }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-weekdays { margin-bottom: 2px; }
+
+.cal-weekday {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding-bottom: 2px;
+}
+
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cal-day:hover { background: var(--hover); color: var(--text-primary); }
+
+.cal-day.outside { color: var(--text-muted); opacity: 0.4; }
+
+.cal-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A dot, not a fill: the day number has to stay readable */
+.cal-day.has-note::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.cal-day.outside.has-note::after { opacity: 0.5; }
+
+.cal-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.cal-today-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+.cal-today-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.cal-legend {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}

@@ -138,14 +138,15 @@ function makeWikilinkCompletion(
         boost: f.name.toLowerCase().startsWith(query) ? 1 : 0
       }))
 
-    // An alias inserts `[[Note|alias]]`: the link keeps pointing at the real
-    // note (so it survives the alias being removed) and still reads as the alias
+    // Insert the alias as written: `[[IAM]]` resolves through the alias index,
+    // and if the alias is ever removed the link shows up as broken (red, and
+    // listed in the vault diagnostics) instead of silently rotting
     const aliases = aliasesRef.current
       .filter((a) => a.alias.toLowerCase().includes(query))
       .slice(0, 15)
       .map((a) => ({
         label: a.alias,
-        apply: applyLink(`${a.note}|${a.alias}`),
+        apply: applyLink(a.alias),
         type: 'keyword',
         detail: a.note,
         boost: a.alias.toLowerCase().startsWith(query) ? 1 : 0
