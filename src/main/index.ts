@@ -10,6 +10,7 @@ import mammoth from 'mammoth'
 import { rewriteLinks, countRefs } from './link-rewrite'
 import { odtToHtml } from './odt'
 import * as srs from './srs'
+import { readApkg, isApkg, deckNameFor } from './apkg'
 
 const fsp = fs.promises
 
@@ -621,15 +622,37 @@ const ANKI_CHUNK = 100
 ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
   const picked = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    filters: [{ name: 'Anki export', extensions: ['txt', 'tsv', 'csv'] }],
-    title: 'Import an Anki text export',
+    filters: [
+      { name: 'Anki deck or export', extensions: ['apkg', 'txt', 'tsv', 'csv'] },
+      { name: 'Anki package', extensions: ['apkg'] },
+      { name: 'Text export', extensions: ['txt', 'tsv', 'csv'] },
+    ],
+    title: 'Import an Anki deck',
   })
   if (picked.canceled || picked.filePaths.length === 0) return null
-  const raw = await fsp.readFile(picked.filePaths[0], 'utf-8')
-  const { cards, withMedia } = srs.fromAnkiText(raw)
+  const source = picked.filePaths[0]
+
+  let cards: srs.AnkiCard[]
+  let withMedia: number
+  if (isApkg(source)) {
+    const read = await readApkg(source)
+    if ('error' in read) {
+      return {
+        error: read.error === 'newer-format'
+          ? 'This .apkg uses the newer compressed format. In Anki, export the deck again with "Support older Anki versions" ticked.'
+          : read.error,
+      }
+    }
+    cards = read.cards
+    withMedia = read.withMedia
+  } else {
+    const parsed = srs.fromAnkiText(await fsp.readFile(source, 'utf-8'))
+    cards = parsed.cards
+    withMedia = parsed.withMedia
+  }
   if (cards.length === 0) return { error: 'no cards found in that file' }
 
-  const deck = path.basename(picked.filePaths[0]).replace(/\.[^.]+$/, '')
+  const deck = deckNameFor(source)
   const chunks = srs.chunkCards(cards, ANKI_CHUNK)
 
   // Tell the user what is about to land in the vault before writing anything

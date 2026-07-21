@@ -70,6 +70,7 @@
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.0",
     "remark-html": "^16.0.1",
+    "sql.js": "^1.14.1",
     "turndown": "^7.2.4",
     "turndown-plugin-gfm": "^1.0.2",
     "zustand": "^4.5.0"
@@ -87,7 +88,8 @@
     ],
     "asarUnpack": [
       "node_modules/node-llama-cpp/**",
-      "node_modules/@node-llama-cpp/**"
+      "node_modules/@node-llama-cpp/**",
+      "node_modules/sql.js/**"
     ],
     "win": {
       "target": "nsis",
