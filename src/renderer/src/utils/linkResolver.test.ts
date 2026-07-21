@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseWikiTarget, resolveNote, noteExists } from './linkResolver'
+import { parseWikiTarget, resolveNote, noteExists, findUnresolvedLinks } from './linkResolver'
 import type { NoteFile } from '../store/vaultStore'
 
 const f = (relativePath: string): NoteFile => ({
@@ -64,6 +64,35 @@ describe('resolveNote', () => {
   it('falls back to the first match without a source note', () => {
     expect(resolveNote(files, 'Cirrose Hepática')?.relativePath)
       .toBe('Patologias/Cirrose Hepática.md')
+  })
+})
+
+describe('findUnresolvedLinks', () => {
+  it('lists only the targets with no note behind them', () => {
+    const broken = findUnresolvedLinks({ 'Sepse': ['A'], 'Fantasma': ['A', 'B'] }, files)
+    expect(broken.map((b) => b.target)).toEqual(['Fantasma'])
+  })
+
+  it('carries the notes that link to it, sorted', () => {
+    const [first] = findUnresolvedLinks({ 'Fantasma': ['Zeta', 'Alfa'] }, files)
+    expect(first.sources).toEqual(['Alfa', 'Zeta'])
+  })
+
+  it('resolves the anchor away before deciding', () => {
+    expect(findUnresolvedLinks({ 'Sepse#Conduta': ['A'] }, files)).toEqual([])
+  })
+
+  it('ignores an anchor into the note itself', () => {
+    expect(findUnresolvedLinks({ '#Conduta': ['A'] }, files)).toEqual([])
+  })
+
+  it('understands a folder path', () => {
+    expect(findUnresolvedLinks({ 'Patologias/Cirrose Hepática': ['A'] }, files)).toEqual([])
+  })
+
+  it('puts the most-linked broken target first', () => {
+    const broken = findUnresolvedLinks({ 'Um': ['A'], 'Dois': ['A', 'B'] }, files)
+    expect(broken.map((b) => b.target)).toEqual(['Dois', 'Um'])
   })
 })
 

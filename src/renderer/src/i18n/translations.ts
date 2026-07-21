@@ -96,6 +96,12 @@ export const en = {
   searchSummary:     '{matches} occurrences in {notes} notes',
   searchMore:        '+{count} occurrences',
   searchLess:        'Show fewer',
+
+  // Broken links panel
+  brokenTitle:   'Broken links',
+  brokenNone:    'No broken links in this vault',
+  brokenSummary: '{links} links point at {targets} notes that do not exist',
+  cmdBrokenLinks:'Broken links',
   searchClose:       'Close',
 
   // Find in the reading view
@@ -654,6 +660,11 @@ const ptBR: typeof en = {
   searchSummary:     '{matches} ocorrências em {notes} notas',
   searchMore:        '+{count} ocorrências',
   searchLess:        'Mostrar menos',
+
+  brokenTitle:   'Links quebrados',
+  brokenNone:    'Nenhum link quebrado neste vault',
+  brokenSummary: '{links} links apontam para {targets} notas que não existem',
+  cmdBrokenLinks:'Links quebrados',
   searchClose:       'Fechar',
 
   findPlaceholder: 'Buscar na nota…',
@@ -1200,6 +1211,11 @@ const esLatam: typeof en = {
   searchSummary:     '{matches} coincidencias en {notes} notas',
   searchMore:        '+{count} coincidencias',
   searchLess:        'Mostrar menos',
+
+  brokenTitle:   'Enlaces rotos',
+  brokenNone:    'Ningún enlace roto en este vault',
+  brokenSummary: '{links} enlaces apuntan a {targets} notas que no existen',
+  cmdBrokenLinks:'Enlaces rotos',
   searchClose:       'Cerrar',
 
   findPlaceholder: 'Buscar en la nota…',

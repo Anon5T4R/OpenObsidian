@@ -24,6 +24,7 @@ import DocxViewer from './components/Docx/DocxViewer'
 import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import PreviewFind from './components/Find/PreviewFind'
+import BrokenLinksPanel from './components/Diagnostics/BrokenLinksPanel'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -114,6 +115,7 @@ export default function App() {
   const [tocOpen,          setTocOpen]          = useState(false)
   const [previewFindOpen,  setPreviewFindOpen]  = useState(false)
   const [previewFindToken, setPreviewFindToken] = useState(0)
+  const [brokenOpen,       setBrokenOpen]       = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -440,6 +442,7 @@ export default function App() {
     { id: 'daily',    icon: '📅', label: t('cmdDailyNote'),     run: handleDailyNote },
     { id: 'search',   icon: '🔍', label: t('cmdSearch'),        run: () => store.setSearchOpen(true) },
     { id: 'graph',    icon: '◎',  label: t('cmdGraph'),         run: () => setGraphOpen((o) => !o) },
+    { id: 'broken',   icon: '🔗', label: t('cmdBrokenLinks'),   run: () => { store.setSearchOpen(false); setBrokenOpen(true) } },
     { id: 'settings', icon: '⚙',  label: t('cmdSettings'),      run: () => setSettingsOpen(true) },
     { id: 'backup',   icon: '💾', label: t('cmdBackup'),        run: handleBackup },
     { id: 'help',     icon: '?',  label: t('cmdHelp'),          run: () => setHelpOpen(true) },
@@ -485,7 +488,12 @@ export default function App() {
 
       {/* Main */}
       <main className="main">
-        {store.searchOpen ? (
+        {brokenOpen ? (
+          <BrokenLinksPanel
+            onFileSelect={(file) => { setBrokenOpen(false); handleFileSelect(file) }}
+            onClose={() => setBrokenOpen(false)}
+          />
+        ) : store.searchOpen ? (
           <SearchPanel
             onFileSelect={(file) => { store.setSearchOpen(false); handleFileSelect(file) }}
             onClose={() => store.setSearchOpen(false)}

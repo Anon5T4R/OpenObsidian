@@ -54,6 +54,31 @@ export function resolveNote(
   return best
 }
 
+export interface UnresolvedLink {
+  target: string
+  sources: string[]
+}
+
+/**
+ * Link targets with no note behind them, derived from the backlink index that
+ * buildBacklinks already produces. Without this list a dead link is invisible:
+ * the user clicks and nothing happens.
+ */
+export function findUnresolvedLinks(
+  backlinks: Record<string, string[]>,
+  files: NoteFile[],
+): UnresolvedLink[] {
+  const broken: UnresolvedLink[] = []
+  for (const [raw, sources] of Object.entries(backlinks)) {
+    const { target } = parseWikiTarget(raw)
+    if (!target) continue // `[[#Seção]]` points inside the note itself
+    if (resolveNote(files, target)) continue
+    broken.push({ target: raw, sources: [...sources].sort((a, b) => a.localeCompare(b)) })
+  }
+  // Most-linked first: those are the ones costing the most navigation
+  return broken.sort((a, b) => b.sources.length - a.sources.length || a.target.localeCompare(b.target))
+}
+
 /** True when the vault has a note for this raw wikilink target (anchor included). */
 export function noteExists(files: NoteFile[], raw: string, fromPath?: string): boolean {
   const { target } = parseWikiTarget(raw)
