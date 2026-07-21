@@ -10,6 +10,31 @@
   user-select: text;
 }
 
+/* Transclusion — ![[Nota]] */
+.markdown-preview .embed {
+  margin: 1em 0;
+  padding: 4px 16px 10px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 5px 5px 0;
+}
+.markdown-preview .embed .embed-source {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin: 6px 0 2px;
+}
+/* An embed opens a new context — its first heading should not push it down */
+.markdown-preview .embed > h1:first-of-type,
+.markdown-preview .embed > h2:first-of-type,
+.markdown-preview .embed > h3:first-of-type { margin-top: 0.4em; }
+.markdown-preview .embed-missing {
+  border-left-color: #f87171;
+  background: color-mix(in srgb, #f87171 8%, transparent);
+  color: var(--text-muted);
+  font-size: 0.9em;
+  padding: 6px 16px;
+}
+
 /* Frontmatter fields (properties strip) */
 .markdown-preview .note-properties {
   margin: 0 0 1.4em;

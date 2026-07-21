@@ -17,6 +17,7 @@ import {
 } from './markdownTransforms'
 import { useT } from '../../i18n'
 import { parseFrontmatter, asList, FrontmatterData } from '../../utils/frontmatter'
+import { expandEmbeds } from '../../utils/embeds'
 import './MarkdownPreview.css'
 
 // ── Math (KaTeX) ───────────────────────────────────────────────────────────
@@ -85,9 +86,11 @@ interface MarkdownPreviewProps {
   vaultPath?: string | null
   /** Tells whether a [[target]] has a note behind it — dead links get styled apart */
   linkExists?: (target: string) => boolean
+  /** Markdown behind an ![[embed]] target, or null when there is no such note */
+  resolveEmbed?: (target: string) => string | null
 }
 
-export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists, resolveEmbed }: MarkdownPreviewProps) {
   const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -113,7 +116,9 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   const deferredContent = useDeferredValue(content)
 
   const html = useMemo(() => {
-    const withLinks = processWikiLinks(deferredContent, linkExists)
+    // Embeds first: the inlined markdown must go through the whole pipeline too
+    const withEmbeds = resolveEmbed ? expandEmbeds(deferredContent, resolveEmbed) : deferredContent
+    const withLinks = processWikiLinks(withEmbeds, linkExists)
     // remarkFrontmatter turns the leading `---` block into a yaml node that
     // remark-html drops — without it CommonMark reads it as a setext heading
     const result = remark()
@@ -141,7 +146,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       })
     }
     return renderProperties(parseFrontmatter(deferredContent).data) + h
-  }, [deferredContent, vaultPath, linkExists])
+  }, [deferredContent, vaultPath, linkExists, resolveEmbed])
 
   // Render mermaid diagrams after HTML is injected into the DOM
   useEffect(() => {

@@ -174,6 +174,14 @@ export default function App() {
     [store.files, store.activeFile?.path],
   )
 
+  // The content cache already holds every note of the vault (filled on open),
+  // so an embed resolves synchronously — no IPC round-trip while rendering
+  const resolveEmbed = useCallback((target: string): string | null => {
+    const file = resolveNote(store.files, target, store.activeFile?.path)
+    if (!file) return null
+    return contentCacheRef.current[file.path] ?? null
+  }, [store.files, store.activeFile?.path])
+
   // A rename (and the link rewrite that follows) changed files on disk behind
   // the content cache — refresh the touched entries and rebuild the indexes
   const handleFilesRewritten = useCallback(async (
@@ -546,6 +554,7 @@ export default function App() {
                           onChange={handleContentChange}
                           vaultPath={store.vaultPath}
                           linkExists={linkExists}
+                          resolveEmbed={resolveEmbed}
                         />
                       </div>
                     )}
