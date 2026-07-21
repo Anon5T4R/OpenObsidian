@@ -180,6 +180,7 @@ function FeaturesTab() {
           <li>{t('hlpFind3')}</li>
           <li>{t('hlpFindNav')} <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>.</li>
           <li>{t('hlpFindClose')} <kbd>Escape</kbd>.</li>
+          <li>{t('hlpFindPreview')}</li>
         </ul>
       </Section>
 

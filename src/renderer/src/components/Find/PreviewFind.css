@@ -1,0 +1,63 @@
+/* Find bar for the reading view — the editor has CodeMirror's own panel */
+.preview-find {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.preview-find input {
+  width: 180px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 3px 7px;
+  outline: none;
+}
+
+.preview-find input:focus { border-color: var(--accent); }
+
+.preview-find-count {
+  min-width: 58px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.preview-find-count.none { color: #f87171; }
+
+.preview-find button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.preview-find button:hover:not(:disabled) { background: var(--hover); color: var(--text-primary); }
+.preview-find button:disabled { opacity: 0.35; cursor: default; }
+
+/* Painted by the CSS Custom Highlight API — no DOM nodes involved */
+::highlight(oo-find) {
+  background-color: #fde68a;
+  color: #111827;
+}
+
+::highlight(oo-find-current) {
+  background-color: #f59e0b;
+  color: #111827;
+}

@@ -23,6 +23,7 @@ import PdfViewer from './components/Pdf/PdfViewer'
 import DocxViewer from './components/Docx/DocxViewer'
 import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
+import PreviewFind from './components/Find/PreviewFind'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -111,6 +112,7 @@ export default function App() {
   const [notification,     setNotification]     = useState<string | null>(null)
   const [editorStats,      setEditorStats]      = useState<EditorStats>({ words: 0, chars: 0, line: 1, col: 1 })
   const [tocOpen,          setTocOpen]          = useState(false)
+  const [previewFindOpen,  setPreviewFindOpen]  = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -310,6 +312,12 @@ export default function App() {
     scrollToHeadingId(id, '')
   }, [])
 
+  // Reading view has no CodeMirror, so it gets its own find bar
+  const handleOpenFind = useCallback(() => {
+    if (viewMode === 'preview') setPreviewFindOpen(true)
+    else editorRef.current?.openFind()
+  }, [viewMode])
+
   // ── Sidebar resize ────────────────────────────────────────────────────────
   const onSidebarResizeStart = useCallback((e: React.MouseEvent) => {
     if (sidebarCollapsed) return
@@ -413,7 +421,7 @@ export default function App() {
       if (ctrl && (e.key === '=' || e.key === '+')) { e.preventDefault(); setSettings({ fontSize: Math.min(settings.fontSize + 1, 26) }) }
       if (ctrl && e.key === '-')               { e.preventDefault(); setSettings({ fontSize: Math.max(settings.fontSize - 1, 10) }) }
       if (ctrl && e.key === '0')               { e.preventDefault(); setSettings({ fontSize: 14 }) }
-      if (ctrl && e.key === 'f')               { editorRef.current?.openFind() }
+      if (ctrl && e.key === 'f')               { e.preventDefault(); handleOpenFind() }
       if (e.altKey && !ctrl && e.key === 'ArrowLeft')  { e.preventDefault(); handleNavBack() }
       if (e.altKey && !ctrl && e.key === 'ArrowRight') { e.preventDefault(); handleNavForward() }
     }
@@ -517,7 +525,7 @@ export default function App() {
                       </button>
                     ))}
                     <span className="view-toggle-sep" />
-                    <button className="view-toggle-find" onClick={() => editorRef.current?.openFind()} title={t('ttFind')} aria-label={t('ttFind')}><Search size={15} /></button>
+                    <button className="view-toggle-find" onClick={handleOpenFind} title={t('ttFind')} aria-label={t('ttFind')}><Search size={15} /></button>
                   </div>
                 </div>
               )}
@@ -587,6 +595,9 @@ export default function App() {
 
                     {(viewMode === 'preview' || viewMode === 'split') && (
                       <div className="editor-pane" style={viewMode === 'split' ? { flex: 1 - splitRatio } : { flex: 1 }}>
+                        {previewFindOpen && (
+                          <PreviewFind content={store.activeContent} onClose={() => setPreviewFindOpen(false)} />
+                        )}
                         <MarkdownPreview
                           content={store.activeContent}
                           onWikiLinkClick={handleFileSelectByName}
@@ -606,7 +617,7 @@ export default function App() {
               )}
             </div>
 
-            <StatusBar stats={editorStats} onOpenFind={() => editorRef.current?.openFind()} />
+            <StatusBar stats={editorStats} onOpenFind={handleOpenFind} />
           </div>
         )}
       </main>

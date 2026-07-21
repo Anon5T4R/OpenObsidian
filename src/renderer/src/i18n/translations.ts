@@ -91,6 +91,14 @@ export const en = {
   // Search panel
   searchPlaceholder: 'Search all notes...',
   searchClose:       'Close',
+
+  // Find in the reading view
+  findPlaceholder: 'Find in note…',
+  findCount:       '{current} of {total}',
+  findNoMatches:   'no matches',
+  findPrev:        'Previous (Shift+Enter)',
+  findNext:        'Next (Enter)',
+  findClose:       'Close (Esc)',
   searching:         'Searching…',
   noResults:         'No results for "{query}"',
 
@@ -442,6 +450,7 @@ export const en = {
   hlpFind3:    'Replace one occurrence or all occurrences.',
   hlpFindNav:  'Navigate results with',
   hlpFindClose:'Close with',
+  hlpFindPreview: 'In Preview mode the same shortcut opens a find bar that highlights matches in the rendered note (no replace).',
 
   hlpSecExport:   'Export',
   hlpExportPre:   'Click the',
@@ -633,6 +642,13 @@ const ptBR: typeof en = {
 
   searchPlaceholder: 'Buscar em todas as notas...',
   searchClose:       'Fechar',
+
+  findPlaceholder: 'Buscar na nota…',
+  findCount:       '{current} de {total}',
+  findNoMatches:   'sem resultados',
+  findPrev:        'Anterior (Shift+Enter)',
+  findNext:        'Próximo (Enter)',
+  findClose:       'Fechar (Esc)',
   searching:         'Buscando…',
   noResults:         'Nenhum resultado para "{query}"',
 
@@ -973,6 +989,7 @@ const ptBR: typeof en = {
   hlpFind3:    'Substituir uma ocorrência ou todas as ocorrências.',
   hlpFindNav:  'Navegue pelos resultados com',
   hlpFindClose:'Feche com',
+  hlpFindPreview: 'No modo Visualização o mesmo atalho abre uma barra de busca que destaca as ocorrências na nota renderizada (sem substituir).',
 
   hlpSecExport:   'Exportar',
   hlpExportPre:   'Clique no botão',
@@ -1164,6 +1181,13 @@ const esLatam: typeof en = {
 
   searchPlaceholder: 'Buscar en todas las notas...',
   searchClose:       'Cerrar',
+
+  findPlaceholder: 'Buscar en la nota…',
+  findCount:       '{current} de {total}',
+  findNoMatches:   'sin resultados',
+  findPrev:        'Anterior (Shift+Enter)',
+  findNext:        'Siguiente (Enter)',
+  findClose:       'Cerrar (Esc)',
   searching:         'Buscando…',
   noResults:         'Sin resultados para "{query}"',
 
@@ -1504,6 +1528,7 @@ const esLatam: typeof en = {
   hlpFind3:    'Reemplazar una coincidencia o todas las coincidencias.',
   hlpFindNav:  'Navega por los resultados con',
   hlpFindClose:'Cierra con',
+  hlpFindPreview: 'En el modo Visualización el mismo atajo abre una barra de búsqueda que resalta las coincidencias en la nota renderizada (sin reemplazo).',
 
   hlpSecExport:   'Exportar',
   hlpExportPre:   'Haz clic en el botón',
