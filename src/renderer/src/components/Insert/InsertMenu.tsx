@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { NoteFile } from '../../store/vaultStore'
 import { useT } from '../../i18n'
-import type { TranslationKey } from '../../i18n'
+import {
+  CATEGORY_ORDER, CATEGORY_LABEL,
+  Insertable, resolve, searchInsertables, primarySlash,
+} from '../../utils/insertables'
 import './InsertMenu.css'
 
 interface InsertMenuProps {
@@ -9,71 +12,21 @@ interface InsertMenuProps {
   files: NoteFile[]
 }
 
-type Item = {
-  labelKey: TranslationKey
-  icon: string
-  shortcut?: string
-  apply: string
-  cursor?: number
-}
-
-type Group = { titleKey: TranslationKey; items: Item[] }
-
-const GROUPS: Group[] = [
-  {
-    titleKey: 'insGroupHeadings',
-    items: [
-      { labelKey: 'insHeading1',   icon: 'H1',  shortcut: '/h1',  apply: '# ',   cursor: 2 },
-      { labelKey: 'insHeading2',   icon: 'H2',  shortcut: '/h2',  apply: '## ',  cursor: 3 },
-      { labelKey: 'insHeading3',   icon: 'H3',  shortcut: '/h3',  apply: '### ', cursor: 4 },
-    ]
-  },
-  {
-    titleKey: 'insGroupStructure',
-    items: [
-      { labelKey: 'insTable',       icon: '⊞',   shortcut: '/table',   apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
-      { labelKey: 'insCodeBlock',   icon: '</>',  shortcut: '/code',    apply: '```\n\n```', cursor: -4 },
-      { labelKey: 'insBlockquote',  icon: '❝',   shortcut: '/quote',   apply: '> ' },
-      { labelKey: 'insHr',          icon: '—',   shortcut: '/hr',      apply: '\n---\n' },
-      { labelKey: 'insTaskList',    icon: '✅',   shortcut: '/check',   apply: '- [ ] \n- [ ] \n- [ ] ', cursor: -14 },
-      { labelKey: 'insBulletList',  icon: '•',   shortcut: '/list',    apply: '- ' },
-    ]
-  },
-  {
-    titleKey: 'insGroupInline',
-    items: [
-      { labelKey: 'insBold',        icon: 'B',   shortcut: '/bold',    apply: '**text**', cursor: -2 },
-      { labelKey: 'insItalic',      icon: 'I',   shortcut: '/italic',  apply: '*text*',   cursor: -1 },
-      { labelKey: 'insInlineCode',  icon: '`',   shortcut: '/inline',  apply: '`code`',   cursor: -1 },
-    ]
-  },
-  {
-    titleKey: 'insGroupLinks',
-    items: [
-      { labelKey: 'insLinkToNote', icon: '[[]]', shortcut: '/wikilink', apply: '[[', cursor: 0 },
-      { labelKey: 'insWebLink',    icon: '🔗',  shortcut: '/link',     apply: '[text](https://)', cursor: -1 },
-      { labelKey: 'insImage',      icon: '🖼',  shortcut: '/image',    apply: '![alt](url)', cursor: -1 },
-    ]
-  },
-  {
-    titleKey: 'insGroupSymbols',
-    items: [
-      { labelKey: 'insArrowRight', icon: '→', shortcut: '/rarr',  apply: '→' },
-      { labelKey: 'insArrowLeft',  icon: '←', shortcut: '/larr',  apply: '←' },
-      { labelKey: 'insArrowUp',    icon: '↑', shortcut: '/uarr',  apply: '↑' },
-      { labelKey: 'insArrowDown',  icon: '↓', shortcut: '/darr',  apply: '↓' },
-      { labelKey: 'insCheckMark',  icon: '✓', shortcut: '/tick',  apply: '✓' },
-      { labelKey: 'insCrossMark',  icon: '✗', shortcut: '/cross', apply: '✗' },
-      { labelKey: 'insEmDash',     icon: '—', shortcut: '/mdash', apply: '—' },
-      { labelKey: 'insEllipsis',   icon: '…', shortcut: '/dots',  apply: '…' },
-    ]
-  }
-]
-
+/**
+ * Everything the editor can insert, grouped and searchable.
+ *
+ * It reads the same catalogue the `/` completion reads, so the two can never
+ * again offer different things — which they did, while neither of them
+ * mentioned flashcards, callouts, Mermaid or queries at all. The menu is where
+ * someone finds out a feature exists, so each row carries a line of syntax
+ * rather than only a name.
+ */
 export default function InsertMenu({ onInsert }: InsertMenuProps) {
   const t = useT()
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -84,9 +37,34 @@ export default function InsertMenu({ onInsert }: InsertMenuProps) {
     return () => document.removeEventListener('mousedown', close)
   }, [open])
 
-  const doInsert = (item: Item) => {
-    onInsert(item.apply, item.cursor)
+  // Opening with the keyboard and having to grab the mouse to filter would
+  // defeat the point of the search box
+  useEffect(() => {
+    if (open) searchRef.current?.focus()
+    else setQuery('')
+  }, [open])
+
+  const matches = useMemo(() => searchInsertables(query), [query])
+
+  const grouped = useMemo(() => {
+    const out: { category: (typeof CATEGORY_ORDER)[number]; items: Insertable[] }[] = []
+    for (const category of CATEGORY_ORDER) {
+      const items = matches.filter((i) => i.category === category)
+      if (items.length > 0) out.push({ category, items })
+    }
+    return out
+  }, [matches])
+
+  const doInsert = (item: Insertable) => {
+    const { text, cursor } = resolve(item)
+    onInsert(text, cursor)
     setOpen(false)
+  }
+
+  const onSearchKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { setOpen(false); return }
+    // Enter takes the first match, so a search can be finished without the mouse
+    if (e.key === 'Enter' && matches.length > 0) { e.preventDefault(); doInsert(matches[0]) }
   }
 
   return (
@@ -103,23 +81,37 @@ export default function InsertMenu({ onInsert }: InsertMenuProps) {
 
       {open && (
         <div className="insert-dropdown">
+          <input
+            ref={searchRef}
+            className="insert-search"
+            value={query}
+            placeholder={t('insSearchPlaceholder')}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKey}
+          />
           <div className="insert-hint">
-            {t('insHintPre')} <kbd>/</kbd> {t('insHintMid')} <kbd>[[</kbd> {t('insHintPost')}
+            {t('insHintSlash')} <kbd>/</kbd>
           </div>
-          {GROUPS.map((group) => (
-            <div key={group.titleKey} className="insert-group">
-              <div className="insert-group-title">{t(group.titleKey)}</div>
+
+          {grouped.length === 0 && <div className="insert-empty">{t('insNoMatch')}</div>}
+
+          {grouped.map(({ category, items }) => (
+            <div key={category} className="insert-group">
+              <div className="insert-group-title">{t(CATEGORY_LABEL[category])}</div>
               <div className="insert-group-items">
-                {group.items.map((item) => (
+                {items.map((item) => (
                   <button
-                    key={item.labelKey}
+                    key={item.id}
                     className="insert-item"
                     onClick={() => doInsert(item)}
-                    title={item.shortcut ? t('insSlashCmd', { cmd: item.shortcut }) : undefined}
+                    title={t('insSlashCmd', { cmd: primarySlash(item) })}
                   >
                     <span className="insert-icon">{item.icon}</span>
-                    <span className="insert-label">{t(item.labelKey)}</span>
-                    {item.shortcut && <kbd className="insert-shortcut">{item.shortcut}</kbd>}
+                    <span className="insert-text">
+                      <span className="insert-label">{t(item.labelKey)}</span>
+                      <span className="insert-desc">{t(item.descKey)}</span>
+                    </span>
+                    <kbd className="insert-shortcut">{primarySlash(item)}</kbd>
                   </button>
                 ))}
               </div>

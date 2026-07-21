@@ -15,6 +15,8 @@ import {
 import { NoteFile } from '../../store/vaultStore'
 import { Theme } from '../../hooks/useSettings'
 import { useT } from '../../i18n'
+import type { TranslationKey } from '../../i18n'
+import { searchInsertables, primarySlash, resolve } from '../../utils/insertables'
 import './MarkdownEditor.css'
 
 export interface MarkdownEditorHandle {
@@ -157,62 +159,36 @@ function makeWikilinkCompletion(
 }
 
 // ── Slash commands ─────────────────────────────────────────────────────────
+//
+// Reads the same catalogue as the Insert menu. There used to be a second list
+// right here, and the two had already drifted apart.
 
-type SlashCmd = { label: string; detail: string; apply: string; cursor?: number }
+function makeSlashCompletion(
+  trRef: React.MutableRefObject<(key: TranslationKey) => string>,
+) {
+  return (context: CompletionContext): CompletionResult | null => {
+    const tr = trRef.current
+    const match = context.matchBefore(/\/[\w]*/)
+    if (!match) return null
+    // Only at the start of a word, so a URL or a date does not open the menu
+    const before = context.state.doc.sliceString(Math.max(0, match.from - 1), match.from)
+    if (match.from > 0 && !/[\s\n]/.test(before)) return null
 
-const SLASH_COMMANDS: SlashCmd[] = [
-  // Structure
-  { label: '/h1',       detail: 'Heading 1',       apply: '# ',                                                    cursor: 2 },
-  { label: '/h2',       detail: 'Heading 2',       apply: '## ',                                                   cursor: 3 },
-  { label: '/h3',       detail: 'Heading 3',       apply: '### ',                                                  cursor: 4 },
-  { label: '/bold',     detail: 'Bold text',       apply: '**text**',                                              cursor: -2 },
-  { label: '/italic',   detail: 'Italic text',     apply: '*text*',                                                cursor: -1 },
-  { label: '/table',    detail: 'Insert table',    apply: '| Col 1 | Col 2 | Col 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |\n' },
-  { label: '/code',     detail: 'Code block',      apply: '```\n\n```',                                            cursor: -4 },
-  { label: '/inline',   detail: 'Inline code',     apply: '`code`',                                                cursor: -1 },
-  { label: '/quote',    detail: 'Blockquote',      apply: '> ' },
-  { label: '/hr',       detail: 'Horizontal rule', apply: '\n---\n' },
-  { label: '/check',    detail: 'Task list',       apply: '- [ ] \n- [ ] \n- [ ] ',                               cursor: -14 },
-  { label: '/list',     detail: 'Bullet list',     apply: '- ' },
-  { label: '/numlist',  detail: 'Numbered list',   apply: '1. ' },
-  { label: '/link',     detail: 'Web link',        apply: '[text](https://)',                                       cursor: -1 },
-  { label: '/image',    detail: 'Image',           apply: '![alt](url)',                                           cursor: -1 },
-  { label: '/wikilink', detail: 'Link to note',    apply: '[[',                                                    cursor: 0 },
-  { label: '/date',     detail: 'Today\'s date',   apply: new Date().toISOString().slice(0, 10) },
-  // Symbols
-  { label: '/rarr',     detail: '→  Right arrow',  apply: '→' },
-  { label: '/larr',     detail: '←  Left arrow',   apply: '←' },
-  { label: '/uarr',     detail: '↑  Up arrow',     apply: '↑' },
-  { label: '/darr',     detail: '↓  Down arrow',   apply: '↓' },
-  { label: '/harr',     detail: '↔  Both arrows',  apply: '↔' },
-  { label: '/tick',     detail: '✓  Check mark',   apply: '✓' },
-  { label: '/cross',    detail: '✗  Cross mark',   apply: '✗' },
-  { label: '/star',     detail: '★  Star',         apply: '★' },
-  { label: '/mdash',    detail: '—  Em dash',      apply: '—' },
-  { label: '/dots',     detail: '…  Ellipsis',     apply: '…' },
-  { label: '/copy',     detail: '©  Copyright',    apply: '©' },
-  { label: '/tm',       detail: '™  Trademark',    apply: '™' },
-]
-
-function slashCompletion(context: CompletionContext): CompletionResult | null {
-  const match = context.matchBefore(/\/\w*/)
-  if (!match) return null
-  const before = context.state.doc.sliceString(Math.max(0, match.from - 1), match.from)
-  if (match.from > 0 && !/[\s\n]/.test(before)) return null
-  const query = match.text.slice(1).toLowerCase()
-  const options = SLASH_COMMANDS
-    .filter((c) => c.label.slice(1).startsWith(query) || c.detail.toLowerCase().includes(query))
-    .map((c) => ({
-      label: c.label, detail: c.detail, type: 'keyword',
-      apply: (view: EditorView, _: any, from: number, to: number) => {
-        const text = c.apply
+    const options = searchInsertables(match.text.slice(1)).map((item) => ({
+      label: primarySlash(item),
+      detail: item.icon,
+      info: `${tr(item.labelKey)} — ${tr(item.descKey)}`,
+      type: 'keyword',
+      apply: (view: EditorView, _c: unknown, from: number, to: number) => {
+        const { text, cursor } = resolve(item)
         view.dispatch({
           changes: { from, to, insert: text },
-          selection: { anchor: from + text.length + (c.cursor ?? 0) }
+          selection: { anchor: from + text.length + cursor },
         })
-      }
+      },
     }))
-  return { from: match.from, options, filter: false }
+    return { from: match.from, options, filter: false }
+  }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
@@ -244,7 +220,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     const onChangeRef     = useRef(onChange)
     const onWikiLinkRef   = useRef(onWikiLinkClick)
     const vaultPathRef    = useRef(vaultPath)
-    const filesRef        = useRef(files)
+    // A completion do `/` vive fora do componente; a tradução chega por ref,
+  // como a lista de notas — senão ela congelaria no idioma da montagem
+  const trRef           = useRef<(key: TranslationKey) => string>(t)
+  const filesRef        = useRef(files)
     const aliasesRef      = useRef(aliases)
     const onStatsRef      = useRef(onStatsChange)
     const onAiExplainRef  = useRef(onAiExplain)
@@ -256,7 +235,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     useEffect(() => { onChangeRef.current = onChange },              [onChange])
     useEffect(() => { onWikiLinkRef.current = onWikiLinkClick },     [onWikiLinkClick])
     useEffect(() => { vaultPathRef.current = vaultPath },            [vaultPath])
-    useEffect(() => { filesRef.current = files },                    [files])
+    useEffect(() => { trRef.current = t },                           [t])
+  useEffect(() => { filesRef.current = files },                    [files])
     useEffect(() => { aliasesRef.current = aliases },                [aliases])
     useEffect(() => { onStatsRef.current = onStatsChange },          [onStatsChange])
     useEffect(() => { onAiExplainRef.current = onAiExplain },        [onAiExplain])
@@ -383,7 +363,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         wikilinkPlugin,
         EditorView.lineWrapping,
         autocompletion({
-          override: [makeWikilinkCompletion(filesRef, aliasesRef), slashCompletion],
+          override: [makeWikilinkCompletion(filesRef, aliasesRef), makeSlashCompletion(trRef)],
           closeOnBlur: true,
           activateOnTyping: true,
           icons: true
@@ -578,13 +558,13 @@ function EditorContextMenu({ x, y, hasSelection, selFrom, selTo, selText, onClos
 
         {/* Insert */}
         <div className="ctx-section-label">{t('ctxInsertLabel')}</div>
-        <button onClick={() => onInsert('# ', 0)}>{t('insHeading1')}</button>
-        <button onClick={() => onInsert('## ', 0)}>{t('insHeading2')}</button>
-        <button onClick={() => onInsert('### ', 0)}>{t('insHeading3')}</button>
+        <button onClick={() => onInsert('# ', 0)}>{t('insH1')}</button>
+        <button onClick={() => onInsert('## ', 0)}>{t('insH2')}</button>
+        <button onClick={() => onInsert('### ', 0)}>{t('insH3')}</button>
         <hr />
         <button onClick={() => onInsert('| Col 1 | Col 2 |\n| --- | --- |\n| Cell | Cell |\n')}>{t('insTable')}</button>
         <button onClick={() => onInsert('```\n\n```', -4)}>{t('insCodeBlock')}</button>
-        <button onClick={() => onInsert('> ', 0)}>{t('insBlockquote')}</button>
+        <button onClick={() => onInsert('> ', 0)}>{t('insQuote')}</button>
         <button onClick={() => onInsert('- [ ] \n- [ ] \n- [ ] ', -14)}>{t('insTaskList')}</button>
         <button onClick={() => onInsert('\n---\n', 0)}>{t('insHr')}</button>
         <button onClick={() => onInsert(today, 0)}>{t('ctxTodayDate')}</button>

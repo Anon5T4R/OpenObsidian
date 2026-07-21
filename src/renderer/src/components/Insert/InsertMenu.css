@@ -36,9 +36,32 @@
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.35);
   padding: 8px;
-  width: 320px;
+  width: 380px;
   max-height: 480px;
   overflow-y: auto;
+}
+
+/* Autofocused when the menu opens, so the whole catalogue is reachable by
+   typing — with 59 entries, scrolling to find one is not a real option. */
+.insert-search {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 9px;
+  margin-bottom: 6px;
+  outline: none;
+}
+
+.insert-search:focus { border-color: var(--accent); }
+
+.insert-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 14px 8px;
+  text-align: center;
 }
 
 .insert-hint {
@@ -72,15 +95,17 @@
   padding: 4px 8px 2px;
 }
 
+/* One column: each row now carries a line of description, which is what makes
+   a feature discoverable rather than just re-findable. */
 .insert-group-items {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .insert-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 7px;
   background: none;
   border: none;
@@ -107,16 +132,33 @@
   text-align: center;
   font-family: monospace;
   flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.insert-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .insert-label {
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.insert-desc {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.insert-item:hover .insert-desc { color: var(--text-secondary); }
+
 .insert-shortcut {
+  margin-top: 1px;
   font-family: monospace;
   font-size: 10px;
   color: var(--text-muted);

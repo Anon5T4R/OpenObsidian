@@ -3,13 +3,14 @@ import { X } from 'lucide-react'
 import { useModalA11y } from '../../hooks/useModalA11y'
 import { useT } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
+import { INSERTABLES, CATEGORY_ORDER, CATEGORY_LABEL, resolve } from '../../utils/insertables'
 import './HelpModal.css'
 
 interface HelpModalProps {
   onClose: () => void
 }
 
-type Tab = 'interface' | 'markdown' | 'features' | 'shortcuts'
+type Tab = 'interface' | 'insert' | 'markdown' | 'features' | 'shortcuts'
 
 export default function HelpModal({ onClose }: HelpModalProps) {
   const t = useT()
@@ -36,6 +37,7 @@ export default function HelpModal({ onClose }: HelpModalProps) {
 
         <div className="help-tabs">
           <button className={tab === 'interface'  ? 'active' : ''} onClick={() => setTab('interface')}>{t('hlpTabInterface')}</button>
+          <button className={tab === 'insert'     ? 'active' : ''} onClick={() => setTab('insert')}>{t('hlpTabInsert')}</button>
           <button className={tab === 'features'   ? 'active' : ''} onClick={() => setTab('features')}>{t('hlpTabFeatures')}</button>
           <button className={tab === 'markdown'   ? 'active' : ''} onClick={() => setTab('markdown')}>{t('hlpTabMarkdown')}</button>
           <button className={tab === 'shortcuts'  ? 'active' : ''} onClick={() => setTab('shortcuts')}>{t('hlpTabShortcuts')}</button>
@@ -43,6 +45,7 @@ export default function HelpModal({ onClose }: HelpModalProps) {
 
         <div className="help-body">
           {tab === 'interface'  && <InterfaceTab />}
+          {tab === 'insert'     && <InsertTab />}
           {tab === 'features'   && <FeaturesTab />}
           {tab === 'markdown'   && <MarkdownTab />}
           {tab === 'shortcuts'  && <ShortcutsTab />}
@@ -351,18 +354,68 @@ function FeaturesTab() {
   )
 }
 
+// ── Insert reference ──────────────────────────────────────────────────────
+//
+// Generated from the same catalogue the + menu and the `/` completion read.
+// The list that used to live here was hand-written, covered 16 of the 59
+// entries, and never mentioned flashcards, callouts, Mermaid or queries — so
+// the only way to find out those existed was to already know.
+
+function InsertTab() {
+  const t = useT()
+  return (
+    <div className="help-content">
+      <p className="help-para">
+        {t('hlpInsIntroPre')} <strong>+ {t('insTrigger')}</strong> {t('hlpInsIntroMid')}{' '}
+        <kbd>/</kbd> {t('hlpInsIntroPost')}
+      </p>
+
+      {CATEGORY_ORDER.map((category) => (
+        <Section key={category} title={t(CATEGORY_LABEL[category])}>
+          {INSERTABLES.filter((i) => i.category === category).map((item) => (
+            <div key={item.id} className="help-ins-item">
+              <div className="help-ins-head">
+                <span className="help-ins-icon">{item.icon}</span>
+                <strong className="help-ins-label">{t(item.labelKey)}</strong>
+                {item.slash.map((s) => <code key={s} className="help-ins-cmd">/{s}</code>)}
+              </div>
+              <div className="help-ins-desc">{t(item.descKey)}</div>
+              {item.block
+                ? <pre className="help-ins-snippet">{resolve(item).text}</pre>
+                : <code className="help-ins-inline">{resolve(item).text}</code>}
+            </div>
+          ))}
+        </Section>
+      ))}
+
+      <Section title={t('hlpInsSecOpen')}>
+        <Row syntax=".md"   result={<>{t('hlpFmtMd')}</>} />
+        <Row syntax=".pdf"  result={<>{t('hlpFmtPdf')}</>} />
+        <Row syntax=".docx" result={<>{t('hlpFmtDocx')}</>} />
+        <Row syntax=".odt"  result={<>{t('hlpFmtOdt')}</>} />
+        <Row syntax=".epub" result={<>{t('hlpFmtEpub')}</>} />
+        <Row syntax=".png .jpg .gif .webp" result={<>{t('hlpFmtImage')}</>} />
+        <div className="help-tip" style={{ marginTop: 10 }}>{t('hlpInsFmtTip')}</div>
+      </Section>
+
+      <Section title={t('hlpInsSecImport')}>
+        <Row syntax=".apkg" result={<>{t('hlpFmtApkg')}</>} />
+        <Row syntax=".txt .tsv .csv" result={<>{t('hlpFmtAnkiTxt')}</>} />
+      </Section>
+
+      <Section title={t('hlpInsSecExport')}>
+        <Row syntax=".html" result={<>{t('hlpFmtExpHtml')}</>} />
+        <Row syntax=".pdf"  result={<>{t('hlpFmtExpPdf')}</>} />
+        <Row syntax=".txt"  result={<>{t('hlpFmtExpAnki')}</>} />
+      </Section>
+    </div>
+  )
+}
+
 // ── Markdown reference ────────────────────────────────────────────────────
 
 function MarkdownTab() {
   const t = useT()
-  const slashItems: [string, TranslationKey][] = [
-    ['/h1', 'insHeading1'],  ['/h2', 'insHeading2'],   ['/h3', 'insHeading3'],
-    ['/table', 'insTable'],  ['/code', 'insCodeBlock'], ['/quote', 'insBlockquote'],
-    ['/bold', 'insBold'],    ['/italic', 'insItalic'],  ['/check', 'insTaskList'],
-    ['/list', 'hlpSlashBullet'], ['/numlist', 'hlpSlashNumbered'], ['/hr', 'hlpSlashDivider'],
-    ['/link', 'insWebLink'], ['/image', 'insImage'],    ['/date', 'ctxTodayDate'],
-    ['/wikilink', 'ctxWikiLink'],
-  ]
   return (
     <div className="help-content">
       <Section title={t('hlpMdText')}>
@@ -374,9 +427,9 @@ function MarkdownTab() {
       </Section>
 
       <Section title={t('hlpMdHeadings')}>
-        <Row syntax="# Heading 1"  result={<span style={{ fontSize: '1.3em', fontWeight: 700 }}>{t('insHeading1')}</span>} />
-        <Row syntax="## Heading 2" result={<span style={{ fontSize: '1.1em', fontWeight: 700 }}>{t('insHeading2')}</span>} />
-        <Row syntax="### Heading 3" result={<span style={{ fontWeight: 700 }}>{t('insHeading3')}</span>} />
+        <Row syntax="# Heading 1"  result={<span style={{ fontSize: '1.3em', fontWeight: 700 }}>{t('insH1')}</span>} />
+        <Row syntax="## Heading 2" result={<span style={{ fontSize: '1.1em', fontWeight: 700 }}>{t('insH2')}</span>} />
+        <Row syntax="### Heading 3" result={<span style={{ fontWeight: 700 }}>{t('insH3')}</span>} />
       </Section>
 
       <Section title={t('hlpMdLists')}>
@@ -398,7 +451,7 @@ function MarkdownTab() {
       </Section>
 
       <Section title={t('hlpMdBlocks')}>
-        <Row syntax="> quote" result={<blockquote style={{ borderLeft: '3px solid #7c3aed', paddingLeft: 8 }}>{t('insBlockquote')}</blockquote>} />
+        <Row syntax="> quote" result={<blockquote style={{ borderLeft: '3px solid #7c3aed', paddingLeft: 8 }}>{t('insQuote')}</blockquote>} />
         <Row syntax="---"     result={<hr style={{ border: '1px solid var(--border)' }} />} />
         <Row
           syntax={'```\ncode block\n```'}
@@ -432,15 +485,10 @@ function MarkdownTab() {
       </Section>
 
       <Section title={t('hlpMdSlash')}>
-        <p className="help-para">{t('hlpMdSlashPre')} <kbd>/</kbd> {t('hlpMdSlashPost')}</p>
-        <div className="help-slash-grid">
-          {slashItems.map(([cmd, descKey]) => (
-            <div key={cmd} className="help-slash-item">
-              <code>{cmd}</code>
-              <span>{t(descKey)}</span>
-            </div>
-          ))}
-        </div>
+        <p className="help-para">
+          {t('hlpMdSlashPre')} <kbd>/</kbd> {t('hlpMdSlashPost')}{' '}
+          <strong>{t('hlpTabInsert')}</strong>.
+        </p>
       </Section>
     </div>
   )

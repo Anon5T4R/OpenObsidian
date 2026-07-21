@@ -270,34 +270,6 @@
 }
 
 /* Slash command grid */
-.help-slash-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
-
-.help-slash-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: var(--bg-input);
-}
-
-.help-slash-item code {
-  font-family: monospace;
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 700;
-  min-width: 60px;
-}
-
-.help-slash-item span {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 /* Template grid in features tab */
 .help-tpl-grid {
   display: flex;
@@ -330,3 +302,54 @@
   color: var(--text-muted);
   line-height: 1.4;
 }
+
+/* ── Insert reference tab ───────────────────────────────────────────────── */
+
+.help-ins-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.help-ins-item:last-child { border-bottom: none; }
+
+.help-ins-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.help-ins-icon { font-size: 14px; }
+
+.help-ins-label { color: var(--text-heading); }
+
+.help-ins-cmd {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+.help-ins-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin: 3px 0 5px;
+}
+
+/* The snippet is the point of the row: it is what someone copies when they
+   want a flashcard or a diagram and do not remember the syntax. */
+.help-ins-snippet,
+.help-ins-inline {
+  display: block;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: var(--editor-font, monospace);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+}
+.help-ins-inline { display: inline-block; white-space: pre-wrap; }

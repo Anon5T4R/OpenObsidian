@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **1.0.0**
+Current version: **1.1.0**
 
 ---
 
@@ -58,7 +58,7 @@ src/
       Review/AnkiImportModal.tsx                ← Confirmation before writing an imported deck
       Calendar/CalendarPopover.tsx + .css        ← Month grid over the daily notes
       Graph/GraphView.tsx           ← D3 knowledge graph
-      Insert/InsertMenu.tsx         ← Toolbar insert menu (table, heading, etc.)
+      Insert/InsertMenu.tsx         ← Toolbar insert menu — searchable, reads `utils/insertables`
       Settings/SettingsModal.tsx
       Help/HelpModal.tsx
       Templates/TemplateModal.tsx
@@ -73,6 +73,7 @@ src/
       calendar.ts            ← Month grid maths for the daily-note calendar
       templateVars.ts        ← {{title}} / {{date}} / {{time}} expansion
       aiPrompts.ts           ← Ready-to-paste prompts for any AI chat
+      insertables.ts         ← THE catalogue of everything the editor can insert
 resources/               ← App icons (icon.ico, icon.icns, icons/)
 scripts/generate-icons.js
 ```
@@ -183,6 +184,35 @@ Processing order:
   query blocks, `.apkg` import, aliases and vault diagnostics. See below.
 
 ---
+
+## v1.1.0 — Discoverability
+
+The features existed; nothing in the UI said so. The insert menu offered 16
+things, the `/` completion offered its own hand-written 16, and the two had
+already drifted apart — while neither mentioned flashcards, callouts, Mermaid,
+maths, embeds or query blocks. A feature you can only use if you already know
+it exists is, for a new user, a feature that does not exist.
+
+**`utils/insertables.ts` is now the one list.** 59 entries, each with its slash
+commands, an icon, a label, a description and the snippet. Three consumers read
+it and none of them keeps its own copy:
+
+| Consumer | What it does with the catalogue |
+|---|---|
+| `Insert/InsertMenu.tsx` | Groups by category, with a search box (autofocused; Enter takes the first match) |
+| `Editor/MarkdownEditor.tsx` | The `/` completion — `makeSlashCompletion(trRef)`, same factory shape as `makeWikilinkCompletion` |
+| `Help/HelpModal.tsx` | The **Insert** tab: every entry with its syntax, plus which file formats open, import and export |
+
+Invariants:
+
+- **A second list is the bug.** Adding something insertable means one entry in
+  `insertables.ts` — the menu, the `/` completion and the help page pick it up.
+- `resolve(item, now?)` computes `/date` and `/time` at insert time. Reading
+  them off a module-level constant gave you the day the app launched.
+- The card snippets are asserted against what `utils/cards.ts` actually
+  extracts, so the menu cannot offer a flashcard the extractor ignores.
+- `cursor` counts back from the end of the snippet and is tested to never land
+  outside it.
 
 ## v0.10.0 — Study features
 
@@ -459,9 +489,11 @@ CI uses `npx electron-builder --win --publish never` (not `npm run dist:win`) to
 2. **New UI component?** → `src/renderer/src/components/{Category}/{Component}.tsx + .css`
 3. **New binary file type?** → Follow the Binary File Handling Pattern above
 4. **New markdown syntax?** → Pure function in `markdownTransforms.ts` (+ `*.test.ts`), insert in the pipeline, add CSS in `MarkdownPreview.css`. Skip code blocks.
-5. **New toolbar button?** → Add to `toolbar-right` or `toolbar-centre` in App.tsx. Check `isDoc` flag — hide editor-only controls when a binary file is active.
-6. **New UI strings?** → All three locales in `i18n/translations.ts`; `en` is the type source, so a missing key fails `typecheck`.
-7. **New pure logic?** → `utils/` or `src/main/*.ts` with a test beside it — not inside a component.
-8. **New sidebar panel?** → Bound its height and give it its own scroll. The file tree must stay visible (see the backlinks panel).
-9. **Bump version** in `package.json` **and refresh `package-lock.json`** (`npm install --package-lock-only`) — CI runs `npm ci` and a stale lock fails the release on purpose.
-10. **Tag** with `git tag vX.Y.Z && git push origin HEAD --tags`. The tag must match the version in `package.json`.
+5. **Something new the editor can insert?** → one entry in `utils/insertables.ts`.
+   The menu, the `/` completion and the help page read it. Do not start a second list.
+6. **New toolbar button?** → Add to `toolbar-right` or `toolbar-centre` in App.tsx. Check `isDoc` flag — hide editor-only controls when a binary file is active.
+7. **New UI strings?** → All three locales in `i18n/translations.ts`; `en` is the type source, so a missing key fails `typecheck`.
+8. **New pure logic?** → `utils/` or `src/main/*.ts` with a test beside it — not inside a component.
+9. **New sidebar panel?** → Bound its height and give it its own scroll. The file tree must stay visible (see the backlinks panel).
+10. **Bump version** in `package.json` **and refresh `package-lock.json`** (`npm install --package-lock-only`) — CI runs `npm ci` and a stale lock fails the release on purpose.
+11. **Tag** with `git tag vX.Y.Z && git push origin HEAD --tags`. The tag must match the version in `package.json`.
