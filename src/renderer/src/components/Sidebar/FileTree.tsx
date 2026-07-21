@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffe
 import { useVaultStore, NoteFile, TreeNode } from '../../store/vaultStore'
 import { SidebarSort } from '../../hooks/useSettings'
 import { sortNodes } from './treeSort'
+import { matchesSidebarFilter } from './sidebarFilter'
+import { frontmatterAliases } from '../../utils/frontmatter'
 import { useT } from '../../i18n'
 import './FileTree.css'
 
@@ -51,7 +53,7 @@ interface TreeNodeRowProps {
   depth: number
   activeFilePath: string | undefined
   collapsed: boolean
-  searchQuery: string
+  matchFile: ((node: TreeNode) => boolean) | null
   sort: SidebarSort
   pinnedPaths: string[]
   renamingPath: string | null
@@ -67,7 +69,7 @@ interface TreeNodeRowProps {
 }
 
 function TreeNodeRow({
-  node, depth, activeFilePath, collapsed, searchQuery, sort, pinnedPaths,
+  node, depth, activeFilePath, collapsed, matchFile, sort, pinnedPaths,
   renamingPath, renameValue,
   onFileSelect, onNewNote, onNewFolder, openCtx, onDropOnDir,
   onRenameChange, onRenameCommit, onRenameCancel
@@ -108,7 +110,7 @@ function TreeNodeRow({
   )
 
   if (node.type === 'file') {
-    if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return null
+    if (matchFile && !matchFile(node)) return null
     const isActive = activeFilePath === node.path
     const file: NoteFile = { name: node.name, path: node.path, relativePath: node.path }
     const fileIcon = node.path.endsWith('.pdf') ? '📕'
@@ -136,7 +138,7 @@ function TreeNodeRow({
   }
 
   // Directory
-  if (searchQuery && !flatHasMatch(node, searchQuery)) return null
+  if (matchFile && !flatHasMatch(node, matchFile)) return null
   const sorted = sortNodes(node.children ?? [], sort)
 
   return (
@@ -167,7 +169,7 @@ function TreeNodeRow({
         <TreeNodeRow
           key={child.path} node={child} depth={depth + 1}
           activeFilePath={activeFilePath} collapsed={collapsed}
-          searchQuery={searchQuery} sort={sort} pinnedPaths={pinnedPaths}
+          matchFile={matchFile} sort={sort} pinnedPaths={pinnedPaths}
           renamingPath={renamingPath} renameValue={renameValue}
           onFileSelect={onFileSelect} onNewNote={onNewNote} onNewFolder={onNewFolder}
           openCtx={openCtx} onDropOnDir={onDropOnDir}
@@ -178,9 +180,10 @@ function TreeNodeRow({
   )
 }
 
-function flatHasMatch(node: TreeNode, query: string): boolean {
-  if (node.type === 'file') return node.name.toLowerCase().includes(query.toLowerCase())
-  return node.children?.some((c) => flatHasMatch(c, query)) ?? false
+// A folder stays visible while any note under it still matches
+function flatHasMatch(node: TreeNode, matchFile: (n: TreeNode) => boolean): boolean {
+  if (node.type === 'file') return matchFile(node)
+  return node.children?.some((c) => flatHasMatch(c, matchFile)) ?? false
 }
 
 // Memo + narrow selectors: the tree must not re-render on every editor
@@ -196,8 +199,52 @@ function FileTree({
   const pinnedPaths = useVaultStore((s) => s.pinnedPaths)
   const tags        = useVaultStore((s) => s.tags)
   const tagFilter   = useVaultStore((s) => s.tagFilter)
+  const frontmatter = useVaultStore((s) => s.frontmatter)
   const t = useT()
   const [search, setSearch] = useState('')
+
+  // ── Filter (name, tags and aliases) ────────────────────────────────────────
+  // The tag index is keyed by tag → note names; invert it once per change
+  const tagsByNote = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const [tag, names] of Object.entries(tags)) {
+      for (const name of names) {
+        const key = name.toLowerCase()
+        const list = map.get(key)
+        if (list) list.push(tag)
+        else map.set(key, [tag])
+      }
+    }
+    return map
+  }, [tags])
+
+  const aliasesByPath = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const [path, data] of Object.entries(frontmatter)) {
+      const aliases = frontmatterAliases(data)
+      if (aliases.length) map.set(path, aliases)
+    }
+    return map
+  }, [frontmatter])
+
+  // One predicate for both the text box and the tag chip, applied at every
+  // depth — the chip used to filter only top-level nodes
+  const matchFile = useMemo(() => {
+    const query = search.trim()
+    if (!query && !tagFilter) return null
+    const chipNames = tagFilter
+      ? new Set((tags[tagFilter] ?? []).map((n) => n.toLowerCase()))
+      : null
+    return (node: TreeNode) => {
+      if (chipNames && !chipNames.has(node.name.toLowerCase())) return false
+      if (!query) return true
+      return matchesSidebarFilter({
+        name: node.name,
+        tags: tagsByNote.get(node.name.toLowerCase()) ?? [],
+        aliases: aliasesByPath.get(node.path) ?? [],
+      }, query)
+    }
+  }, [search, tagFilter, tags, tagsByNote, aliasesByPath])
 
   // ── Folder creation input ──────────────────────────────────────────────────
   const [folderInput, setFolderInput] = useState<{ parentPath?: string } | null>(null)
@@ -469,18 +516,11 @@ function FileTree({
           !collapsed && <div className="file-tree-empty">{t('noNotes')}</div>
         ) : (
           sortedTree
-            .filter((node) => {
-              if (!tagFilter) return true
-              const matchedNames = tags[tagFilter] ?? []
-              return flatHasMatch(node, '') || matchedNames.some((name) =>
-                node.type === 'file' ? node.name === name : flatHasMatchByName(node, matchedNames)
-              )
-            })
             .map((node) => (
               <TreeNodeRow
                 key={node.path} node={node} depth={0}
                 activeFilePath={activeFile?.path} collapsed={collapsed}
-                searchQuery={search} sort={sort} pinnedPaths={pinnedPaths}
+                matchFile={matchFile} sort={sort} pinnedPaths={pinnedPaths}
                 renamingPath={renaming?.path ?? null} renameValue={renaming?.newName ?? ''}
                 onFileSelect={onFileSelect} onNewNote={onNewNote} onNewFolder={onNewFolder}
                 openCtx={openCtx} onDropOnDir={handleDropOnDir}
@@ -538,11 +578,6 @@ function FileTree({
       )}
     </div>
   )
-}
-
-function flatHasMatchByName(node: TreeNode, names: string[]): boolean {
-  if (node.type === 'file') return names.includes(node.name)
-  return node.children?.some((c) => flatHasMatchByName(c, names)) ?? false
 }
 
 export default React.memo(FileTree)

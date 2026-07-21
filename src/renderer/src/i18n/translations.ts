@@ -49,7 +49,7 @@ export const en = {
   graphView:  'Graph View (Ctrl+G)',
 
   // Sidebar
-  filterNotes:          'Filter notes…',
+  filterNotes:          'Filter by name, #tag or alias…',
   newNoteBtn:           'New Note (Ctrl+N)',
   newFolderBtn:         'New Folder',
   searchNotesBtn:       'Search notes (Ctrl+Shift+F)',
@@ -611,7 +611,7 @@ const ptBR: typeof en = {
   newNote:    'Nova nota (Ctrl+N)',
   graphView:  'Grafo (Ctrl+G)',
 
-  filterNotes:           'Filtrar notas…',
+  filterNotes:           'Filtrar por nome, #tag ou alias…',
   newNoteBtn:            'Nova nota (Ctrl+N)',
   newFolderBtn:          'Nova pasta',
   searchNotesBtn:        'Buscar notas (Ctrl+Shift+F)',
@@ -1157,7 +1157,7 @@ const esLatam: typeof en = {
   newNote:    'Nueva nota (Ctrl+N)',
   graphView:  'Grafo (Ctrl+G)',
 
-  filterNotes:           'Filtrar notas…',
+  filterNotes:           'Filtrar por nombre, #etiqueta o alias…',
   newNoteBtn:            'Nueva nota (Ctrl+N)',
   newFolderBtn:          'Nueva carpeta',
   searchNotesBtn:        'Buscar notas (Ctrl+Shift+F)',
