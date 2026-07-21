@@ -64,6 +64,22 @@ describe('processWikiLinks', () => {
     expect(processWikiLinks('[[Nota#Seção]]')).toContain('data-target="Nota#Seção"')
   })
 
+  it('shows an anchor as "Nota › Seção"', () => {
+    expect(processWikiLinks('[[Nota#Seção]]')).toContain('>Nota › Seção<')
+  })
+
+  it('shows only the note name for a block ref', () => {
+    expect(processWikiLinks('[[Nota#^abc]]')).toContain('>Nota<')
+  })
+
+  it('an explicit alias still wins', () => {
+    expect(processWikiLinks('[[Nota#Seção|ver aqui]]')).toContain('>ver aqui<')
+  })
+
+  it('shows just the section for an anchor into the current note', () => {
+    expect(processWikiLinks('[[#Seção]]')).toContain('>Seção<')
+  })
+
   it('marks a target with no note behind it', () => {
     const out = processWikiLinks('[[Fantasma]]', () => false)
     expect(out).toContain('class="wikilink wikilink-unresolved"')

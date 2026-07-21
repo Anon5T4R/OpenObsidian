@@ -131,12 +131,23 @@ const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 export function processWikiLinks(md: string, exists?: (target: string) => boolean): string {
   return mapOutsideCode(md, (chunk) =>
     chunk.replace(WIKILINK_RE, (_, target, alias) => {
-      const display = alias ?? target
+      const display = alias ?? displayTarget(target)
       const dead = exists ? !exists(target) : false
       const cls = dead ? 'wikilink wikilink-unresolved' : 'wikilink'
       return `<a href="#" class="${cls}" data-target="${target}">${display}</a>`
     }),
   )
+}
+
+// `Nota#Seção` reads better as `Nota › Seção`; a block ref (`#^id`) is machine
+// noise, so only the note name is shown. data-target keeps the literal value.
+export function displayTarget(target: string): string {
+  const i = target.indexOf('#')
+  if (i === -1) return target
+  const note = target.slice(0, i).trim()
+  const hash = target.slice(i + 1).trim()
+  if (!hash || hash.startsWith('^')) return note || target
+  return note ? `${note} › ${hash}` : hash
 }
 
 // Toggle the nth `- [ ]` / `- [x]` occurrence in raw markdown

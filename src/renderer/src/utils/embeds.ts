@@ -4,7 +4,7 @@
 
 import { parseWikiTarget } from './linkResolver'
 import { parseFrontmatter } from './frontmatter'
-import { mapOutsideCode } from '../components/Editor/markdownTransforms'
+import { mapOutsideCode, displayTarget } from '../components/Editor/markdownTransforms'
 
 const EMBED_RE = /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 const MAX_DEPTH = 3
@@ -72,7 +72,7 @@ export function expandEmbeds(
     if (!body.trim()) return missing(raw)
 
     const inner = expandEmbeds(body, resolve, depth + 1, new Set([...seen, key]))
-    const title = `<div class="embed-source"><a href="#" class="wikilink" data-target="${raw.trim()}">${raw.trim()}</a></div>`
+    const title = `<div class="embed-source"><a href="#" class="wikilink" data-target="${raw.trim()}">${displayTarget(raw.trim())}</a></div>`
     return `\n\n<div class="embed">\n${title}\n\n${inner}\n\n</div>\n\n`
   }))
 }
