@@ -21,6 +21,8 @@ interface FileTreeProps {
   onFilesRewritten: (changedPaths: string[], oldPath: string, newPath: string) => void
 }
 
+const TAGS_COLLAPSED_KEY = 'oo-tags-collapsed'
+
 type CtxMenu = { x: number; y: number; node: TreeNode }
 
 function useCtxMenu() {
@@ -210,6 +212,17 @@ function FileTree({
   const frontmatter = useVaultStore((s) => s.frontmatter)
   const t = useT()
   const [search, setSearch] = useState('')
+  // A vault with 40 tags turns the strip into a wall; folding it is remembered
+  const [tagsCollapsed, setTagsCollapsed] = useState(
+    () => localStorage.getItem(TAGS_COLLAPSED_KEY) === '1',
+  )
+
+  const toggleTags = useCallback(() => {
+    setTagsCollapsed((c) => {
+      localStorage.setItem(TAGS_COLLAPSED_KEY, c ? '0' : '1')
+      return !c
+    })
+  }, [])
 
   // ── Filter (name, tags and aliases) ────────────────────────────────────────
   // The tag index is keyed by tag → note names; invert it once per change
@@ -475,6 +488,14 @@ function FileTree({
 
       {/* Tag chips — the only place the tag index is visible */}
       {!collapsed && sortedTags.length > 0 && (
+        <>
+        <button className="tag-strip-head" onClick={toggleTags} title={t('tagsToggle')}>
+          <span className={`tag-strip-chevron ${tagsCollapsed ? 'closed' : ''}`}>▾</span>
+          {t('tagsHeader')}
+          <span className="tag-strip-count">{sortedTags.length}</span>
+          {tagFilter && <span className="tag-strip-active">#{tagFilter}</span>}
+        </button>
+        {!tagsCollapsed && (
         <div className="tag-strip">
           {tagFilter && (
             <button
@@ -492,6 +513,8 @@ function FileTree({
             >#{tag}</button>
           ))}
         </div>
+        )}
+        </>
       )}
 
       {/* Rename → update links confirmation (inline; window.confirm steals focus) */}

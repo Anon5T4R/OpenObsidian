@@ -245,12 +245,17 @@ function splitTags(raw: string): string[] {
  * `{{c1::term}}` becomes `==term==`, which is exactly this app's cloze syntax,
  * and `[$]x[/$]` becomes `$x$`, which KaTeX already renders.
  */
-export function ankiFieldToMarkdown(s: string): string {
+export function ankiFieldToMarkdown(s: string, keepMedia = false): string {
   return s
     .replace(/\{\{c\d+::(.*?)(?:::.*?)?\}\}/g, '==$1==')
     .replace(/\[\$\$\]([\s\S]*?)\[\/\$\$\]/g, '$$$$$1$$$$')
     .replace(/\[\$\]([\s\S]*?)\[\/\$\]/g, '$$$1$$')
-    .replace(/\[sound:[^\]]*\]/gi, '')
+    // With keepMedia the file name is kept as a plain Markdown reference; the
+    // importer rewrites it to the real path once the file has been extracted
+    // The leading space keeps it off the end of the sentence; the collapse
+    // below removes it again when there was already one
+    .replace(/\[sound:([^\]]*)\]/gi, keepMedia ? ' [$1]($1)' : '')
+    .replace(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, keepMedia ? ' ![]($1)' : '')
     .replace(/<img\b[^>]*>/gi, '')
     .replace(/<br\s*\/?>/gi, ' · ')
     .replace(/<\/?(div|p)\b[^>]*>/gi, ' ')
@@ -282,6 +287,51 @@ export function ankiToMarkdown(title: string, cards: AnkiCard[]): string {
     })
     .join('\n\n')
   return `# ${title}\n\n${header}${body}\n`
+}
+
+const MEDIA_REF_RE = /!?\[[^\]]*\]\(([^)]+)\)/g
+
+/** File names the deck refers to, so only those get extracted. */
+export function collectMediaRefs(cards: AnkiCard[]): Set<string> {
+  const refs = new Set<string>()
+  for (const card of cards) {
+    for (const text of [card.q, card.a]) {
+      let m: RegExpExecArray | null
+      MEDIA_REF_RE.lastIndex = 0
+      while ((m = MEDIA_REF_RE.exec(text)) !== null) {
+        const target = m[1].trim()
+        // A URL, or something already pointing at a folder, is not media here
+        if (target && !/^[a-z]+:\/\//i.test(target) && !target.includes('/')) refs.add(target)
+      }
+    }
+  }
+  return refs
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Points the references at the files that were actually written. */
+export function rewriteMediaRefs(
+  cards: AnkiCard[],
+  written: Record<string, string>,
+  prefix: string,
+): AnkiCard[] {
+  const names = Object.keys(written)
+  if (names.length === 0) return cards
+  // Longest first, so `foto.jpg` never eats the start of `foto.jpg.png`
+  names.sort((a, b) => b.length - a.length)
+
+  const fix = (text: string) => {
+    let out = text
+    for (const name of names) {
+      // Anki file names are full of spaces, and `![](a b.png)` is not an image
+      // in Markdown — the destination has to be escaped
+      const target = `${prefix}${written[name]}`.replace(/ /g, '%20')
+      out = out.replace(new RegExp(`(\\]\\()${escapeRe(name)}(\\))`, 'g'), `$1${target}$2`)
+    }
+    return out
+  }
+  return cards.map((c) => ({ ...c, q: fix(c.q), a: fix(c.a) }))
 }
 
 /**

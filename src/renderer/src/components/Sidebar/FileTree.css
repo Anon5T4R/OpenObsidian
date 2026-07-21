@@ -368,3 +368,49 @@
   inset: 0;
   z-index: 999;
 }
+
+/* Foldable header for the tag strip — 40 tags is a wall otherwise */
+.tag-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.tag-strip-head:hover { color: var(--text-secondary); }
+
+.tag-strip-chevron { font-size: 10px; transition: transform 0.15s; }
+.tag-strip-chevron.closed { transform: rotate(-90deg); }
+
+.tag-strip-count {
+  background: var(--bg-input);
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+/* When folded, the active filter must stay visible or it looks like a bug */
+.tag-strip-active {
+  margin-left: auto;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
+}

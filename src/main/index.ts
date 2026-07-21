@@ -10,7 +10,7 @@ import mammoth from 'mammoth'
 import { rewriteLinks, countRefs } from './link-rewrite'
 import { odtToHtml } from './odt'
 import * as srs from './srs'
-import { readApkg, isApkg, deckNameFor } from './apkg'
+import { readApkg, isApkg, deckNameFor, extractMedia } from './apkg'
 
 const fsp = fs.promises
 
@@ -621,7 +621,7 @@ const ANKI_CHUNK = 100
 
 // Parsing is kept between the preview and the write so a 4000-card deck is
 // not read twice
-let ankiPending: { source: string; deck: string; cards: srs.AnkiCard[] } | null = null
+let ankiPending: { source: string; deck: string; cards: srs.AnkiCard[]; media: Record<string, string> } | null = null
 
 /** Picks a file and reports what it holds — writes nothing. */
 ipcMain.handle('srs:anki-pick', async () => {
@@ -639,11 +639,14 @@ ipcMain.handle('srs:anki-pick', async () => {
 
   let cards: srs.AnkiCard[]
   let withMedia: number
+  let ankiMedia: Record<string, string> = {}
   if (isApkg(source)) {
-    const read = await readApkg(source)
+    // Media only exists inside a package; a text export never carries it
+    const read = await readApkg(source, true)
     if ('error' in read) return { error: read.error }
     cards = read.cards
     withMedia = read.withMedia
+    ankiMedia = read.media
   } else {
     const parsed = srs.fromAnkiText(await fsp.readFile(source, 'utf-8'))
     cards = parsed.cards
@@ -652,7 +655,7 @@ ipcMain.handle('srs:anki-pick', async () => {
   if (cards.length === 0) return { error: 'no cards found in that file' }
 
   const deck = deckNameFor(source)
-  ankiPending = { source, deck, cards }
+  ankiPending = { source, deck, cards, media: ankiMedia }
   return {
     source,
     deck,
@@ -660,6 +663,7 @@ ipcMain.handle('srs:anki-pick', async () => {
     notes: srs.chunkCards(cards, ANKI_CHUNK).length,
     perNote: ANKI_CHUNK,
     withMedia,
+    mediaFiles: Object.keys(ankiMedia).length,
   }
 })
 
@@ -667,19 +671,24 @@ ipcMain.handle('srs:anki-pick', async () => {
  *  the user's own language. */
 ipcMain.handle('srs:anki-write', async (_, vaultPath: string, source: string, deckName?: string) => {
   if (!ankiPending || ankiPending.source !== source) return { error: 'nothing to import' }
-  const cards = ankiPending.cards
   const deck = (deckName ?? ankiPending.deck).trim() || ankiPending.deck
+
+  // Media lives in `_attachments/`, the same folder pasted images already use
+  const wanted = srs.collectMediaRefs(ankiPending.cards)
+  const written = extractMedia(source, ankiPending.media, path.join(vaultPath, '_attachments'), wanted)
+  const cards = srs.rewriteMediaRefs(ankiPending.cards, written, '_attachments/')
+  const mediaCopied = Object.keys(written).length
   ankiPending = null
 
   const chunks = srs.chunkCards(cards, ANKI_CHUNK)
 
-  const written: string[] = []
+  const notesWritten: string[] = []
   if (chunks.length === 1) {
     let target = path.join(vaultPath, `${deck}.md`)
     let i = 2
     while (fs.existsSync(target)) { target = path.join(vaultPath, `${deck} ${i}.md`); i++ }
     await fsp.writeFile(target, srs.ankiToMarkdown(path.basename(target, '.md'), chunks[0]), 'utf-8')
-    written.push(target)
+    notesWritten.push(target)
   } else {
     let dir = path.join(vaultPath, deck)
     let i = 2
@@ -689,10 +698,10 @@ ipcMain.handle('srs:anki-write', async (_, vaultPath: string, source: string, de
       const name = `${deck} ${c + 1}`
       const target = path.join(dir, `${name}.md`)
       await fsp.writeFile(target, srs.ankiToMarkdown(name, chunks[c]), 'utf-8')
-      written.push(target)
+      notesWritten.push(target)
     }
   }
-  return { path: written[0], count: cards.length, notes: written.length }
+  return { path: notesWritten[0], count: cards.length, notes: notesWritten.length, mediaCopied }
 })
 
 // ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────

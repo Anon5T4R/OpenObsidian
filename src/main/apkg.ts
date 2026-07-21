@@ -18,6 +18,26 @@ const FIELD_SEP = String.fromCharCode(0x1f)
 export interface ApkgResult {
   cards: AnkiCard[]
   withMedia: number
+  /** Media files found in the package: original name → entry name in the ZIP */
+  media: Record<string, string>
+}
+
+/**
+ * Inside an .apkg the media files are named `0`, `1`, `2`… and a `media` entry
+ * maps those numbers to the real file names.
+ */
+export function parseMediaMap(raw: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: Record<string, string> = {}
+    for (const [entry, name] of Object.entries(parsed)) {
+      if (typeof name === 'string' && name.trim()) out[name] = entry
+    }
+    return out
+  } catch {
+    return {}
+  }
 }
 
 /**
@@ -25,15 +45,15 @@ export interface ApkgResult {
  * Pure, so the mapping is testable without a database: `flds` is the raw
  * field blob and `tags` the raw space-separated string.
  */
-export function noteRowToCard(flds: string, tags: string): AnkiCard | null {
+export function noteRowToCard(flds: string, tags: string, keepMedia = false): AnkiCard | null {
   const fields = flds.split(FIELD_SEP)
   if (fields.length === 0) return null
 
   // Cloze is detected from the text, not from the note type: the note type
   // lives in a different table whose format changed between Anki versions
   const cloze = /\{\{c\d+::/.test(fields[0])
-  const q = ankiFieldToMarkdown(fields[0])
-  const a = ankiFieldToMarkdown(fields.slice(1).join(' '))
+  const q = ankiFieldToMarkdown(fields[0], keepMedia)
+  const a = ankiFieldToMarkdown(fields.slice(1).join(' '), keepMedia)
   if (!q || (!a && !cloze)) return null
 
   const tagList = tags.trim().split(/\s+/).filter(Boolean)
@@ -85,10 +105,14 @@ function loadSql(): Promise<initSqlJs.SqlJsStatic> {
   return started
 }
 
-export async function readApkg(filePath: string): Promise<ApkgResult | { error: string }> {
+export async function readApkg(filePath: string, keepMedia = false): Promise<ApkgResult | { error: string }> {
   let data: Buffer | null
+  let media: Record<string, string> = {}
   try {
-    data = findCollection(new AdmZip(filePath))
+    const zip = new AdmZip(filePath)
+    data = findCollection(zip)
+    const mediaEntry = zip.getEntry('media')
+    if (mediaEntry) media = parseMediaMap(mediaEntry.getData().toString('utf-8'))
   } catch (e) {
     return { error: `could not open the .apkg: ${String(e)}` }
   }
@@ -110,7 +134,7 @@ export async function readApkg(filePath: string): Promise<ApkgResult | { error: 
       const [flds, tags] = stmt.get() as [string, string]
       if (typeof flds !== 'string') continue
       if (MEDIA_RE.test(flds)) withMedia++
-      const card = noteRowToCard(flds, typeof tags === 'string' ? tags : '')
+      const card = noteRowToCard(flds, typeof tags === 'string' ? tags : '', keepMedia)
       if (card) cards.push(card)
     }
     stmt.free()
@@ -120,7 +144,53 @@ export async function readApkg(filePath: string): Promise<ApkgResult | { error: 
     db.close()
   }
 
-  return { cards, withMedia }
+  return { cards, withMedia, media }
+}
+
+/**
+ * Copies the media referenced by the deck into `destDir`, returning the names
+ * actually written. A name already taken gets a suffix rather than being
+ * overwritten — `_attachments/` is shared with the rest of the vault.
+ */
+export function extractMedia(
+  apkgPath: string,
+  media: Record<string, string>,
+  destDir: string,
+  wanted: Set<string>,
+): Record<string, string> {
+  const written: Record<string, string> = {}
+  if (Object.keys(media).length === 0 || wanted.size === 0) return written
+
+  let zip: AdmZip
+  try { zip = new AdmZip(apkgPath) } catch { return written }
+  fs.mkdirSync(destDir, { recursive: true })
+
+  for (const [name, entryName] of Object.entries(media)) {
+    if (!wanted.has(name)) continue
+    const entry = zip.getEntry(entryName)
+    if (!entry) continue
+    let data: Buffer
+    try { data = entry.getData() } catch { continue }
+
+    const finalName = sanitiseFileName(name)
+    let target = path.join(destDir, finalName)
+    let i = 2
+    while (fs.existsSync(target)) {
+      const ext = path.extname(finalName)
+      target = path.join(destDir, `${path.basename(finalName, ext)} ${i}${ext}`)
+      i++
+    }
+    try {
+      fs.writeFileSync(target, data)
+      written[name] = path.basename(target)
+    } catch { /* one unreadable file must not abort the import */ }
+  }
+  return written
+}
+
+function sanitiseFileName(name: string): string {
+  // Windows forbids these, and a leading dot would hide the file
+  return name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\.+/, '').trim() || 'media'
 }
 
 /** True when the path looks like an Anki package rather than a text export. */

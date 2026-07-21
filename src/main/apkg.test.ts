@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { noteRowToCard, isApkg, deckNameFor, findCollection } from './apkg'
+import { noteRowToCard, isApkg, deckNameFor, findCollection, parseMediaMap } from './apkg'
 
 // Anki joins a note's fields with the unit separator
 const F = (...fields: string[]) => fields.join(String.fromCharCode(0x1f))
@@ -87,5 +87,18 @@ describe('isApkg / deckNameFor', () => {
   it('names the deck after the file', () => {
     expect(deckNameFor('C:/x/Biologia Geral.apkg')).toBe('Biologia Geral')
     expect(deckNameFor('C:/x/export.txt')).toBe('export')
+  })
+})
+
+describe('parseMediaMap', () => {
+  it('inverts the entry → real name map Anki ships', () => {
+    expect(parseMediaMap('{"0":"foto.jpg","1":"som.mp3"}'))
+      .toEqual({ 'foto.jpg': '0', 'som.mp3': '1' })
+  })
+
+  it('survives a package without a usable media entry', () => {
+    expect(parseMediaMap('')).toEqual({})
+    expect(parseMediaMap('[]')).toEqual({})
+    expect(parseMediaMap('{"0":123,"1":"  "}')).toEqual({})
   })
 })

@@ -42,6 +42,8 @@ export interface AnkiPreview {
   notes: number
   perNote: number
   withMedia: number
+  /** Media files inside the package; 0 for a text export, which carries none */
+  mediaFiles: number
 }
 
 export interface SrsReport extends SrsStats {
@@ -162,7 +164,7 @@ const api = {
     ipcRenderer.invoke('srs:export-anki', cards),
   srsAnkiPick: (): Promise<AnkiPreview | { error: string } | null> =>
     ipcRenderer.invoke('srs:anki-pick'),
-  srsAnkiWrite: (vault: string, source: string, deck?: string): Promise<{ path?: string; count?: number; notes?: number; error?: string }> =>
+  srsAnkiWrite: (vault: string, source: string, deck?: string): Promise<{ path?: string; count?: number; notes?: number; mediaCopied?: number; error?: string }> =>
     ipcRenderer.invoke('srs:anki-write', vault, source, deck),
 
   // Shell

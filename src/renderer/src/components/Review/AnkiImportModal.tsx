@@ -59,9 +59,15 @@ export default function AnkiImportModal({ preview, onConfirm, onCancel }: AnkiIm
           </div>
 
           {preview.withMedia > 0 && (
-            <div className="anki-warn">
-              ⚠️ {t('ankiMedia', { count: preview.withMedia })}
-            </div>
+            preview.mediaFiles > 0 ? (
+              <div className="anki-detail">
+                🖼️ {t('ankiMediaCopied', { count: preview.withMedia, files: preview.mediaFiles })}
+              </div>
+            ) : (
+              <div className="anki-warn">
+                ⚠️ {t('ankiMedia', { count: preview.withMedia })}
+              </div>
+            )
           )}
         </div>
 

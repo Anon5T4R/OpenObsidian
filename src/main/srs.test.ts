@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   newCard, grade, isDue, dueCards, stats, syncFile, todayISO, addDays,
   report, toAnkiText, fromAnkiText, ankiToMarkdown, ankiFieldToMarkdown, chunkCards,
+  collectMediaRefs, rewriteMediaRefs,
   CardState, SrsFile,
 } from './srs'
 
@@ -201,6 +202,11 @@ describe('Anki text exchange', () => {
     expect(ankiFieldToMarkdown('Veja <img src="p.jpg"> aqui [sound:a.mp3]')).toBe('Veja aqui')
   })
 
+  it('keeps media as Markdown when the package carries the files', () => {
+    expect(ankiFieldToMarkdown('Veja <img src="p.jpg"> aqui [sound:a.mp3]', true))
+      .toBe('Veja ![](p.jpg) aqui [a.mp3](a.mp3)')
+  })
+
   it('counts the cards whose media could not come along', () => {
     const { withMedia } = fromAnkiText('P1\t<img src="a.jpg">\nP2\tR2')
     expect(withMedia).toBe(1)
@@ -337,5 +343,32 @@ describe('syncFile', () => {
   it('does not mutate the schedule it was given', () => {
     syncFile(base, 'Sepse.md', [], NOW)
     expect(base.cards.keep).toBeDefined()
+  })
+})
+
+describe('collectMediaRefs / rewriteMediaRefs', () => {
+  const cards = [
+    { q: 'Veja ![](p.jpg)', a: 'Ouça [a.mp3](a.mp3)', tags: [] },
+    { q: 'Externo ![](https://x.com/a.png)', a: 'Já no vault ![](_attachments/b.png)', tags: [] },
+  ]
+
+  it('collects only the names that came from the package', () => {
+    expect([...collectMediaRefs(cards)].sort()).toEqual(['a.mp3', 'p.jpg'])
+  })
+
+  it('points the references at the files actually written', () => {
+    const out = rewriteMediaRefs(cards, { 'p.jpg': 'p 2.jpg' }, '_attachments/')
+    // The space has to be escaped or Markdown stops seeing an image
+    expect(out[0].q).toBe('Veja ![](_attachments/p%202.jpg)')
+    // A file that was not written keeps its reference untouched
+    expect(out[0].a).toBe('Ouça [a.mp3](a.mp3)')
+    // Nothing else is disturbed
+    expect(out[1].a).toBe('Já no vault ![](_attachments/b.png)')
+  })
+
+  it('does not let a short name eat the start of a longer one', () => {
+    const two = [{ q: '![](f.png) ![](f.png.png)', a: '', tags: [] }]
+    const out = rewriteMediaRefs(two, { 'f.png': 'f.png', 'f.png.png': 'f.png.png' }, 'm/')
+    expect(out[0].q).toBe('![](m/f.png) ![](m/f.png.png)')
   })
 })

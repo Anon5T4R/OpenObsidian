@@ -31,6 +31,7 @@ import AnkiImportModal from './components/Review/AnkiImportModal'
 import CalendarPopover from './components/Calendar/CalendarPopover'
 import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
 import { parseQueryBlock, runQuery, isEmptySpec, QueryNote } from './utils/noteQuery'
+import { buildMtimeMap } from './utils/mtimeMap'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -252,12 +253,16 @@ export default function App() {
         else byName.set(key, [tag])
       }
     }
+    // mtime lives on the tree, not on NoteFile — without it `sort: modificado`
+    // silently did nothing, which is worse than refusing the sort
+    const mtimes = buildMtimeMap(store.tree)
     return store.files.map((file) => ({
       file,
       tags: byName.get(file.name.toLowerCase()) ?? [],
       frontmatter: store.frontmatter[file.path] ?? null,
+      mtime: mtimes[file.path],
     }))
-  }, [store.files, store.tags, store.frontmatter])
+  }, [store.files, store.tree, store.tags, store.frontmatter])
 
   const runNoteQuery = useCallback((source: string) => {
     const spec = parseQueryBlock(source)
@@ -392,7 +397,11 @@ export default function App() {
     if (!preview || !store.vaultPath) return
     const r = await window.api.srsAnkiWrite(store.vaultPath, preview.source, deckName)
     if (r.error) { notify(r.error); return }
-    notify(t('reviewImported', { count: r.count ?? 0, notes: r.notes ?? 1 }))
+    notify(
+      r.mediaCopied
+        ? t('reviewImportedMedia', { count: r.count ?? 0, notes: r.notes ?? 1, media: r.mediaCopied })
+        : t('reviewImported', { count: r.count ?? 0, notes: r.notes ?? 1 }),
+    )
   }, [ankiPreview, store.vaultPath, notify, t])
 
   // One entry point for everything flashcard-related, instead of the review
