@@ -376,19 +376,58 @@ export default function App() {
         useVaultStore.getState().setTree(tree)
       }, 150)
     }
-    const u1 = window.api.onFileAdded(reload)
-    const u2 = window.api.onFileRemoved((p) => { useVaultStore.getState().removeFile(p); reload() })
+    // A note changed outside the app (another editor, a sync client, a plugin)
+    // must not leave a stale copy behind: search, backlinks and tags all read
+    // from this cache
+    let staleTimer: ReturnType<typeof setTimeout> | null = null
+    const stale = new Set<string>()
+    const refreshStale = () => {
+      if (staleTimer) clearTimeout(staleTimer)
+      staleTimer = setTimeout(async () => {
+        const paths = [...stale]
+        stale.clear()
+        for (const p of paths) {
+          try { contentCacheRef.current[p] = await window.api.readFile(p) }
+          catch { delete contentCacheRef.current[p] }
+        }
+        const s = useVaultStore.getState()
+        s.buildBacklinks(s.files, contentCacheRef.current)
+      }, 400)
+    }
+
+    const u1 = window.api.onFileAdded((p) => {
+      reload()
+      if (!isDocumentFile(p)) { stale.add(p); refreshStale() }
+    })
+    const u2 = window.api.onFileRemoved((p) => {
+      useVaultStore.getState().removeFile(p)
+      delete contentCacheRef.current[p]
+      reload()
+    })
     const u3 = window.api.onDirAdded(reload)
     const u4 = window.api.onDirRemoved(reload)
+
     const u5 = window.api.onFileChanged(async (p) => {
+      if (isDocumentFile(p)) return
       const s = useVaultStore.getState()
-      if (s.activeFile?.path === p && !s.isDirty && !isDocumentFile(p)) {
+      if (s.activeFile?.path === p) {
+        // The open note wins: never clobber what the user is typing
+        if (s.isDirty) return
         const content = await window.api.readFile(p)
         contentCacheRef.current[p] = content
         s.setActiveContent(content)
+        return
       }
+      // Drop it now so nothing reads the old text, then re-read in a batch
+      delete contentCacheRef.current[p]
+      stale.add(p)
+      refreshStale()
     })
-    return () => { u1(); u2(); u3(); u4(); u5(); if (reloadTimer) clearTimeout(reloadTimer) }
+    return () => {
+      u1(); u2(); u3(); u4(); u5()
+      if (reloadTimer) clearTimeout(reloadTimer)
+      if (staleTimer) clearTimeout(staleTimer)
+    }
   }, [store.vaultPath])
 
   // ── Native menu events ────────────────────────────────────────────────────
