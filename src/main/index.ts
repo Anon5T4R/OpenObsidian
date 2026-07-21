@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
 import mammoth from 'mammoth'
+import { rewriteLinks, countRefs } from './link-rewrite'
 
 const fsp = fs.promises
 
@@ -272,7 +273,81 @@ ipcMain.handle('file:rename', async (_, oldPath: string, newName: string) => {
   const finalName = hasExt ? newName : `${newName}${ext}`
   const newPath = path.join(dir, finalName)
   await fsp.rename(oldPath, newPath)
+  // Move the index entry along with the file so the cache does not keep a
+  // ghost under the old path (link scans read from it)
+  const idx = [...indexCache.values()].find((i) => i.entries[oldPath])
+  if (idx) {
+    idx.entries[newPath] = idx.entries[oldPath]
+    delete idx.entries[oldPath]
+    idx.savedAt = Date.now()
+    scheduleIndexFlush(idx.vaultPath)
+  }
   return newPath
+})
+
+// ── Link maintenance (rename keeps [[links]] alive) ────────────────────────
+
+// Every markdown note of the vault as { path, content }, preferring the
+// in-memory index so a rename does not re-read hundreds of files from disk.
+async function readAllNotes(vaultPath: string): Promise<{ path: string; content: string }[]> {
+  const idx = await getVaultIndex(vaultPath)
+  const notes: { path: string; content: string }[] = []
+  async function walk(dir: string) {
+    let entries: fs.Dirent[]
+    try { entries = await fsp.readdir(dir, { withFileTypes: true }) } catch { return }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) { await walk(full); continue }
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+      const cached = idx?.entries?.[full]
+      let content = cached?.content
+      if (content === undefined) {
+        try { content = await fsp.readFile(full, 'utf-8') } catch { continue }
+      } else {
+        // Trust the cache only while the file has not changed underneath it
+        try {
+          const mtime = (await fsp.stat(full)).mtimeMs
+          if (mtime !== cached?.mtime) content = await fsp.readFile(full, 'utf-8')
+        } catch { /* keep the cached copy */ }
+      }
+      notes.push({ path: full, content })
+    }
+  }
+  await walk(vaultPath)
+  return notes
+}
+
+ipcMain.handle('link:find-refs', async (_, vaultPath: string, noteName: string) => {
+  const notes = await readAllNotes(vaultPath)
+  const paths: string[] = []
+  let links = 0
+  for (const note of notes) {
+    const n = countRefs(note.content, noteName)
+    if (n > 0) { paths.push(note.path); links += n }
+  }
+  return { files: paths.length, links, paths }
+})
+
+ipcMain.handle('link:update-refs', async (_, vaultPath: string, oldName: string, newName: string) => {
+  const notes = await readAllNotes(vaultPath)
+  const changed: string[] = []
+  let links = 0
+  const idx = await getVaultIndex(vaultPath)
+  for (const note of notes) {
+    const { content, count } = rewriteLinks(note.content, oldName, newName)
+    if (count === 0) continue
+    await fsp.writeFile(note.path, content, 'utf-8')
+    changed.push(note.path)
+    links += count
+    if (idx) {
+      let mtime = Date.now()
+      try { mtime = (await fsp.stat(note.path)).mtimeMs } catch { /* keep fallback */ }
+      idx.entries[note.path] = { mtime, content }
+    }
+  }
+  if (idx && changed.length > 0) { idx.savedAt = Date.now(); scheduleIndexFlush(vaultPath) }
+  return { files: changed.length, links, changed }
 })
 
 ipcMain.handle('file:duplicate', async (_, filePath: string) => {

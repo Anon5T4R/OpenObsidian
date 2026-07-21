@@ -76,6 +76,12 @@ export const en = {
   ctxDeleteBtn:    'Delete',
   ctxCancelBtn:    'Cancel',
 
+  // Rename → update links
+  renameLinksTitle:  'Update links?',
+  renameLinksMsg:    '{links} links in {files} notes point to "{old}".',
+  renameLinksUpdate: 'Rename and update links',
+  renameLinksSkip:   'Rename only',
+
   // Backlinks panel
   backlinks:   'Backlinks',
   noFileOpen:  'No file open',
@@ -127,6 +133,7 @@ export const en = {
   toastOpeningExisting:  'Opening existing note: {name}',
   toastOpenError:        'Could not open: {err}',
   toastConversionFailed: 'Conversion failed: {err}',
+  toastLinksUpdated:     '{links} links updated in {files} notes',
 
   // Daily note template content
   dailyAnnotations: '## Notes',
@@ -613,6 +620,11 @@ const ptBR: typeof en = {
   ctxDeleteBtn:    'Excluir',
   ctxCancelBtn:    'Cancelar',
 
+  renameLinksTitle:  'Atualizar os links?',
+  renameLinksMsg:    '{links} links em {files} notas apontam para "{old}".',
+  renameLinksUpdate: 'Renomear e atualizar links',
+  renameLinksSkip:   'Só renomear',
+
   backlinks:   'Backlinks',
   noFileOpen:  'Nenhum arquivo aberto',
   noBacklinks: 'Nenhuma nota aponta aqui',
@@ -657,6 +669,7 @@ const ptBR: typeof en = {
   toastOpeningExisting:  'Abrindo nota existente: {name}',
   toastOpenError:        'Não foi possível abrir: {err}',
   toastConversionFailed: 'Falha na conversão: {err}',
+  toastLinksUpdated:     '{links} links atualizados em {files} notas',
 
   dailyAnnotations: '## Anotações',
   dailyTasks:       '## Tarefas',
@@ -1137,6 +1150,11 @@ const esLatam: typeof en = {
   ctxDeleteBtn:    'Eliminar',
   ctxCancelBtn:    'Cancelar',
 
+  renameLinksTitle:  '¿Actualizar los enlaces?',
+  renameLinksMsg:    '{links} enlaces en {files} notas apuntan a "{old}".',
+  renameLinksUpdate: 'Renombrar y actualizar enlaces',
+  renameLinksSkip:   'Solo renombrar',
+
   backlinks:   'Backlinks',
   noFileOpen:  'Ningún archivo abierto',
   noBacklinks: 'Ninguna nota apunta aquí',
@@ -1181,6 +1199,7 @@ const esLatam: typeof en = {
   toastOpeningExisting:  'Abriendo nota existente: {name}',
   toastOpenError:        'No se pudo abrir: {err}',
   toastConversionFailed: 'Error en la conversión: {err}',
+  toastLinksUpdated:     '{links} enlaces actualizados en {files} notas',
 
   dailyAnnotations: '## Anotaciones',
   dailyTasks:       '## Tareas',

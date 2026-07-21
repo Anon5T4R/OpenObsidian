@@ -146,6 +146,28 @@ export default function App() {
     if (file) await handleFileSelect(file)
   }, [store.files, handleFileSelect])
 
+  // A rename (and the link rewrite that follows) changed files on disk behind
+  // the content cache — refresh the touched entries and rebuild the indexes
+  const handleFilesRewritten = useCallback(async (
+    changedPaths: string[], oldPath: string, newPath: string,
+  ) => {
+    const cache = contentCacheRef.current
+    if (oldPath !== newPath && cache[oldPath] !== undefined) {
+      cache[newPath] = cache[oldPath]
+      delete cache[oldPath]
+    }
+    for (const p of changedPaths) {
+      try { cache[p] = await window.api.readFile(p) } catch { delete cache[p] }
+    }
+    const s = useVaultStore.getState()
+    if (s.activeFile?.path === oldPath) {
+      const renamed = s.files.find((f) => f.path === newPath)
+      if (renamed) s.setActiveFile(renamed)
+      s.setActiveContent(cache[newPath] ?? s.activeContent)
+    }
+    s.buildBacklinks(s.files, cache)
+  }, [])
+
   const handleFileDeleted = useCallback((path: string) => {
     if (store.activeFile?.path === path) {
       store.setActiveFile(null)
@@ -365,6 +387,7 @@ export default function App() {
           onOpenVault={handleOpenVault}
           onNotify={notify}
           onFileDeleted={handleFileDeleted}
+          onFilesRewritten={handleFilesRewritten}
         />
         {!sidebarCollapsed && <BacklinksPanel onFileSelect={handleFileSelectByName} />}
       </aside>

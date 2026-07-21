@@ -64,6 +64,12 @@ const api = {
   renameFile:    (old: string, n: string): Promise<string> => ipcRenderer.invoke('file:rename', old, n),
   duplicateFile: (p: string): Promise<{ path?: string; error?: string }> => ipcRenderer.invoke('file:duplicate', p),
 
+  // Links (rename keeps [[links]] alive)
+  findLinkRefs: (vault: string, noteName: string): Promise<{ files: number; links: number; paths: string[] }> =>
+    ipcRenderer.invoke('link:find-refs', vault, noteName),
+  updateLinkRefs: (vault: string, oldName: string, newName: string): Promise<{ files: number; links: number; changed: string[] }> =>
+    ipcRenderer.invoke('link:update-refs', vault, oldName, newName),
+
   // Folders
   createFolder: (parent: string, name: string): Promise<{ path?: string; error?: string }> =>
     ipcRenderer.invoke('folder:create', parent, name),

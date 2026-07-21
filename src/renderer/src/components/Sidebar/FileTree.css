@@ -107,6 +107,46 @@
   outline: none;
 }
 
+/* Rename → update links confirmation */
+.link-confirm {
+  margin: 4px 8px 6px;
+  padding: 8px;
+  background: var(--bg-floating);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+.link-confirm-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.link-confirm-msg {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 7px;
+  word-break: break-word;
+}
+.link-confirm-btns { display: flex; flex-direction: column; gap: 4px; }
+.link-confirm-btns button {
+  font-size: 12px;
+  padding: 4px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.link-confirm-btns button:hover { background: var(--hover); }
+.link-confirm-btns button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.link-confirm-btns button.primary:hover { background: var(--accent-hover); }
+
 .file-tree-list {
   flex: 1;
   overflow-y: auto;

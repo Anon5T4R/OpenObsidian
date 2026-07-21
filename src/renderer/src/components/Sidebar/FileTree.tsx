@@ -16,6 +16,7 @@ interface FileTreeProps {
   onOpenVault: () => void
   onNotify: (msg: string) => void
   onFileDeleted: (path: string) => void
+  onFilesRewritten: (changedPaths: string[], oldPath: string, newPath: string) => void
 }
 
 type CtxMenu = { x: number; y: number; node: TreeNode }
@@ -184,7 +185,7 @@ function flatHasMatch(node: TreeNode, query: string): boolean {
 // keystroke (activeContent changes), only when tree/selection state changes
 function FileTree({
   collapsed, sort, onSortChange, onFileSelect, onNewNote, onNewFolder,
-  onToggleCollapse, onOpenVault, onNotify, onFileDeleted
+  onToggleCollapse, onOpenVault, onNotify, onFileDeleted, onFilesRewritten
 }: FileTreeProps) {
   const tree        = useVaultStore((s) => s.tree)
   const files       = useVaultStore((s) => s.files)
@@ -214,17 +215,9 @@ function FileTree({
   // ── Inline rename ──────────────────────────────────────────────────────────
   type RenamingState = { path: string; type: 'file' | 'directory'; originalName: string; newName: string }
   const [renaming, setRenaming] = useState<RenamingState | null>(null)
-
-  const commitRename = useCallback(async () => {
-    if (!renaming) return
-    const name = renaming.newName.trim()
-    if (name && name !== renaming.originalName) {
-      if (renaming.type === 'file') await window.api.renameFile(renaming.path, name)
-      else await window.api.renameFolder(renaming.path, name)
-      await refreshTree()
-    }
-    setRenaming(null)
-  }, [renaming]) // refreshTree added below after definition
+  // Pending "this note is linked from N notes — update them?" confirmation
+  type LinkConfirm = { path: string; oldName: string; newName: string; files: number; links: number }
+  const [linkConfirm, setLinkConfirm] = useState<LinkConfirm | null>(null)
 
   // ── Inline delete confirmation ────────────────────────────────────────────
   const [confirmDelete, setConfirmDelete] = useState<TreeNode | null>(null)
@@ -238,6 +231,49 @@ function FileTree({
     const newTree = await window.api.listTree(vaultPath)
     useVaultStore.getState().setTree(newTree)
   }, [vaultPath])
+
+  // Renames the file and, when asked, rewrites every [[link]] that pointed to it
+  const applyRename = useCallback(async (
+    oldPath: string, oldName: string, newName: string, updateLinks: boolean,
+  ) => {
+    const newPath = await window.api.renameFile(oldPath, newName)
+    let changed: string[] = []
+    if (updateLinks && vaultPath) {
+      const r = await window.api.updateLinkRefs(vaultPath, oldName, newName)
+      changed = r.changed
+      if (r.links > 0) onNotify(t('toastLinksUpdated', { links: r.links, files: r.files }))
+    }
+    await refreshTree()
+    onFilesRewritten(changed, oldPath, newPath)
+  }, [vaultPath, refreshTree, onNotify, onFilesRewritten, t])
+
+  const commitRename = useCallback(async () => {
+    if (!renaming) return
+    const name = renaming.newName.trim()
+    setRenaming(null)
+    if (!name || name === renaming.originalName) return
+
+    if (renaming.type === 'directory') {
+      await window.api.renameFolder(renaming.path, name)
+      await refreshTree()
+      return
+    }
+    // Only markdown notes are wikilink targets — binaries rename straight away
+    if (!renaming.path.endsWith('.md') || !vaultPath) {
+      await applyRename(renaming.path, renaming.originalName, name, false)
+      return
+    }
+    const refs = await window.api.findLinkRefs(vaultPath, renaming.originalName)
+    if (refs.links === 0) {
+      await applyRename(renaming.path, renaming.originalName, name, false)
+      return
+    }
+    // Links would break silently — ask before touching other notes
+    setLinkConfirm({
+      path: renaming.path, oldName: renaming.originalName, newName: name,
+      files: refs.files, links: refs.links,
+    })
+  }, [renaming, vaultPath, refreshTree, applyRename])
 
   // ── Drag & drop ────────────────────────────────────────────────────────────
   const parentDir = (p: string) => p.replace(/\\/g, '/').split('/').slice(0, -1).join('/')
@@ -369,6 +405,34 @@ function FileTree({
             }}
             placeholder={t('folderNamePlaceholder')}
           />
+        </div>
+      )}
+
+      {/* Rename → update links confirmation (inline; window.confirm steals focus) */}
+      {!collapsed && linkConfirm && (
+        <div className="link-confirm" onClick={(e) => e.stopPropagation()}>
+          <div className="link-confirm-title">{t('renameLinksTitle')}</div>
+          <div className="link-confirm-msg">
+            {t('renameLinksMsg', { links: linkConfirm.links, files: linkConfirm.files, old: linkConfirm.oldName })}
+          </div>
+          <div className="link-confirm-btns">
+            <button
+              className="primary"
+              onClick={async () => {
+                const c = linkConfirm
+                setLinkConfirm(null)
+                await applyRename(c.path, c.oldName, c.newName, true)
+              }}
+            >{t('renameLinksUpdate')}</button>
+            <button
+              onClick={async () => {
+                const c = linkConfirm
+                setLinkConfirm(null)
+                await applyRename(c.path, c.oldName, c.newName, false)
+              }}
+            >{t('renameLinksSkip')}</button>
+            <button onClick={() => setLinkConfirm(null)}>{t('ctxCancelBtn')}</button>
+          </div>
         </div>
       )}
 
