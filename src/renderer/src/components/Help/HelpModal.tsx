@@ -160,6 +160,40 @@ function FeaturesTab() {
         </div>
       </Section>
 
+      <Section title={t('hlpSecOwnTpl')}>
+        <p className="help-para">
+          {t('hlpOwnTplPre')} <code>_templates/</code> {t('hlpOwnTplPost')}
+        </p>
+        <ul className="help-list">
+          <li><code>{'{{title}}'}</code> — {t('hlpOwnTplTitle')}</li>
+          <li><code>{'{{date}}'}</code> · <code>{'{{time}}'}</code> · <code>{'{{datetime}}'}</code> — {t('hlpOwnTplDate')}</li>
+          <li><code>{'{{date:DD/MM/YYYY}}'}</code> — {t('hlpOwnTplFmt')}</li>
+        </ul>
+      </Section>
+
+      <Section title={t('hlpSecAliases')}>
+        <p className="help-para">{t('hlpAliasesIntro')}</p>
+        <pre className="help-code-block">{'---\naliases:\n  - IAM\n  - infarto\n---'}</pre>
+        <ul className="help-list">
+          <li>{t('hlpAliasesLink')}</li>
+          <li>{t('hlpAliasesComplete')}</li>
+          <li>{t('hlpAliasesSearch')}</li>
+          <li>{t('hlpAliasesWins')}</li>
+        </ul>
+      </Section>
+
+      <Section title={t('hlpSecDiag')}>
+        <p className="help-para">
+          {t('hlpDiagPre')} <kbd>Ctrl+P</kbd> {t('hlpDiagPost')}
+        </p>
+        <ul className="help-list">
+          <li><strong>{t('diagBroken')}</strong> — {t('hlpDiagBroken')}</li>
+          <li><strong>{t('diagOrphans')}</strong> — {t('hlpDiagOrphans')}</li>
+          <li><strong>{t('diagCollisions')}</strong> — {t('hlpDiagCollisions')}</li>
+        </ul>
+        <div className="help-tip">{t('hlpDiagRandom')}</div>
+      </Section>
+
       <Section title={t('hlpSecTags')}>
         <p className="help-para">
           {t('hlpTagsPre')} <code>#tag</code> {t('hlpTagsPost')}
@@ -338,6 +372,11 @@ function MarkdownTab() {
         <div className="help-tip" style={{ marginTop: 10 }}>
           {t('hlpMdWikiTipPre')} <kbd>[[</kbd> {t('hlpMdWikiTipMid')} <kbd>↑</kbd><kbd>↓</kbd> {t('hlpMdWikiTipPost')} <kbd>Enter</kbd> {t('hlpMdWikiTipEnd')}
         </div>
+      </Section>
+
+      <Section title={t('hlpMdComment')}>
+        <Row syntax="%%private note%%" result={<span style={{ color: 'var(--text-muted)' }}>{t('hlpMdCommentResult')}</span>} />
+        <div className="help-tip" style={{ marginTop: 10 }}>{t('hlpMdCommentTip')}</div>
       </Section>
 
       <Section title={t('hlpMdSlash')}>
