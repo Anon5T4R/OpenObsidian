@@ -124,6 +124,10 @@ export const en = {
 
   ttReview:        'Review flashcards',
   ttReviewDue:     '{count} cards due',
+  reviewRepeat:       'Go through the {count} again',
+  reviewAhead:        'Review ahead (next 7 days)',
+  reviewPractice:     'practice',
+  reviewPracticeNote: 'Practice round: nothing here changes the schedule.',
   reviewSuspend:      'Suspend',
   reviewSuspendTip:   'Park this card: it stops coming up until you bring it back',
   reviewStatsTitle:   'Review statistics',
@@ -794,6 +798,10 @@ const ptBR: typeof en = {
 
   ttReview:        'Revisar flashcards',
   ttReviewDue:     '{count} cartões a revisar',
+  reviewRepeat:       'Rever os {count} de novo',
+  reviewAhead:        'Adiantar revisão (próximos 7 dias)',
+  reviewPractice:     'treino',
+  reviewPracticeNote: 'Rodada de treino: nada aqui mexe no agendamento.',
   reviewSuspend:      'Suspender',
   reviewSuspendTip:   'Guarda o cartão: ele para de aparecer até você reativar',
   reviewStatsTitle:   'Estatísticas de revisão',
@@ -1450,6 +1458,10 @@ const esLatam: typeof en = {
 
   ttReview:        'Repasar flashcards',
   ttReviewDue:     '{count} tarjetas por repasar',
+  reviewRepeat:       'Repasar las {count} de nuevo',
+  reviewAhead:        'Adelantar repaso (próximos 7 días)',
+  reviewPractice:     'práctica',
+  reviewPracticeNote: 'Ronda de práctica: nada de aquí cambia la programación.',
   reviewSuspend:      'Suspender',
   reviewSuspendTip:   'Guarda la tarjeta: deja de aparecer hasta que la reactives',
   reviewStatsTitle:   'Estadísticas de repaso',

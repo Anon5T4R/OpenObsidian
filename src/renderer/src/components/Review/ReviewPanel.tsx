@@ -36,6 +36,10 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
   const [revealed, setRevealed] = useState(false)
   const [loading,  setLoading]  = useState(true)
   const [done,     setDone]     = useState(0)
+  // Cards answered in this session, so they can be replayed without touching
+  // the schedule — practice is not the same thing as reviewing
+  const [seen,     setSeen]     = useState<string[]>([])
+  const [practice, setPractice] = useState(false)
   const busy = useRef(false)
 
   // Which notes this deck covers. Cards are keyed by relative path, so this
@@ -66,15 +70,41 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
     if (!vaultPath || !current || busy.current) return
     busy.current = true
     try {
-      await window.api.srsGrade(vaultPath, current.id, g)
+      // In practice mode nothing is graded: the schedule stays as it was
+      if (!practice) await window.api.srsGrade(vaultPath, current.id, g)
       // "again" keeps the card in this session, at the back of the queue
       setQueue((q) => (g === 'again' ? [...q.slice(1), q[0]] : q.slice(1)))
       setRevealed(false)
-      if (g !== 'again') setDone((d) => d + 1)
+      if (g !== 'again') {
+        setDone((d) => d + 1)
+        if (!practice) setSeen((s) => (s.includes(current.id) ? s : [...s, current.id]))
+      }
     } finally {
       busy.current = false
     }
-  }, [vaultPath, current])
+  }, [vaultPath, current, practice])
+
+  // Replays the cards from this session. Grading them again would punish the
+  // schedule for extra study, so this round does not write anything.
+  const repeatSession = useCallback(async () => {
+    if (!vaultPath || seen.length === 0) return
+    const cards = await window.api.srsById(vaultPath, seen)
+    setPractice(true)
+    setQueue(cards)
+    setDone(0)
+    setRevealed(false)
+  }, [vaultPath, seen])
+
+  // Pulls in what is due over the next week, for whoever wants to keep going
+  const reviewAhead = useCallback(async () => {
+    if (!vaultPath) return
+    setLoading(true)
+    const ahead = await window.api.srsDue(vaultPath, deckFiles, 7)
+    setPractice(false)
+    setQueue(ahead.filter((c) => !seen.includes(c.id)))
+    setRevealed(false)
+    setLoading(false)
+  }, [vaultPath, deckFiles, seen])
 
   // Parking a card you cannot answer yet beats failing it over and over
   const suspend = useCallback(async () => {
@@ -136,6 +166,7 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
         <span className="review-title">🃏 {t('reviewTitle')}</span>
         <span className="review-progress">
           {t('reviewProgress', { left: queue.length, done })}
+          {practice && <span className="review-practice-tag">{t('reviewPractice')}</span>}
         </span>
         {current && (
           <button className="review-suspend" onClick={suspend} title={t('reviewSuspendTip')}>
@@ -152,6 +183,17 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
           <div className="review-empty">
             <div className="review-done-icon">✅</div>
             {done > 0 ? t('reviewFinished', { count: done }) : t('reviewNothing')}
+            <div className="review-again-row">
+              {seen.length > 0 && (
+                <button className="review-again-btn" onClick={repeatSession}>
+                  🔁 {t('reviewRepeat', { count: seen.length })}
+                </button>
+              )}
+              <button className="review-again-btn" onClick={reviewAhead}>
+                ⏩ {t('reviewAhead')}
+              </button>
+            </div>
+            {practice && <div className="review-practice-note">{t('reviewPracticeNote')}</div>}
           </div>
         ) : (
           <>

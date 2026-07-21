@@ -561,11 +561,24 @@ ipcMain.handle('srs:sync-all', async (_, vaultPath: string, notes: { file: strin
   return { added, removed, stats: srs.stats(current) }
 })
 
-ipcMain.handle('srs:due', async (_, vaultPath: string, files?: string[]) => {
+ipcMain.handle('srs:due', async (_, vaultPath: string, files?: string[], aheadDays = 0) => {
   const current = await readSrs(vaultPath)
-  const due = srs.dueCards(current)
+  // aheadDays lets the user study before the schedule asks — pretending it is
+  // a few days from now is all "review more" needs
+  const when = aheadDays > 0
+    ? new Date(Date.now() + aheadDays * 86_400_000)
+    : new Date()
+  const due = srs.dueCards(current, when)
   // A deck is a file filter: the renderer knows which notes carry which tags
   return files ? due.filter((d) => files.includes(d.card.file)) : due
+})
+
+// Replays given cards without touching the schedule — practice, not review
+ipcMain.handle('srs:by-id', async (_, vaultPath: string, ids: string[]) => {
+  const current = await readSrs(vaultPath)
+  return ids
+    .filter((id) => current.cards[id])
+    .map((id) => ({ id, card: current.cards[id] }))
 })
 
 ipcMain.handle('srs:grade', async (_, vaultPath: string, id: string, g: srs.Grade) => {

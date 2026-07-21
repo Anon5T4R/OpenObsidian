@@ -248,3 +248,39 @@
   padding: 1px 8px;
   font-size: 11px;
 }
+
+/* End-of-session actions */
+.review-again-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.review-again-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+.review-again-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.review-practice-note {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.review-practice-tag {
+  margin-left: 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+}

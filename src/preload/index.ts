@@ -139,8 +139,10 @@ const api = {
     ipcRenderer.invoke('srs:sync', vault, file, found),
   srsSyncAll: (vault: string, notes: { file: string; cards: { id: string; q: string }[] }[]): Promise<{ added: number; removed: number; stats: SrsStats }> =>
     ipcRenderer.invoke('srs:sync-all', vault, notes),
-  srsDue:    (vault: string, files?: string[]): Promise<{ id: string; card: SrsCard }[]> =>
-    ipcRenderer.invoke('srs:due', vault, files),
+  srsDue:    (vault: string, files?: string[], aheadDays?: number): Promise<{ id: string; card: SrsCard }[]> =>
+    ipcRenderer.invoke('srs:due', vault, files, aheadDays),
+  srsById:   (vault: string, ids: string[]): Promise<{ id: string; card: SrsCard }[]> =>
+    ipcRenderer.invoke('srs:by-id', vault, ids),
   srsGrade:  (vault: string, id: string, grade: SrsGrade): Promise<{ card?: SrsCard; stats?: SrsStats; error?: string }> =>
     ipcRenderer.invoke('srs:grade', vault, id, grade),
   srsSuspend:(vault: string, id: string, suspended: boolean): Promise<{ stats?: SrsStats; error?: string }> =>

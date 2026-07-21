@@ -11,8 +11,11 @@ interface ToolbarRightProps {
   calendarOpen: boolean
   /** Rendered inside the toolbar so the popover can anchor to the button */
   calendar?: React.ReactNode
+  /** Toggles the flashcards menu (review, statistics, Anki) */
   onReview: () => void
-  /** Cards waiting: shown as a dot on the review button */
+  reviewOpen: boolean
+  reviewMenu?: React.ReactNode
+  /** Cards waiting: shown as a badge on the button */
   cardsDue: number
   graphOpen: boolean
   onToggleGraph: () => void
@@ -35,6 +38,8 @@ export function ToolbarRight({
   calendarOpen,
   calendar,
   onReview,
+  reviewOpen,
+  reviewMenu,
   cardsDue,
   graphOpen,
   onToggleGraph,
@@ -59,15 +64,18 @@ export function ToolbarRight({
         </button>
         {calendarOpen && calendar}
       </div>
-      <button
-        className={`toolbar-icon-btn ${cardsDue > 0 ? 'has-badge' : ''}`}
-        onClick={onReview}
-        title={cardsDue > 0 ? t('ttReviewDue', { count: cardsDue }) : t('ttReview')}
-        aria-label={t('ttReview')}
-      >
-        <Layers size={ICON} />
-        {cardsDue > 0 && <span className="toolbar-badge">{cardsDue > 99 ? '99+' : cardsDue}</span>}
-      </button>
+      <div className="toolbar-export-wrap">
+        <button
+          className={`toolbar-icon-btn ${cardsDue > 0 ? 'has-badge' : ''} ${reviewOpen ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onReview() }}
+          title={cardsDue > 0 ? t('ttReviewDue', { count: cardsDue }) : t('ttReview')}
+          aria-label={t('ttReview')}
+        >
+          <Layers size={ICON} />
+          {cardsDue > 0 && <span className="toolbar-badge">{cardsDue > 99 ? '99+' : cardsDue}</span>}
+        </button>
+        {reviewOpen && reviewMenu}
+      </div>
       {children}
       <button
         className={`toolbar-icon-btn ${graphOpen ? 'active' : ''}`}

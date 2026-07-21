@@ -256,6 +256,65 @@
 /* Anchor for the export dropdown */
 .toolbar-export-wrap {
   position: relative;
+  display: flex;
+}
+
+/* Floating menus hanging off a toolbar button. Shared by export and review so
+   they cannot drift apart visually. */
+.toolbar-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 40;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.34);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toolbar-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 7px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.toolbar-menu button:hover { background: var(--hover); color: var(--accent); }
+
+.toolbar-menu-icon {
+  width: 17px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.toolbar-menu-count {
+  margin-left: auto;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.toolbar-menu hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3px 4px;
 }
 
 /* Generic horizontal button row (welcome / empty screens) */

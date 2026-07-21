@@ -123,6 +123,7 @@ export default function App() {
   const [reviewDeck,       setReviewDeck]       = useState<ReviewDeck | null>(null)
   const [statsOpen,        setStatsOpen]        = useState(false)
   const [calendarOpen,     setCalendarOpen]     = useState(false)
+  const [reviewMenuOpen,   setReviewMenuOpen]   = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -348,6 +349,36 @@ export default function App() {
     notify(t('toastPromptCopied'))
   }, [notify, t, settings.locale])
 
+  // One entry point for everything flashcard-related, instead of the review
+  // panel being the only door and the statistics hiding in the palette
+  const reviewMenu = (
+    <div className="toolbar-menu" onClick={(e) => e.stopPropagation()}>
+      <button onClick={() => { setReviewMenuOpen(false); setReviewDeck({ kind: 'all' }) }}>
+        <span className="toolbar-menu-icon">🃏</span>{t('cmdReview')}
+        {(store.srsStats?.due ?? 0) > 0 && (
+          <span className="toolbar-menu-count">{store.srsStats?.due}</span>
+        )}
+      </button>
+      <button
+        onClick={() => {
+          const active = useVaultStore.getState().activeFile
+          setReviewMenuOpen(false)
+          if (active) setReviewDeck({ kind: 'note', path: active.relativePath })
+        }}
+        disabled={!store.activeFile}
+      >
+        <span className="toolbar-menu-icon">📄</span>{t('cmdReviewNote')}
+      </button>
+      <hr />
+      <button onClick={() => { setReviewMenuOpen(false); setStatsOpen(true) }}>
+        <span className="toolbar-menu-icon">📊</span>{t('cmdReviewStats')}
+      </button>
+      <button onClick={() => { setReviewMenuOpen(false); copyAiPrompt('flashcards') }}>
+        <span className="toolbar-menu-icon">🤖</span>{t('cmdAiFlashcards')}
+      </button>
+    </div>
+  )
+
   const calendarPopover = (
     <CalendarPopover
       onPickDate={(iso) => { setCalendarOpen(false); handleDailyNoteFor(iso) }}
@@ -564,7 +595,7 @@ export default function App() {
   const isDoc   = isPdf || isDocx || isEpub || isOdt
 
   return (
-    <div className="app" onClick={() => setExportMenuOpen(false)}>
+    <div className="app" onClick={() => { setExportMenuOpen(false); setReviewMenuOpen(false) }}>
       {/* Sidebar */}
       <aside className="sidebar" style={{ width: actualSidebarWidth, minWidth: actualSidebarWidth }}>
         <FileTree
@@ -616,7 +647,9 @@ export default function App() {
                 onDailyNote={() => setCalendarOpen((o) => !o)}
                 calendarOpen={calendarOpen}
                 calendar={calendarPopover}
-                onReview={() => setReviewDeck({ kind: 'all' })}
+                onReview={() => setReviewMenuOpen((o) => !o)}
+                reviewOpen={reviewMenuOpen}
+                reviewMenu={reviewMenu}
                 cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}
                 onToggleGraph={() => setGraphOpen((o) => !o)}
@@ -663,7 +696,9 @@ export default function App() {
                 onDailyNote={() => setCalendarOpen((o) => !o)}
                 calendarOpen={calendarOpen}
                 calendar={calendarPopover}
-                onReview={() => setReviewDeck({ kind: 'all' })}
+                onReview={() => setReviewMenuOpen((o) => !o)}
+                reviewOpen={reviewMenuOpen}
+                reviewMenu={reviewMenu}
                 cardsDue={store.srsStats?.due ?? 0}
                 graphOpen={graphOpen}
                 onToggleGraph={() => setGraphOpen((o) => !o)}
@@ -680,9 +715,13 @@ export default function App() {
                   <div className="toolbar-export-wrap">
                     <button className="toolbar-icon-btn" onClick={(e) => { e.stopPropagation(); setExportMenuOpen((o) => !o) }} title={t('ttExport')} aria-label={t('ttExport')}><Download size={17} /></button>
                     {exportMenuOpen && (
-                      <div className="export-dropdown" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={handleExportHTML}>{t('exportHtml')}</button>
-                        <button onClick={handleExportPDF}>{t('exportPdf')}</button>
+                      <div className="toolbar-menu" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={handleExportHTML}>
+                          <span className="toolbar-menu-icon">🌐</span>{t('exportHtml')}
+                        </button>
+                        <button onClick={handleExportPDF}>
+                          <span className="toolbar-menu-icon">📄</span>{t('exportPdf')}
+                        </button>
                       </div>
                     )}
                   </div>
