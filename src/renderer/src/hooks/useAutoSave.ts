@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react'
 import { useVaultStore } from '../store/vaultStore'
 import { extractCards } from '../utils/cards'
 
-export function useAutoSave() {
+export function useAutoSave(onSaveFailed: (path: string) => void) {
   // No `useVaultStore()` here on purpose: subscribing to the whole store would
   // re-run this hook on every change, and it only ever needs the state at the
   // moment of a keystroke
@@ -18,7 +18,14 @@ export function useAutoSave() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       if (!file) return
-      await window.api.writeFile(file.path, value)
+      try {
+        await window.api.writeFile(file.path, value)
+      } catch {
+        // Silence here meant you kept typing into something that was not being
+        // written. The dirty mark stays on, and now it is said out loud.
+        onSaveFailed(file.path)
+        return
+      }
 
       // Everything else has to come from the store as it is *now*: a file list
       // from keystroke time would rebuild the indexes without a note created
@@ -36,7 +43,7 @@ export function useAutoSave() {
           .catch(() => { /* review state is not worth failing a save over */ })
       }
     }, 800)
-  }, [])
+  }, [onSaveFailed])
 
   return { contentCacheRef, handleContentChange }
 }

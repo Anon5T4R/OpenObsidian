@@ -378,6 +378,25 @@ Key variables (defined in `renderer/src/assets/main.css` or similar):
 
 ## Known Limitations / Decisions Made
 
+### Writing to disk
+
+**A note is never written in place.** `writeFileAtomic` (`main/safe-write.ts`)
+stages the content in a hidden `.name.md.saving` next to the target and renames
+over it, which is atomic on NTFS and ext4. A plain `fs.writeFile` truncates the
+file first, and auto-save opens that window every 800 ms of typing. The same
+applies to `srs.json` and to the bulk rewrite a rename does across dozens of
+notes. If the rename keeps failing (a sync client holding the file), it retries
+and then falls back to writing in place — never worse than the old behaviour.
+
+The staging name starts with a dot on purpose: `walkTree` skips dotfiles and the
+chokidar watcher ignores them, so a save never flickers a phantom note into the
+sidebar or triggers a re-index.
+
+**A failed write is never silent.** Auto-save and the flush-on-leave both report
+it (`toastSaveFailed`) and keep the dirty mark. Crashes append to `crash.log` in
+userData and show a dialog — `uncaughtException` deliberately does not quit, so
+unsaved text is not thrown away over an error the app survived.
+
 ### Closed on purpose — do not reopen without a new reason
 
 - **No table preview while editing.** The editor stays plain text; split view is

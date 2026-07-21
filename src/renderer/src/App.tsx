@@ -168,7 +168,11 @@ export default function App() {
   }, [])
 
   // ── Hooks ─────────────────────────────────────────────────────────────────
-  const { contentCacheRef, handleContentChange } = useAutoSave()
+  const notifySaveFailed = useCallback((filePath: string) => {
+    notify(t('toastSaveFailed', { name: filePath.split(/[/\\]/).pop() ?? filePath }))
+  }, [notify, t])
+
+  const { contentCacheRef, handleContentChange } = useAutoSave(notifySaveFailed)
 
   const { handleOpenVault, handleReopenVault, handleBackup, lastVault } =
     useVaultOps(contentCacheRef, notify, resetNav)
@@ -179,7 +183,13 @@ export default function App() {
     // Read live state (not the render-time snapshot) so the dirty-flush actually fires
     const s = useVaultStore.getState()
     if (s.isDirty && s.activeFile && !isDocumentFile(s.activeFile.path)) {
-      await window.api.writeFile(s.activeFile.path, s.activeContent)
+      // Leaving a note flushes it. If that fails, say so and keep the dirty
+      // mark — the text is still in the cache, so switching back shows it
+      try {
+        await window.api.writeFile(s.activeFile.path, s.activeContent)
+      } catch {
+        notifySaveFailed(s.activeFile.path)
+      }
     }
     s.setActiveFile(file)
     if (!isDocumentFile(file.path)) {
@@ -199,7 +209,7 @@ export default function App() {
       setNavCanBack(navRef.current.index > 0)
       setNavCanForward(false)
     }
-  }, [contentCacheRef])
+  }, [contentCacheRef, notifySaveFailed])
 
   // ── Nav back / forward ────────────────────────────────────────────────────
   const handleNavBack = useCallback(async () => {

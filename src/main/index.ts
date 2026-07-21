@@ -11,6 +11,7 @@ import { rewriteLinks, countRefs } from './link-rewrite'
 import { odtToHtml } from './odt'
 import * as srs from './srs'
 import { readApkg, isApkg, deckNameFor, extractMedia } from './apkg'
+import { writeFileAtomic } from './safe-write'
 
 const fsp = fs.promises
 
@@ -24,6 +25,39 @@ export type TreeNode = {
   mtime?: number
   children?: TreeNode[]
 }
+
+// ── Crash reporting ────────────────────────────────────────────────────────
+//
+// A crash used to be entirely silent: the window vanished (or froze) and
+// whatever was typed but not yet saved went with it, leaving nothing behind to
+// look at afterwards.
+
+function crashLogPath(): string {
+  return path.join(app.getPath('userData'), 'crash.log')
+}
+
+function logCrash(kind: string, detail: string): void {
+  const entry = `\n[${new Date().toISOString()}] ${kind}\n${detail}\n`
+  try { fs.appendFileSync(crashLogPath(), entry, 'utf-8') } catch { /* nowhere to write */ }
+  console.error(kind, detail)
+}
+
+process.on('uncaughtException', (err) => {
+  logCrash('uncaughtException', err.stack ?? String(err))
+  // Deliberately not quitting: the window is usually still usable, and killing
+  // it here would throw away unsaved text over an error we survived
+  try {
+    dialog.showErrorBox(
+      'OpenObsidian hit an error',
+      `${err.message}\n\nIt was written to:\n${crashLogPath()}\n\n`
+      + 'If a note was open with unsaved changes, copy them somewhere before closing the app.',
+    )
+  } catch { /* too early for a dialog */ }
+})
+
+process.on('unhandledRejection', (reason) => {
+  logCrash('unhandledRejection', reason instanceof Error ? (reason.stack ?? reason.message) : String(reason))
+})
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -253,8 +287,9 @@ ipcMain.handle('vault:backup', async (_, vaultPath: string) => {
 ipcMain.handle('file:read', async (_, filePath: string) => fsp.readFile(filePath, 'utf-8'))
 
 ipcMain.handle('file:write', async (_, filePath: string, content: string) => {
-  await fsp.mkdir(path.dirname(filePath), { recursive: true })
-  await fsp.writeFile(filePath, content, 'utf-8')
+  // Every 800ms of typing lands here; a plain writeFile truncates the note
+  // first and a crash in that window loses it
+  await writeFileAtomic(filePath, content)
   return true
 })
 
@@ -340,7 +375,9 @@ ipcMain.handle('link:update-refs', async (_, vaultPath: string, oldName: string,
   for (const note of notes) {
     const { content, count } = rewriteLinks(note.content, oldName, newName)
     if (count === 0) continue
-    await fsp.writeFile(note.path, content, 'utf-8')
+    // The riskiest write in the app: dozens of notes in a loop. A crash halfway
+    // through must leave every note either rewritten or untouched
+    await writeFileAtomic(note.path, content)
     changed.push(note.path)
     links += count
     if (idx) {
@@ -530,11 +567,8 @@ async function readSrs(vaultPath: string): Promise<srs.SrsFile> {
 async function writeSrs(vaultPath: string, file: srs.SrsFile): Promise<void> {
   srsCache.set(vaultPath, file)
   const target = srsPath(vaultPath)
-  await fsp.mkdir(path.dirname(target), { recursive: true })
-  // Write-then-rename: a crash mid-write must not truncate the schedule
-  const tmp = `${target}.tmp`
-  await fsp.writeFile(tmp, JSON.stringify(file, null, 2), 'utf-8')
-  await fsp.rename(tmp, target)
+  // A crash mid-write must not truncate months of scheduling
+  await writeFileAtomic(target, JSON.stringify(file, null, 2))
 }
 
 ipcMain.handle('srs:sync', async (_, vaultPath: string, file: string, found: { id: string; q: string }[]) => {
@@ -746,6 +780,16 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
+
+// The renderer holds the unsaved buffer, so its death is the expensive one
+app.on('render-process-gone', (_e, _wc, details) => {
+  logCrash('render-process-gone', `reason=${details.reason} exitCode=${details.exitCode}`)
+  dialog.showErrorBox(
+    'The editor window stopped',
+    `Reason: ${details.reason}.\n\nDetails were written to:\n${crashLogPath()}\n\n` +
+    'Anything typed since the last save (roughly the last second) may not have reached the disk.',
+  )
+})
 
 // ── LLM ──────────────────────────────────────────────────────────────────────
 
