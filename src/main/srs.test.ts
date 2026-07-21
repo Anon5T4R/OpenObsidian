@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   newCard, grade, isDue, dueCards, stats, syncFile, todayISO, addDays,
+  report, toAnkiText, fromAnkiText, ankiToMarkdown,
   CardState, SrsFile,
 } from './srs'
 
@@ -131,6 +132,86 @@ describe('stats', () => {
       },
     }
     expect(stats(srs, NOW)).toEqual({ total: 3, due: 1, suspended: 1, fresh: 2 })
+  })
+})
+
+describe('report', () => {
+  const srs: SrsFile = {
+    version: 1,
+    cards: {
+      a: card({ reps: 5, lapses: 0, ease: 2.5, due: '2026-07-19', file: 'A.md' }),
+      b: card({ reps: 3, lapses: 2, ease: 2.1, due: '2026-07-22', file: 'A.md' }),
+      c: card({ reps: 0, lapses: 0, ease: 2.5, due: '2026-07-21', file: 'B.md' }),
+    },
+  }
+
+  it('counts learned cards and retention over the reviewed ones', () => {
+    const r = report(srs, NOW)
+    expect(r.learned).toBe(1)
+    expect(r.retention).toBeCloseTo(0.5) // 1 clean out of 2 reviewed
+  })
+
+  it('reports retention as 0 when nothing was reviewed yet', () => {
+    expect(report({ version: 1, cards: { x: card() } }, NOW).retention).toBe(0)
+  })
+
+  it('averages the ease', () => {
+    expect(report(srs, NOW).averageEase).toBeCloseTo((2.5 + 2.1 + 2.5) / 3)
+  })
+
+  it('forecasts 14 days, with the backlog landing on day 0', () => {
+    const r = report(srs, NOW)
+    expect(r.forecast).toHaveLength(14)
+    expect(r.forecast[0]).toEqual({ date: '2026-07-21', count: 2 }) // overdue + today
+    expect(r.forecast[1]).toEqual({ date: '2026-07-22', count: 1 })
+  })
+
+  it('ranks the notes holding the most cards', () => {
+    expect(report(srs, NOW).topFiles[0]).toEqual({ file: 'A.md', count: 2 })
+  })
+})
+
+describe('Anki text exchange', () => {
+  it('exports one tab-separated line per card', () => {
+    expect(toAnkiText([{ q: 'P1', a: 'R1' }, { q: 'P2', a: 'R2' }])).toBe('P1\tR1\nP2\tR2')
+  })
+
+  it('turns newlines into <br> so a card stays on one line', () => {
+    expect(toAnkiText([{ q: 'P', a: 'a\nb' }])).toBe('P\ta<br>b')
+  })
+
+  it('never lets a tab inside the text break the columns', () => {
+    expect(toAnkiText([{ q: 'a\tb', a: 'c' }])).toBe('a b\tc')
+  })
+
+  it('imports tab-separated lines', () => {
+    expect(fromAnkiText('P1\tR1\nP2\tR2')).toEqual([{ q: 'P1', a: 'R1' }, { q: 'P2', a: 'R2' }])
+  })
+
+  it('accepts semicolons when there is no tab', () => {
+    expect(fromAnkiText('P;R')).toEqual([{ q: 'P', a: 'R' }])
+  })
+
+  it('skips blank lines and # directives', () => {
+    expect(fromAnkiText('#separator:tab\n\nP\tR')).toEqual([{ q: 'P', a: 'R' }])
+  })
+
+  it('strips the HTML Anki puts in its fields', () => {
+    expect(fromAnkiText('<b>P</b>\tlinha1<br>linha2')).toEqual([{ q: 'P', a: 'linha1 · linha2' }])
+  })
+
+  it('joins extra columns into the answer instead of dropping them', () => {
+    expect(fromAnkiText('P\tR\textra')).toEqual([{ q: 'P', a: 'R extra' }])
+  })
+
+  it('ignores a line with no answer', () => {
+    expect(fromAnkiText('só pergunta')).toEqual([])
+  })
+
+  it('round-trips through markdown as card callouts', () => {
+    const md = ankiToMarkdown('Baralho', [{ q: 'P', a: 'R' }])
+    expect(md).toContain('# Baralho')
+    expect(md).toContain('> [!card]- P\n> R')
   })
 })
 

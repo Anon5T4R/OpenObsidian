@@ -110,6 +110,17 @@ function makeWikilinkCompletion(
   filesRef: React.MutableRefObject<NoteFile[]>,
   aliasesRef: React.MutableRefObject<{ alias: string; note: string }[]>,
 ) {
+  // closeBrackets already typed the closing `]]` when the user typed `[[`, so
+  // appending our own produced `[[Note]]]]`. Insert the text, then add the
+  // brackets only if they are not already sitting after the cursor.
+  const applyLink = (text: string) =>
+    (view: EditorView, _c: unknown, from: number, to: number): void => {
+      const after = view.state.doc.sliceString(to, to + 2)
+      const insert = after === ']]' ? text : `${text}]]`
+      const anchor = from + insert.length + (after === ']]' ? 2 : 0)
+      view.dispatch({ changes: { from, to, insert }, selection: { anchor } })
+    }
+
   return (context: CompletionContext): CompletionResult | null => {
     const match = context.matchBefore(/\[\[[^\]]*/)
     if (!match) return null
@@ -120,7 +131,7 @@ function makeWikilinkCompletion(
       .slice(0, 30)
       .map((f) => ({
         label: f.name,
-        apply: `${f.name}]]`,
+        apply: applyLink(f.name),
         type: 'text',
         detail: f.relativePath.includes('/') || f.relativePath.includes('\\')
           ? f.relativePath.split(/[/\\]/)[0] : 'note',
@@ -134,7 +145,7 @@ function makeWikilinkCompletion(
       .slice(0, 15)
       .map((a) => ({
         label: a.alias,
-        apply: `${a.note}|${a.alias}]]`,
+        apply: applyLink(`${a.note}|${a.alias}`),
         type: 'keyword',
         detail: a.note,
         boost: a.alias.toLowerCase().startsWith(query) ? 1 : 0

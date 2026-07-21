@@ -112,7 +112,15 @@ function TreeNodeRow({
   if (node.type === 'file') {
     if (matchFile && !matchFile(node)) return null
     const isActive = activeFilePath === node.path
+    // Fallback only: binaries are not in store.files. For notes we must use the
+    // indexed entry, whose relativePath is a real relative path — building one
+    // here with node.path put an absolute path in that field and broke every
+    // feature keyed by relativePath (flashcards, decks).
     const file: NoteFile = { name: node.name, path: node.path, relativePath: node.path }
+    const selectFile = () => {
+      const known = useVaultStore.getState().files.find((f) => f.path === node.path)
+      onFileSelect(known ?? file)
+    }
     const fileIcon = node.path.endsWith('.pdf') ? '📕'
       : node.path.endsWith('.docx') ? '📝'
       : node.path.endsWith('.epub') ? '📗' : '📄'
@@ -120,7 +128,7 @@ function TreeNodeRow({
       <div
         className={`tree-item ${isActive ? 'active' : ''}`}
         style={{ paddingLeft: collapsed ? 0 : 10 + depth * 14 }}
-        onClick={() => !isRenaming && onFileSelect(file)}
+        onClick={() => !isRenaming && selectFile()}
         onContextMenu={(e) => openCtx(e, node)}
         title={collapsed ? node.name : undefined}
         draggable={!isRenaming}

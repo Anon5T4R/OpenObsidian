@@ -76,6 +76,14 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
     }
   }, [vaultPath, current])
 
+  // Parking a card you cannot answer yet beats failing it over and over
+  const suspend = useCallback(async () => {
+    if (!vaultPath || !current) return
+    await window.api.srsSuspend(vaultPath, current.id, true)
+    setQueue((q) => q.slice(1))
+    setRevealed(false)
+  }, [vaultPath, current])
+
   // Space reveals, 1–4 grade — the whole session is meant to be keyboard-only
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,25 +98,35 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
     return () => window.removeEventListener('keydown', onKey)
   }, [current, revealed, answer, onClose])
 
+  // Cards are keyed by relative path, but tolerate an absolute one: cards
+  // scheduled before that was fixed still carry it
+  const findNote = useCallback((cardFile: string): NoteFile | undefined => {
+    const wanted = cardFile.replace(/\\/g, '/')
+    return files.find((f) => f.relativePath.replace(/\\/g, '/') === wanted)
+      ?? files.find((f) => f.path.replace(/\\/g, '/') === wanted)
+      ?? files.find((f) => f.path.replace(/\\/g, '/').endsWith('/' + wanted))
+  }, [files])
+
   // The answer text comes from the note itself, so an edited answer shows up
   // on the next review without any re-sync
   const [answerText, setAnswerText] = useState('')
   useEffect(() => {
     let cancelled = false
     if (!current) { setAnswerText(''); return }
-    const file = files.find((f) => f.relativePath === current.card.file)
-    if (!file) { setAnswerText(current.card.q); return }
+    const file = findNote(current.card.file)
+    // Never echo the question back as the answer — that hides the failure
+    if (!file) { setAnswerText(''); return }
     window.api.readFile(file.path).then((content) => {
       if (cancelled) return
-      const card = extractCards(current.card.file, content).find((c) => c.id === current.id)
+      const card = extractCards(file.relativePath, content).find((c) => c.id === current.id)
       setAnswerText(card?.a ?? '')
     }).catch(() => { if (!cancelled) setAnswerText('') })
     return () => { cancelled = true }
-  }, [current, files])
+  }, [current, findNote])
 
   const openSource = () => {
     if (!current) return
-    const file = files.find((f) => f.relativePath === current.card.file)
+    const file = findNote(current.card.file)
     if (file) onFileSelect(file)
   }
 
@@ -119,6 +137,11 @@ export default function ReviewPanel({ deck, onFileSelect, onClose }: ReviewPanel
         <span className="review-progress">
           {t('reviewProgress', { left: queue.length, done })}
         </span>
+        {current && (
+          <button className="review-suspend" onClick={suspend} title={t('reviewSuspendTip')}>
+            {t('reviewSuspend')}
+          </button>
+        )}
         <button className="review-close" onClick={onClose}>{t('searchClose')}</button>
       </div>
 

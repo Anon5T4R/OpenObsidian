@@ -112,6 +112,92 @@ export function stats(file: SrsFile, now: Date = new Date()): SrsStats {
   }
 }
 
+export interface SrsReport extends SrsStats {
+  /** Reviewed at least once and never failed since */
+  learned: number
+  /** Share of reviewed cards that never lapsed, 0–1 */
+  retention: number
+  averageEase: number
+  /** How many come due on each of the next 14 days */
+  forecast: { date: string; count: number }[]
+  /** Notes holding the most cards */
+  topFiles: { file: string; count: number }[]
+}
+
+export function report(file: SrsFile, now: Date = new Date()): SrsReport {
+  const cards = Object.values(file.cards)
+  const reviewed = cards.filter((c) => c.reps > 0)
+  const clean = reviewed.filter((c) => c.lapses === 0)
+
+  const forecast: { date: string; count: number }[] = []
+  for (let i = 0; i < 14; i++) {
+    const date = addDays(todayISO(now), i)
+    forecast.push({
+      date,
+      // Day 0 carries the backlog: everything overdue is waiting today
+      count: cards.filter((c) => !c.suspended && (i === 0 ? c.due <= date : c.due === date)).length,
+    })
+  }
+
+  const byFile = new Map<string, number>()
+  for (const c of cards) byFile.set(c.file, (byFile.get(c.file) ?? 0) + 1)
+
+  return {
+    ...stats(file, now),
+    learned: clean.length,
+    retention: reviewed.length === 0 ? 0 : clean.length / reviewed.length,
+    averageEase: cards.length === 0 ? 0 : cards.reduce((sum, c) => sum + c.ease, 0) / cards.length,
+    forecast,
+    topFiles: [...byFile.entries()]
+      .map(([file, count]) => ({ file, count }))
+      .sort((a, b) => b.count - a.count || a.file.localeCompare(b.file))
+      .slice(0, 8),
+  }
+}
+
+// ── Anki plain-text exchange ───────────────────────────────────────────────
+// The .apkg format is a zipped SQLite database; Anki's own import/export
+// speaks tab-separated text, which covers the same need without a DB driver.
+
+export function toAnkiText(cards: { q: string; a: string }[]): string {
+  const clean = (s: string) => s.replace(/\t/g, ' ').replace(/\r?\n/g, '<br>')
+  return cards.map((c) => `${clean(c.q)}\t${clean(c.a)}`).join('\n')
+}
+
+/** Parses tab- (or semicolon-) separated Anki text into question/answer pairs. */
+export function fromAnkiText(text: string): { q: string; a: string }[] {
+  const out: { q: string; a: string }[] = []
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue // Anki puts directives on # lines
+    const parts = line.includes('\t') ? line.split('\t') : line.split(';')
+    if (parts.length < 2) continue
+    const q = parts[0].trim()
+    const a = parts.slice(1).join(' ').trim()
+    if (q && a) out.push({ q: htmlToText(q), a: htmlToText(a) })
+  }
+  return out
+}
+
+function htmlToText(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, ' · ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim()
+}
+
+/** Anki pairs → a Markdown note made of card callouts. */
+export function ankiToMarkdown(title: string, cards: { q: string; a: string }[]): string {
+  const body = cards
+    .map((c) => `> [!card]- ${c.q}\n> ${c.a.replace(/\n/g, '\n> ')}`)
+    .join('\n\n')
+  return `# ${title}\n\n${body}\n`
+}
+
 /**
  * Reconciles the cards found in a note with what the schedule knows.
  * New cards start due today; cards whose question disappeared are pruned, but

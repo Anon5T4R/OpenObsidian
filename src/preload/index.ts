@@ -35,6 +35,14 @@ export interface SrsStats {
   fresh: number
 }
 
+export interface SrsReport extends SrsStats {
+  learned: number
+  retention: number
+  averageEase: number
+  forecast: { date: string; count: number }[]
+  topFiles: { file: string; count: number }[]
+}
+
 export type LlmProvider = 'local' | 'anthropic' | 'openai' | 'openai-compatible' | 'gemini'
 
 export interface LlmSettings {
@@ -136,6 +144,11 @@ const api = {
   srsSuspend:(vault: string, id: string, suspended: boolean): Promise<{ stats?: SrsStats; error?: string }> =>
     ipcRenderer.invoke('srs:suspend', vault, id, suspended),
   srsStats:  (vault: string): Promise<SrsStats> => ipcRenderer.invoke('srs:stats', vault),
+  srsReport: (vault: string): Promise<SrsReport> => ipcRenderer.invoke('srs:report', vault),
+  srsExportAnki: (cards: { q: string; a: string }[]): Promise<string | null> =>
+    ipcRenderer.invoke('srs:export-anki', cards),
+  srsImportAnki: (vault: string): Promise<{ path?: string; count?: number; error?: string } | null> =>
+    ipcRenderer.invoke('srs:import-anki', vault),
 
   // Shell
   showItemInFolder: (p: string): Promise<void>     => ipcRenderer.invoke('shell:show-item', p),

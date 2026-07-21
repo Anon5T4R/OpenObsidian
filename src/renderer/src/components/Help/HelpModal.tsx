@@ -171,6 +171,30 @@ function FeaturesTab() {
         </ul>
       </Section>
 
+      <Section title={t('hlpSecCards')}>
+        <p className="help-para">{t('hlpCardsIntro')}</p>
+        <pre className="help-code-block">{'> [!card]- Qual a tríade do qSOFA?\n> FR ≥ 22 · PAS ≤ 100 · Glasgow < 15.\n\n> [!card] Ciclo de Krebs\n> A ==citrato sintase== condensa ==acetil-CoA==.\n\n> [!mnemonic]? Causas de PEA — 5H e 5T\n> Hipovolemia, Hipóxia…'}</pre>
+        <ul className="help-list">
+          <li>{t('hlpCardsQa')}</li>
+          <li>{t('hlpCardsCloze')}</li>
+          <li>{t('hlpCardsMnemonic')}</li>
+          <li>{t('hlpCardsReview')}</li>
+          <li>{t('hlpCardsState')}</li>
+          <li>{t('hlpCardsId')}</li>
+        </ul>
+        <div className="help-tip">{t('hlpCardsAnki')}</div>
+      </Section>
+
+      <Section title={t('hlpSecAi')}>
+        <p className="help-para">{t('hlpAiIntro')}</p>
+        <ul className="help-list">
+          <li><strong>{t('cmdAiFlashcards')}</strong> — {t('hlpAiCards')}</li>
+          <li><strong>{t('cmdAiSummary')}</strong> — {t('hlpAiSummary')}</li>
+          <li><strong>{t('cmdAiTemplate')}</strong> — {t('hlpAiTemplate')}</li>
+        </ul>
+        <div className="help-tip">{t('hlpAiPrivacy')}</div>
+      </Section>
+
       <Section title={t('hlpSecAliases')}>
         <p className="help-para">{t('hlpAliasesIntro')}</p>
         <pre className="help-code-block">{'---\naliases:\n  - IAM\n  - infarto\n---'}</pre>

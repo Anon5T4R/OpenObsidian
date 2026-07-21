@@ -26,6 +26,8 @@ import TocPanel from './components/Toc/TocPanel'
 import PreviewFind from './components/Find/PreviewFind'
 import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
 import ReviewPanel, { ReviewDeck } from './components/Review/ReviewPanel'
+import ReviewStatsPanel from './components/Review/ReviewStatsPanel'
+import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -118,6 +120,7 @@ export default function App() {
   const [previewFindToken, setPreviewFindToken] = useState(0)
   const [brokenOpen,       setBrokenOpen]       = useState(false)
   const [reviewDeck,       setReviewDeck]       = useState<ReviewDeck | null>(null)
+  const [statsOpen,        setStatsOpen]        = useState(false)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -333,6 +336,16 @@ export default function App() {
     handleFileSelect(pool[Math.floor(Math.random() * pool.length)])
   }, [store.files, store.activeFile?.path, handleFileSelect])
 
+  // Hands the user a prompt for whatever AI chat they already use — nothing
+  // is sent anywhere from here
+  const copyAiPrompt = useCallback(async (kind: PromptKind) => {
+    const s = useVaultStore.getState()
+    if (!s.activeFile || isDocumentFile(s.activeFile.path)) { notify(t('toastNoVault')); return }
+    const prompt = buildAiPrompt(kind, s.activeContent, settings.locale)
+    await navigator.clipboard.writeText(prompt)
+    notify(t('toastPromptCopied'))
+  }, [notify, t, settings.locale])
+
   // Reading view has no CodeMirror, so it gets its own find bar
   const handleOpenFind = useCallback(() => {
     if (viewMode !== 'preview') { editorRef.current?.openFind(); return }
@@ -514,13 +527,17 @@ export default function App() {
       const active = useVaultStore.getState().activeFile
       if (active) { store.setSearchOpen(false); setReviewDeck({ kind: 'note', path: active.relativePath }) }
     } },
+    { id: 'reviewS',  icon: '📊', label: t('cmdReviewStats'),   run: () => { store.setSearchOpen(false); setStatsOpen(true) } },
+    { id: 'aiCards',  icon: '🤖', label: t('cmdAiFlashcards'),  run: () => copyAiPrompt('flashcards') },
+    { id: 'aiSum',    icon: '🤖', label: t('cmdAiSummary'),     run: () => copyAiPrompt('summary') },
+    { id: 'aiTpl',    icon: '🤖', label: t('cmdAiTemplate'),    run: () => copyAiPrompt('template') },
     { id: 'settings', icon: '⚙',  label: t('cmdSettings'),      run: () => setSettingsOpen(true) },
     { id: 'backup',   icon: '💾', label: t('cmdBackup'),        run: handleBackup },
     { id: 'help',     icon: '?',  label: t('cmdHelp'),          run: () => setHelpOpen(true) },
     { id: 'sidebar',  icon: '▤',  label: t('cmdToggleSidebar'), run: () => setSidebarCollapsed((c) => !c) },
     // handleRandomNote closes over the file list — a stale one would keep
     // drawing from the vault as it was when the palette first rendered
-  ], [t, handleNewNote, handleDailyNote, handleBackup, handleRandomNote])
+  ], [t, handleNewNote, handleDailyNote, handleBackup, handleRandomNote, copyAiPrompt])
 
   // ── Stable callbacks for memoized children (FileTree, BacklinksPanel, GraphView) ──
   const handleSortChange      = useCallback((s: SidebarSort) => setSettings({ sidebarSort: s }), [setSettings])
@@ -561,7 +578,9 @@ export default function App() {
 
       {/* Main */}
       <main className="main">
-        {reviewDeck ? (
+        {statsOpen ? (
+          <ReviewStatsPanel onClose={() => setStatsOpen(false)} onNotify={notify} />
+        ) : reviewDeck ? (
           <ReviewPanel
             deck={reviewDeck}
             onFileSelect={(file) => { setReviewDeck(null); handleFileSelect(file) }}

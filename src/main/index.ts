@@ -555,6 +555,38 @@ ipcMain.handle('srs:suspend', async (_, vaultPath: string, id: string, suspended
 
 ipcMain.handle('srs:stats', async (_, vaultPath: string) => srs.stats(await readSrs(vaultPath)))
 
+ipcMain.handle('srs:report', async (_, vaultPath: string) => srs.report(await readSrs(vaultPath)))
+
+ipcMain.handle('srs:export-anki', async (_, cards: { q: string; a: string }[]) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: 'flashcards-anki.txt',
+    filters: [{ name: 'Anki (tab-separated)', extensions: ['txt'] }],
+    title: 'Export cards for Anki',
+  })
+  if (result.canceled || !result.filePath) return null
+  await fsp.writeFile(result.filePath, srs.toAnkiText(cards), 'utf-8')
+  return result.filePath
+})
+
+ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
+  const picked = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Anki export', extensions: ['txt', 'tsv', 'csv'] }],
+    title: 'Import an Anki text export',
+  })
+  if (picked.canceled || picked.filePaths.length === 0) return null
+  const raw = await fsp.readFile(picked.filePaths[0], 'utf-8')
+  const cards = srs.fromAnkiText(raw)
+  if (cards.length === 0) return { error: 'no cards found in that file' }
+
+  const title = path.basename(picked.filePaths[0]).replace(/\.[^.]+$/, '')
+  let target = path.join(vaultPath, `${title}.md`)
+  let i = 2
+  while (fs.existsSync(target)) { target = path.join(vaultPath, `${title} ${i}.md`); i++ }
+  await fsp.writeFile(target, srs.ankiToMarkdown(path.basename(target, '.md'), cards), 'utf-8')
+  return { path: target, count: cards.length }
+})
+
 // ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────
 
 ipcMain.handle('odt:to-html', async (_, filePath: string) => {
