@@ -136,7 +136,8 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "resources/icon.icns"
+      "icon": "resources/icon.icns",
+      "category": "public.app-category.productivity"
     }
   }
 }

@@ -7,8 +7,13 @@ and every feature below degrades gracefully: open the same vault in any other Ma
 it still reads as ordinary text.
 
 **[Download the latest release](https://github.com/Anon5T4R/OpenObsidian/releases)** — Windows
-installer, Linux AppImage and `.deb`.
+installer, Linux AppImage and `.deb`, macOS `.dmg` (Apple Silicon and Intel).
 Android version: <https://github.com/Anon5T4R/OpenObsidianAndroid/releases>
+
+The builds are not code-signed. Windows shows an "unknown publisher" warning
+(*More info* → *Run anyway*); on macOS the app is quarantined, so open it once
+with right-click → *Open*, or run `xattr -dr com.apple.quarantine
+/Applications/OpenObsidian.app`.
 
 ---
 
