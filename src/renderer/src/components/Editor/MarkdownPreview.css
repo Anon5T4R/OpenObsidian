@@ -10,6 +10,38 @@
   user-select: text;
 }
 
+/* Frontmatter fields (properties strip) */
+.markdown-preview .note-properties {
+  margin: 0 0 1.4em;
+  padding: 8px 12px;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+.markdown-preview .prop-row { display: flex; gap: 10px; align-items: baseline; }
+.markdown-preview .prop-key {
+  flex: 0 0 auto;
+  min-width: 90px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.markdown-preview .prop-value {
+  flex: 1;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+.markdown-preview .prop-chip {
+  display: inline-block;
+  margin: 1px 4px 1px 0;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--accent-bg, var(--hover));
+  color: var(--accent);
+  font-size: 0.95em;
+}
+
 .markdown-preview h1,
 .markdown-preview h2,
 .markdown-preview h3,

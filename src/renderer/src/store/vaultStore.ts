@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { FileInfo, TreeNode } from '../../../preload/index'
+import { parseFrontmatter, frontmatterTags, FrontmatterData } from '../utils/frontmatter'
 
 export type NoteFile = FileInfo
 export type { TreeNode }
@@ -17,6 +18,7 @@ interface VaultState {
   isDirty: boolean
   backlinks: Record<string, string[]>
   tags: Record<string, string[]>         // tag → [fileName, ...]
+  frontmatter: Record<string, FrontmatterData>  // filePath → parsed YAML fields
   searchOpen: boolean
   pinnedPaths: string[]
   tagFilter: string | null
@@ -81,6 +83,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   isDirty: false,
   backlinks: {},
   tags: {},
+  frontmatter: {},
   searchOpen: false,
   pinnedPaths: loadPinned(),
   tagFilter: null,
@@ -105,6 +108,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   buildBacklinks: (files, contents) => {
     const backlinks: Record<string, string[]> = {}
     const tags: Record<string, string[]> = {}
+    const frontmatter: Record<string, FrontmatterData> = {}
 
     for (const file of files) {
       const content = contents[file.path] ?? ''
@@ -114,7 +118,12 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         if (!backlinks[link].includes(file.name)) backlinks[link].push(file.name)
       }
 
-      for (const tag of extractTags(content)) {
+      // Frontmatter rides along with this pass — the content is already read
+      const data = parseFrontmatter(content).data
+      if (data) frontmatter[file.path] = data
+
+      // Tags come from both `#inline` and the frontmatter `tags:` field
+      for (const tag of [...extractTags(content), ...frontmatterTags(data)]) {
         if (!tags[tag]) tags[tag] = []
         if (!tags[tag].includes(file.name)) tags[tag].push(file.name)
       }
@@ -123,8 +132,9 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // write, and a fresh object identity forces graph/backlink re-renders
     const prev = get()
     if (JSON.stringify(backlinks) === JSON.stringify(prev.backlinks) &&
-        JSON.stringify(tags) === JSON.stringify(prev.tags)) return
-    set({ backlinks, tags })
+        JSON.stringify(tags) === JSON.stringify(prev.tags) &&
+        JSON.stringify(frontmatter) === JSON.stringify(prev.frontmatter)) return
+    set({ backlinks, tags, frontmatter })
   },
 
   removeFile: (filePath) => {

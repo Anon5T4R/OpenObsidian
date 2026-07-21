@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useEffect, useState, useCallback, useDeferredVa
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
+import remarkFrontmatter from 'remark-frontmatter'
 import mermaid from 'mermaid'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
@@ -15,6 +16,7 @@ import {
   toggleCheckbox,
 } from './markdownTransforms'
 import { useT } from '../../i18n'
+import { parseFrontmatter, asList, FrontmatterData } from '../../utils/frontmatter'
 import './MarkdownPreview.css'
 
 // ── Math (KaTeX) ───────────────────────────────────────────────────────────
@@ -48,6 +50,26 @@ function processMath(html: string): string {
     })
     return part
   }).join('')
+}
+
+// ── Frontmatter properties strip ───────────────────────────────────────────
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// The note's fields shown as a compact table at the top, the way Obsidian does
+function renderProperties(data: FrontmatterData | null): string {
+  if (!data) return ''
+  const rows = Object.entries(data).map(([key, value]) => {
+    const values = Array.isArray(value) ? asList(value) : null
+    const rendered = values
+      ? values.map((v) => `<span class="prop-chip">${escapeHtml(v)}</span>`).join('')
+      : escapeHtml(value == null ? '' : String(value))
+    return `<div class="prop-row"><span class="prop-key">${escapeHtml(key)}</span><span class="prop-value">${rendered}</span></div>`
+  })
+  if (rows.length === 0) return ''
+  return `<div class="note-properties">${rows.join('')}</div>`
 }
 
 // ── Mermaid diagram support ────────────────────────────────────────────────
@@ -92,7 +114,13 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
 
   const html = useMemo(() => {
     const withLinks = processWikiLinks(deferredContent, linkExists)
-    const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
+    // remarkFrontmatter turns the leading `---` block into a yaml node that
+    // remark-html drops — without it CommonMark reads it as a setext heading
+    const result = remark()
+      .use(remarkGfm)
+      .use(remarkFrontmatter, ['yaml'])
+      .use(remarkHtml, { sanitize: false })
+      .processSync(withLinks)
     let h = String(result)
       // Remove "disabled" from checkboxes so they are clickable in preview
       .replace(/(<input\b[^>]*?) disabled/g, '$1')
@@ -112,7 +140,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
         return `src="${base}/${rel}"`
       })
     }
-    return h
+    return renderProperties(parseFrontmatter(deferredContent).data) + h
   }, [deferredContent, vaultPath, linkExists])
 
   // Render mermaid diagrams after HTML is injected into the DOM
