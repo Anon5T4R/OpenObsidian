@@ -9,6 +9,7 @@ import chokidar, { FSWatcher } from 'chokidar'
 import mammoth from 'mammoth'
 import { rewriteLinks, countRefs } from './link-rewrite'
 import { odtToHtml } from './odt'
+import * as srs from './srs'
 
 const fsp = fs.promises
 
@@ -485,6 +486,74 @@ ipcMain.handle('docx:to-markdown', async (_, filePath: string) => {
     return { markdown: '', warnings: [], error: String(e) }
   }
 })
+
+// ── Spaced repetition ──────────────────────────────────────────────────────
+
+// Scheduling lives beside the vault, not inside the notes: it changes on every
+// review and would dirty the diff of every note in a study session.
+function srsPath(vaultPath: string): string {
+  return path.join(vaultPath, '.openobsidian', 'srs.json')
+}
+
+const srsCache = new Map<string, srs.SrsFile>()
+
+async function readSrs(vaultPath: string): Promise<srs.SrsFile> {
+  const cached = srsCache.get(vaultPath)
+  if (cached) return cached
+  let file: srs.SrsFile = { version: 1, cards: {} }
+  try {
+    const parsed = JSON.parse(await fsp.readFile(srsPath(vaultPath), 'utf-8'))
+    if (parsed && typeof parsed === 'object' && parsed.cards) file = parsed as srs.SrsFile
+  } catch { /* first run, or unreadable — start clean rather than crash */ }
+  srsCache.set(vaultPath, file)
+  return file
+}
+
+async function writeSrs(vaultPath: string, file: srs.SrsFile): Promise<void> {
+  srsCache.set(vaultPath, file)
+  const target = srsPath(vaultPath)
+  await fsp.mkdir(path.dirname(target), { recursive: true })
+  // Write-then-rename: a crash mid-write must not truncate the schedule
+  const tmp = `${target}.tmp`
+  await fsp.writeFile(tmp, JSON.stringify(file, null, 2), 'utf-8')
+  await fsp.rename(tmp, target)
+}
+
+ipcMain.handle('srs:sync', async (_, vaultPath: string, file: string, found: { id: string; q: string }[]) => {
+  const current = await readSrs(vaultPath)
+  const { srs: next, added, removed } = srs.syncFile(current, file, found)
+  if (added > 0 || removed > 0 || JSON.stringify(next) !== JSON.stringify(current)) {
+    await writeSrs(vaultPath, next)
+  }
+  return { added, removed, stats: srs.stats(next) }
+})
+
+ipcMain.handle('srs:due', async (_, vaultPath: string, files?: string[]) => {
+  const current = await readSrs(vaultPath)
+  const due = srs.dueCards(current)
+  // A deck is a file filter: the renderer knows which notes carry which tags
+  return files ? due.filter((d) => files.includes(d.card.file)) : due
+})
+
+ipcMain.handle('srs:grade', async (_, vaultPath: string, id: string, g: srs.Grade) => {
+  const current = await readSrs(vaultPath)
+  const card = current.cards[id]
+  if (!card) return { error: 'card not found' }
+  const next = { version: 1 as const, cards: { ...current.cards, [id]: srs.grade(card, g) } }
+  await writeSrs(vaultPath, next)
+  return { card: next.cards[id], stats: srs.stats(next) }
+})
+
+ipcMain.handle('srs:suspend', async (_, vaultPath: string, id: string, suspended: boolean) => {
+  const current = await readSrs(vaultPath)
+  const card = current.cards[id]
+  if (!card) return { error: 'card not found' }
+  const next = { version: 1 as const, cards: { ...current.cards, [id]: { ...card, suspended } } }
+  await writeSrs(vaultPath, next)
+  return { stats: srs.stats(next) }
+})
+
+ipcMain.handle('srs:stats', async (_, vaultPath: string) => srs.stats(await readSrs(vaultPath)))
 
 // ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────
 

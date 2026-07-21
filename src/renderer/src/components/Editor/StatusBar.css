@@ -42,3 +42,7 @@
   background: var(--hover);
   color: var(--text-primary);
 }
+
+/* Cards due — a quiet nudge, not a badge that nags */
+.status-btn.status-due { color: var(--accent); }
+.status-btn.status-due:hover { background: var(--accent-bg); }

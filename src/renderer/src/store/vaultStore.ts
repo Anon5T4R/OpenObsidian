@@ -30,6 +30,7 @@ interface VaultState {
   backlinks: Record<string, string[]>
   tags: Record<string, string[]>         // tag → [fileName, ...]
   frontmatter: Record<string, FrontmatterData>  // filePath → parsed YAML fields
+  srsStats: { total: number; due: number; suspended: number; fresh: number } | null
   searchOpen: boolean
   pinnedPaths: string[]
   tagFilter: string | null
@@ -45,6 +46,7 @@ interface VaultState {
   setSearchOpen: (open: boolean) => void
   togglePin: (filePath: string) => void
   setTagFilter: (tag: string | null) => void
+  setSrsStats: (stats: VaultState['srsStats']) => void
 }
 
 export function extractLinks(content: string): string[] {
@@ -119,6 +121,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   backlinks: {},
   tags: {},
   frontmatter: {},
+  srsStats: null,
   searchOpen: false,
   pinnedPaths: loadPinned(),
   tagFilter: null,
@@ -189,5 +192,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ pinnedPaths: next })
   },
 
-  setTagFilter: (tag) => set({ tagFilter: tag })
+  setTagFilter: (tag) => set({ tagFilter: tag }),
+
+  setSrsStats: (srsStats) => set({ srsStats })
 }))

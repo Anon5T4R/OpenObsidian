@@ -32,9 +32,17 @@ export const CALLOUT_META: Record<string, { icon: string; color: string }> = {
   fail:      { icon: '💥',  color: '#ef4444' },
   missing:   { icon: '💥',  color: '#ef4444' },
   todo:      { icon: '☑️',  color: '#6366f1' },
+  // Flashcards: a card is a callout, so it stays readable anywhere
+  card:      { icon: '🃏',  color: '#8b5cf6' },
+  flashcard: { icon: '🃏',  color: '#8b5cf6' },
+  pergunta:  { icon: '🃏',  color: '#8b5cf6' },
+  mnemonic:  { icon: '🧠',  color: '#f59e0b' },
+  mnemonico: { icon: '🧠',  color: '#f59e0b' },
 }
 
-const CALLOUT_RE = /<blockquote>\n?<p>\[!(\w+)\]([-+])?([^\n<]*)(?:\n([\s\S]*?))?<\/p>([\s\S]*?)<\/blockquote>/g
+// `?` marks a mnemonic as reviewable (see utils/cards.ts). It is captured here
+// so it never leaks into the rendered title, but it does not fold the callout.
+const CALLOUT_RE = /<blockquote>\n?<p>\[!([\wÀ-ɏ]+)\]([-+?])?([^\n<]*)(?:\n([\s\S]*?))?<\/p>([\s\S]*?)<\/blockquote>/g
 
 export function processCallouts(html: string): string {
   return html.replace(CALLOUT_RE, (_, type, fold, titleRest, bodyInP, bodyExtra) => {

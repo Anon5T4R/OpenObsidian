@@ -25,6 +25,7 @@ import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import PreviewFind from './components/Find/PreviewFind'
 import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
+import ReviewPanel, { ReviewDeck } from './components/Review/ReviewPanel'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -116,6 +117,7 @@ export default function App() {
   const [previewFindOpen,  setPreviewFindOpen]  = useState(false)
   const [previewFindToken, setPreviewFindToken] = useState(0)
   const [brokenOpen,       setBrokenOpen]       = useState(false)
+  const [reviewDeck,       setReviewDeck]       = useState<ReviewDeck | null>(null)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -446,6 +448,14 @@ export default function App() {
     }
   }, [store.vaultPath])
 
+  // Card counter needs a value before the first save of the session
+  useEffect(() => {
+    if (!store.vaultPath) return
+    window.api.srsStats(store.vaultPath)
+      .then(useVaultStore.getState().setSrsStats)
+      .catch(() => { /* no schedule yet */ })
+  }, [store.vaultPath])
+
   // ── Native menu events ────────────────────────────────────────────────────
   useEffect(() => {
     const u1 = window.api.onMenuOpenVault(handleOpenVault)
@@ -499,6 +509,11 @@ export default function App() {
     { id: 'graph',    icon: '◎',  label: t('cmdGraph'),         run: () => setGraphOpen((o) => !o) },
     { id: 'diag',     icon: '🩺', label: t('cmdDiagnostics'),   run: () => { store.setSearchOpen(false); setBrokenOpen(true) } },
     { id: 'random',   icon: '🎲', label: t('cmdRandomNote'),    run: handleRandomNote },
+    { id: 'review',   icon: '🃏', label: t('cmdReview'),        run: () => { store.setSearchOpen(false); setReviewDeck({ kind: 'all' }) } },
+    { id: 'reviewN',  icon: '🃏', label: t('cmdReviewNote'),    run: () => {
+      const active = useVaultStore.getState().activeFile
+      if (active) { store.setSearchOpen(false); setReviewDeck({ kind: 'note', path: active.relativePath }) }
+    } },
     { id: 'settings', icon: '⚙',  label: t('cmdSettings'),      run: () => setSettingsOpen(true) },
     { id: 'backup',   icon: '💾', label: t('cmdBackup'),        run: handleBackup },
     { id: 'help',     icon: '?',  label: t('cmdHelp'),          run: () => setHelpOpen(true) },
@@ -546,7 +561,13 @@ export default function App() {
 
       {/* Main */}
       <main className="main">
-        {brokenOpen ? (
+        {reviewDeck ? (
+          <ReviewPanel
+            deck={reviewDeck}
+            onFileSelect={(file) => { setReviewDeck(null); handleFileSelect(file) }}
+            onClose={() => setReviewDeck(null)}
+          />
+        ) : brokenOpen ? (
           <VaultDiagnosticsPanel
             onFileSelect={(file) => { setBrokenOpen(false); handleFileSelect(file) }}
             onClose={() => setBrokenOpen(false)}
@@ -707,7 +728,12 @@ export default function App() {
               )}
             </div>
 
-            <StatusBar stats={editorStats} onOpenFind={handleOpenFind} />
+            <StatusBar
+              stats={editorStats}
+              onOpenFind={handleOpenFind}
+              cardsDue={store.srsStats?.due ?? 0}
+              onReview={() => setReviewDeck({ kind: 'all' })}
+            />
           </div>
         )}
       </main>

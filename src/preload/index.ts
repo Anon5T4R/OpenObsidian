@@ -14,6 +14,27 @@ export type TreeNode = {
   children?: TreeNode[]
 }
 
+// ── Spaced repetition ─────────────────────────────────────────────────────
+export type SrsGrade = 'again' | 'hard' | 'good' | 'easy'
+
+export interface SrsCard {
+  file: string
+  q: string
+  ease: number
+  interval: number
+  reps: number
+  due: string
+  lapses: number
+  suspended?: boolean
+}
+
+export interface SrsStats {
+  total: number
+  due: number
+  suspended: number
+  fresh: number
+}
+
 export type LlmProvider = 'local' | 'anthropic' | 'openai' | 'openai-compatible' | 'gemini'
 
 export interface LlmSettings {
@@ -104,6 +125,17 @@ const api = {
 
   // ODT conversion
   odtToHtml:      (p: string): Promise<{ html: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('odt:to-html', p),
+
+  // Spaced repetition
+  srsSync:   (vault: string, file: string, found: { id: string; q: string }[]): Promise<{ added: number; removed: number; stats: SrsStats }> =>
+    ipcRenderer.invoke('srs:sync', vault, file, found),
+  srsDue:    (vault: string, files?: string[]): Promise<{ id: string; card: SrsCard }[]> =>
+    ipcRenderer.invoke('srs:due', vault, files),
+  srsGrade:  (vault: string, id: string, grade: SrsGrade): Promise<{ card?: SrsCard; stats?: SrsStats; error?: string }> =>
+    ipcRenderer.invoke('srs:grade', vault, id, grade),
+  srsSuspend:(vault: string, id: string, suspended: boolean): Promise<{ stats?: SrsStats; error?: string }> =>
+    ipcRenderer.invoke('srs:suspend', vault, id, suspended),
+  srsStats:  (vault: string): Promise<SrsStats> => ipcRenderer.invoke('srs:stats', vault),
 
   // Shell
   showItemInFolder: (p: string): Promise<void>     => ipcRenderer.invoke('shell:show-item', p),
