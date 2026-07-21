@@ -517,8 +517,11 @@ export default function App() {
         const paths = [...stale]
         stale.clear()
         for (const p of paths) {
-          try { contentCacheRef.current[p] = await window.api.readFile(p) }
-          catch { delete contentCacheRef.current[p] }
+          // A read that fails keeps the text we already had. Dropping it would
+          // remove the note from backlinks, tags and search with no sign that
+          // anything happened — and on a synced folder a read failing once is
+          // normal. Stale text is visibly wrong; a missing note is invisible.
+          try { contentCacheRef.current[p] = await window.api.readFile(p) } catch { /* keep the old text */ }
         }
         const s = useVaultStore.getState()
         s.buildBacklinks(s.files, contentCacheRef.current)
@@ -548,8 +551,8 @@ export default function App() {
         s.setActiveContent(content)
         return
       }
-      // Drop it now so nothing reads the old text, then re-read in a batch
-      delete contentCacheRef.current[p]
+      // Re-read in a batch, without dropping the entry first: between the drop
+      // and the read the note existed for nothing that reads this cache
       stale.add(p)
       refreshStale()
     })

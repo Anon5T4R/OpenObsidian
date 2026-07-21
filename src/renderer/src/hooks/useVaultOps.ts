@@ -45,8 +45,10 @@ export function useVaultOps(
       }
     }
 
+    const unread: string[] = []
     for (const file of needsRead) {
-      try { contents[file.path] = await window.api.readFile(file.path) } catch {}
+      try { contents[file.path] = await window.api.readFile(file.path) }
+      catch { unread.push(file.name) }
     }
 
     contentCacheRef.current = contents
@@ -54,8 +56,15 @@ export function useVaultOps(
 
     const entries: Record<string, { mtime: number; content: string }> = {}
     for (const file of files) {
-      entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content: contents[file.path] ?? '' }
+      const content = contents[file.path]
+      // A note we failed to read must not be cached as empty text: the mtime
+      // would still match on the next open, so the note would stay out of
+      // backlinks, tags and search for good. Leaving it out forces a re-read.
+      if (content === undefined) continue
+      entries[file.path] = { mtime: mtimeMap[file.path] ?? 0, content }
     }
+    // Silence here is what made this expensive: the notes were simply absent
+    if (unread.length > 0) notify(t(settings.locale, 'toastUnreadNotes', { count: unread.length }))
     window.api.saveIndex(vaultPath, { vaultPath, savedAt: Date.now(), entries })
 
     // Flashcards of the whole vault, not just of notes you happen to edit

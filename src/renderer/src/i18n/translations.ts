@@ -223,6 +223,7 @@ export const en = {
   // Notifications / toasts
   toastOpenVaultFirst:   'Open a vault first',
   toastNoVault:          'No vault open',
+  toastUnreadNotes:      '{count} notes could not be read — they are missing from backlinks, tags and search until you reopen the vault',
   toastBackupSaved:      'Backup saved to: {path}',
   toastExportedHtml:     'Exported to: {file}',
   toastExportedPdf:      'PDF saved: {file}',
@@ -909,6 +910,7 @@ const ptBR: typeof en = {
 
   toastOpenVaultFirst:   'Abra um vault primeiro',
   toastNoVault:          'Nenhum vault aberto',
+  toastUnreadNotes:      '{count} notas não puderam ser lidas — ficam de fora dos backlinks, das tags e da busca até você reabrir o vault',
   toastBackupSaved:      'Backup salvo em: {path}',
   toastExportedHtml:     'Exportado para: {file}',
   toastExportedPdf:      'PDF salvo: {file}',
@@ -1588,6 +1590,7 @@ const esLatam: typeof en = {
 
   toastOpenVaultFirst:   'Abre un vault primero',
   toastNoVault:          'Ningún vault abierto',
+  toastUnreadNotes:      '{count} notas no se pudieron leer — quedan fuera de los backlinks, las etiquetas y la búsqueda hasta que reabras el vault',
   toastBackupSaved:      'Copia guardada en: {path}',
   toastExportedHtml:     'Exportado a: {file}',
   toastExportedPdf:      'PDF guardado: {file}',
