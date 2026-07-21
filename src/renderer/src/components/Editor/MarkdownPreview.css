@@ -43,6 +43,15 @@
 [data-theme='light'] .markdown-preview a.wikilink { color: #7c3aed; border-bottom-color: #7c3aed44; }
 [data-theme='light'] .markdown-preview a.wikilink:hover { border-bottom-color: #7c3aed; }
 
+/* Link with no note behind it — a dead link must fail visibly, not silently */
+.markdown-preview a.wikilink-unresolved {
+  color: #f87171;
+  border-bottom: 1px dashed #f8717188;
+  cursor: default;
+}
+.markdown-preview a.wikilink-unresolved:hover { border-bottom-color: #f87171; }
+[data-theme='light'] .markdown-preview a.wikilink-unresolved { color: #dc2626; border-bottom-color: #dc262688; }
+
 .markdown-preview code {
   font-family: var(--editor-font, monospace);
   background: var(--bg-code);

@@ -6,6 +6,7 @@ import {
   processWikiLinks,
   toggleCheckbox,
   decodeMermaidCode,
+  slugify,
 } from './markdownTransforms'
 
 describe('processHighlights', () => {
@@ -57,6 +58,28 @@ describe('processWikiLinks', () => {
     const out = processWikiLinks('[[target|shown]]')
     expect(out).toContain('data-target="target"')
     expect(out).toContain('>shown<')
+  })
+
+  it('keeps the anchor in data-target', () => {
+    expect(processWikiLinks('[[Nota#Seção]]')).toContain('data-target="Nota#Seção"')
+  })
+
+  it('marks a target with no note behind it', () => {
+    const out = processWikiLinks('[[Fantasma]]', () => false)
+    expect(out).toContain('class="wikilink wikilink-unresolved"')
+  })
+
+  it('leaves a resolvable target unmarked', () => {
+    const out = processWikiLinks('[[Sepse]]', () => true)
+    expect(out).toContain('class="wikilink"')
+    expect(out).not.toContain('unresolved')
+  })
+})
+
+describe('slugify', () => {
+  it('matches the id addHeadingIds generates', () => {
+    const id = slugify('Conduta na Emergência')
+    expect(addHeadingIds('<h2>Conduta na Emergência</h2>')).toContain(`id="${id}"`)
   })
 })
 

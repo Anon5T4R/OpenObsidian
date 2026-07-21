@@ -83,11 +83,17 @@ export function processHighlights(html: string): string {
 
 // ── Heading IDs for TOC anchor scrolling ─────────────────────────────────
 
+// Heading text → anchor id. Shared with wikilink anchors ([[Nota#Seção]]) so a
+// link and its target always agree on the id.
+export function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/--+/g, '-').trim()
+}
+
 export function addHeadingIds(html: string): string {
   const counts: Record<string, number> = {}
   return html.replace(/<h([1-3])>([\s\S]*?)<\/h\1>/g, (_, level, inner) => {
     const text = inner.replace(/<[^>]+>/g, '')
-    let id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/--+/g, '-').trim()
+    let id = slugify(text)
     if (counts[id] !== undefined) { counts[id]++; id = `${id}-${counts[id]}` }
     else counts[id] = 0
     return `<h${level} id="${id}">${inner}</h${level}>`
@@ -109,10 +115,17 @@ export function decodeMermaidCode(code: string): string {
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
-export function processWikiLinks(md: string): string {
+/**
+ * `[[Nota]]` / `[[Nota#Seção|texto]]` → anchor. `exists` (when given) marks
+ * targets with no note behind them so a dead link fails visibly instead of
+ * silently doing nothing on click.
+ */
+export function processWikiLinks(md: string, exists?: (target: string) => boolean): string {
   return md.replace(WIKILINK_RE, (_, target, alias) => {
     const display = alias ?? target
-    return `<a href="#" class="wikilink" data-target="${target}">${display}</a>`
+    const dead = exists ? !exists(target) : false
+    const cls = dead ? 'wikilink wikilink-unresolved' : 'wikilink'
+    return `<a href="#" class="${cls}" data-target="${target}">${display}</a>`
   })
 }
 

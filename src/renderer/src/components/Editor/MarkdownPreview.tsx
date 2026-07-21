@@ -61,9 +61,11 @@ interface MarkdownPreviewProps {
   onWikiLinkClick: (noteName: string) => void
   onChange?: (content: string) => void
   vaultPath?: string | null
+  /** Tells whether a [[target]] has a note behind it — dead links get styled apart */
+  linkExists?: (target: string) => boolean
 }
 
-export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists }: MarkdownPreviewProps) {
   const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -89,7 +91,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   const deferredContent = useDeferredValue(content)
 
   const html = useMemo(() => {
-    const withLinks = processWikiLinks(deferredContent)
+    const withLinks = processWikiLinks(deferredContent, linkExists)
     const result = remark().use(remarkGfm).use(remarkHtml, { sanitize: false }).processSync(withLinks)
     let h = String(result)
       // Remove "disabled" from checkboxes so they are clickable in preview
@@ -111,7 +113,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       })
     }
     return h
-  }, [deferredContent, vaultPath])
+  }, [deferredContent, vaultPath, linkExists])
 
   // Render mermaid diagrams after HTML is injected into the DOM
   useEffect(() => {

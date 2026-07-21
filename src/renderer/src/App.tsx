@@ -28,6 +28,8 @@ import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
 import CommandPalette, { Command } from './components/CommandPalette/CommandPalette'
 import type { PluginInfo } from '../../preload/index'
+import { parseWikiTarget, resolveNote, noteExists } from './utils/linkResolver'
+import { slugify } from './components/Editor/markdownTransforms'
 import './styles/app.css'
 
 type ViewMode = 'edit' | 'preview' | 'split'
@@ -37,6 +39,19 @@ const MAX_SIDEBAR = 520
 const COLLAPSED_WIDTH = 44
 
 const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx') || p.endsWith('.epub')
+
+// The preview renders through useDeferredValue, so the heading a [[Nota#Seção]]
+// points at may not be in the DOM yet — keep looking for a short while.
+function scrollToHeadingId(id: string, timeoutMs = 1500): void {
+  const started = performance.now()
+  const tick = () => {
+    const preview = document.querySelector('.markdown-preview')
+    const target = preview?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+    if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
+    if (performance.now() - started < timeoutMs) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
 
 export default function App() {
   const store = useVaultStore()
@@ -141,10 +156,23 @@ export default function App() {
     await handleFileSelect(history[index + 1], true)
   }, [handleFileSelect])
 
-  const handleFileSelectByName = useCallback(async (noteName: string) => {
-    const file = store.files.find((f) => f.name.toLowerCase() === noteName.toLowerCase())
-    if (file) await handleFileSelect(file)
+  // Receives the raw wikilink target: `Nota`, `Nota#Seção`, `Pasta/Nota`, `#Seção`
+  const handleFileSelectByName = useCallback(async (rawTarget: string) => {
+    const { target, hash } = parseWikiTarget(rawTarget)
+    const fromPath = useVaultStore.getState().activeFile?.path
+    if (target) {
+      const file = resolveNote(store.files, target, fromPath)
+      if (!file) return // dead link — the preview already renders it as such
+      if (file.path !== fromPath) await handleFileSelect(file)
+    }
+    // `#^bloco` has no counterpart in the render yet — opening the note is all we can do
+    if (hash && !hash.startsWith('^')) scrollToHeadingId(slugify(hash))
   }, [store.files, handleFileSelect])
+
+  const linkExists = useCallback(
+    (target: string) => noteExists(store.files, target, store.activeFile?.path),
+    [store.files, store.activeFile?.path],
+  )
 
   // A rename (and the link rewrite that follows) changed files on disk behind
   // the content cache — refresh the touched entries and rebuild the indexes
@@ -517,6 +545,7 @@ export default function App() {
                           onWikiLinkClick={handleFileSelectByName}
                           onChange={handleContentChange}
                           vaultPath={store.vaultPath}
+                          linkExists={linkExists}
                         />
                       </div>
                     )}
