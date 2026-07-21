@@ -40,15 +40,57 @@ const COLLAPSED_WIDTH = 44
 
 const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx') || p.endsWith('.epub')
 
-// The preview renders through useDeferredValue, so the heading a [[Nota#Seção]]
-// points at may not be in the DOM yet — keep looking for a short while.
-function scrollToHeadingId(id: string, timeoutMs = 1500): void {
+// Finds the heading of a [[Nota#Seção]] anchor. Falls back to matching the
+// heading text, since addHeadingIds suffixes ids when a note repeats a heading.
+function findHeading(preview: Element, id: string, text: string): HTMLElement | null {
+  const byId = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
+  if (byId) return byId
+  const wanted = text.trim().toLowerCase()
+  const headings = Array.from(preview.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'))
+  return headings.find((h) => (h.textContent ?? '').trim().toLowerCase() === wanted) ?? null
+}
+
+/**
+ * Scrolls the preview to a heading.
+ * The preview renders in passes (useDeferredValue) and each pass replaces the
+ * whole innerHTML — scrolling on the first sighting would be undone moments
+ * later. So keep re-asserting the position until it holds still.
+ */
+function scrollToHeadingId(id: string, text: string, timeoutMs = 2000, settleMs = 400): void {
   const started = performance.now()
+  let settledSince = 0
+  let cancelled = false
+  // Never fight the user for the scrollbar
+  const cancel = () => { cancelled = true; detach() }
+  const detach = () => {
+    window.removeEventListener('wheel', cancel)
+    window.removeEventListener('keydown', cancel)
+    window.removeEventListener('mousedown', cancel)
+  }
+  window.addEventListener('wheel', cancel, { passive: true })
+  window.addEventListener('keydown', cancel)
+  window.addEventListener('mousedown', cancel)
+
   const tick = () => {
+    if (cancelled) return
     const preview = document.querySelector('.markdown-preview')
-    const target = preview?.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
-    if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); return }
-    if (performance.now() - started < timeoutMs) requestAnimationFrame(tick)
+    const target = preview ? findHeading(preview, id, text) : null
+    const now = performance.now()
+
+    if (target && preview) {
+      const delta = target.getBoundingClientRect().top - preview.getBoundingClientRect().top
+      if (Math.abs(delta) > 2) {
+        preview.scrollTop += delta
+        settledSince = 0
+      } else if (settledSince === 0) {
+        settledSince = now
+      } else if (now - settledSince >= settleMs) {
+        detach()
+        return // held its position through the remaining render passes
+      }
+    }
+    if (now - started < timeoutMs) requestAnimationFrame(tick)
+    else detach()
   }
   requestAnimationFrame(tick)
 }
@@ -166,7 +208,7 @@ export default function App() {
       if (file.path !== fromPath) await handleFileSelect(file)
     }
     // `#^bloco` has no counterpart in the render yet — opening the note is all we can do
-    if (hash && !hash.startsWith('^')) scrollToHeadingId(slugify(hash))
+    if (hash && !hash.startsWith('^')) scrollToHeadingId(slugify(hash), hash)
   }, [store.files, handleFileSelect])
 
   const linkExists = useCallback(
@@ -265,10 +307,7 @@ export default function App() {
 
   // ── TOC scroll ────────────────────────────────────────────────────────────
   const handleTocJump = useCallback((id: string) => {
-    const preview = document.querySelector('.markdown-preview')
-    if (!preview) return
-    const target = preview.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    scrollToHeadingId(id, '')
   }, [])
 
   // ── Sidebar resize ────────────────────────────────────────────────────────
