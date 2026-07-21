@@ -58,6 +58,43 @@ describe('the catalogue itself', () => {
     }
   })
 
+  it('never drops the caret in the middle of a word', () => {
+    // The bounds check above passed while three snippets were unusable: `/card`
+    // opened at `Questi|on` and `/queryfield` inside `s|ort`, so the first thing
+    // you typed shredded the snippet. A caret between two word characters is
+    // always a miscount — every real slot sits next to punctuation or a newline.
+    const isWord = (c: string) => /\w/.test(c)
+    const broken: string[] = []
+    for (const item of INSERTABLES) {
+      const { text, cursor } = resolve(item)
+      const at = text.length + cursor
+      if (at > 0 && at < text.length && isWord(text[at - 1]) && isWord(text[at])) {
+        broken.push(`${item.id} → ${JSON.stringify(text.slice(at - 8, at))}|${JSON.stringify(text.slice(at, at + 8))}`)
+      }
+    }
+    expect(broken).toEqual([])
+  })
+
+  it('opens the fillable slot of each block, not somewhere near it', () => {
+    // Asserted by content, not by offset: an offset assertion just restates the
+    // constant and would have agreed with every one of the three bugs above.
+    const caret = (id: string) => {
+      const { text, cursor } = resolve(INSERTABLES.find((i) => i.id === id)!)
+      return { before: text.slice(0, text.length + cursor), after: text.slice(text.length + cursor) }
+    }
+
+    // `tag: ` — ready for the tag name, with the space already there
+    expect(caret('queryTag').before.endsWith('tag: ')).toBe(true)
+    expect(caret('queryTag').after.startsWith('\n')).toBe(true)
+
+    expect(caret('queryField').before.endsWith('tipo: ')).toBe(true)
+    expect(caret('queryField').after.startsWith('\n')).toBe(true)
+
+    // End of the placeholder, so the question is edited in place
+    expect(caret('cardQa').before.endsWith('Question')).toBe(true)
+    expect(caret('cardQa').after.startsWith('\n')).toBe(true)
+  })
+
   it('inserts something for every item', () => {
     for (const item of INSERTABLES) {
       expect(resolve(item).text.length, item.id).toBeGreaterThan(0)

@@ -79,7 +79,7 @@ export const INSERTABLES: Insertable[] = [
   { id: 'image', category: 'links', slash: ['image', 'img'], icon: '🖼', labelKey: 'insImage', descKey: 'insImageDesc', snippet: '![alt](url)', cursor: -1 },
 
   // ── Study ─────────────────────────────────────────────────────────────
-  { id: 'cardQa', category: 'study', slash: ['card', 'flashcard'], icon: '🃏', labelKey: 'insCardQa', descKey: 'insCardQaDesc', snippet: '> [!card]- Question\n> Answer\n', cursor: -12, block: true },
+  { id: 'cardQa', category: 'study', slash: ['card', 'flashcard'], icon: '🃏', labelKey: 'insCardQa', descKey: 'insCardQaDesc', snippet: '> [!card]- Question\n> Answer\n', cursor: -10, block: true },
   { id: 'cardCloze', category: 'study', slash: ['cloze', 'gap'], icon: '␣', labelKey: 'insCardCloze', descKey: 'insCardClozeDesc', snippet: '> [!card] Title\n> A sentence with ==the hidden term==.\n', cursor: -2, block: true },
   { id: 'mnemonic', category: 'study', slash: ['mnemonic'], icon: '🧠', labelKey: 'insMnemonic', descKey: 'insMnemonicDesc', snippet: '> [!mnemonic]? Title\n> The mnemonic itself\n', cursor: -1, block: true },
   { id: 'mathInline', category: 'study', slash: ['math'], icon: '𝑥', labelKey: 'insMathInline', descKey: 'insMathInlineDesc', snippet: '$x^2$', cursor: -1 },
@@ -105,8 +105,8 @@ export const INSERTABLES: Insertable[] = [
   // ── Data ──────────────────────────────────────────────────────────────
   { id: 'frontmatter', category: 'data', slash: ['frontmatter', 'yaml'], icon: '---', labelKey: 'insFrontmatter', descKey: 'insFrontmatterDesc', snippet: '---\ntipo: \naliases:\n  - \ntags:\n  - \n---\n', cursor: -22, block: true },
   { id: 'tag', category: 'data', slash: ['tag'], icon: '#', labelKey: 'insTag', descKey: 'insTagDesc', snippet: '#tag', cursor: 0 },
-  { id: 'queryTag', category: 'data', slash: ['query'], icon: '🔎', labelKey: 'insQueryTag', descKey: 'insQueryTagDesc', snippet: '```query\ntag: \nsort: titulo\n```\n', cursor: -19, block: true },
-  { id: 'queryField', category: 'data', slash: ['queryfield'], icon: '🔍', labelKey: 'insQueryField', descKey: 'insQueryFieldDesc', snippet: '```query\ntipo: \nsort: modificado desc\nlimit: 20\n```\n', cursor: -35, block: true },
+  { id: 'queryTag', category: 'data', slash: ['query'], icon: '🔎', labelKey: 'insQueryTag', descKey: 'insQueryTagDesc', snippet: '```query\ntag: \nsort: titulo\n```\n', cursor: -18, block: true },
+  { id: 'queryField', category: 'data', slash: ['queryfield'], icon: '🔍', labelKey: 'insQueryField', descKey: 'insQueryFieldDesc', snippet: '```query\ntipo: \nsort: modificado desc\nlimit: 20\n```\n', cursor: -37, block: true },
   { id: 'today', category: 'data', slash: ['date', 'today'], icon: '📅', labelKey: 'insToday', descKey: 'insTodayDesc', snippet: '' },
   { id: 'now', category: 'data', slash: ['time', 'now'], icon: '🕐', labelKey: 'insNow', descKey: 'insNowDesc', snippet: '' },
 
