@@ -56,7 +56,8 @@ describe('expandEmbeds', () => {
   it('marks an unresolved target instead of failing', () => {
     const out = expandEmbeds('![[Fantasma]]', resolve)
     expect(out).toContain('embed-missing')
-    expect(out).toContain('![[Fantasma]]')
+    // brackets escaped so the later wikilink pass leaves the literal alone
+    expect(out).toContain('!&#91;&#91;Fantasma&#93;&#93;')
   })
 
   it('marks a section that does not exist', () => {

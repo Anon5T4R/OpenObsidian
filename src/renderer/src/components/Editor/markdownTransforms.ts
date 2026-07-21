@@ -71,6 +71,14 @@ ${bodyHtml}</div>`
 // Split on code blocks so inline transforms never touch content inside ``` … ```
 export const CODE_BLOCK_RE = /(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/g
 
+// Same idea, but on raw markdown (before remark) — fences and inline code
+export const MD_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g
+
+/** Applies `fn` to every stretch of markdown that is not code. */
+export function mapOutsideCode(md: string, fn: (chunk: string) => string): string {
+  return md.split(MD_CODE_RE).map((part, i) => (i % 2 === 1 ? part : fn(part))).join('')
+}
+
 // ── Highlight syntax ==text== ─────────────────────────────────────────────
 
 export function processHighlights(html: string): string {
@@ -121,12 +129,14 @@ const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
  * silently doing nothing on click.
  */
 export function processWikiLinks(md: string, exists?: (target: string) => boolean): string {
-  return md.replace(WIKILINK_RE, (_, target, alias) => {
-    const display = alias ?? target
-    const dead = exists ? !exists(target) : false
-    const cls = dead ? 'wikilink wikilink-unresolved' : 'wikilink'
-    return `<a href="#" class="${cls}" data-target="${target}">${display}</a>`
-  })
+  return mapOutsideCode(md, (chunk) =>
+    chunk.replace(WIKILINK_RE, (_, target, alias) => {
+      const display = alias ?? target
+      const dead = exists ? !exists(target) : false
+      const cls = dead ? 'wikilink wikilink-unresolved' : 'wikilink'
+      return `<a href="#" class="${cls}" data-target="${target}">${display}</a>`
+    }),
+  )
 }
 
 // Toggle the nth `- [ ]` / `- [x]` occurrence in raw markdown

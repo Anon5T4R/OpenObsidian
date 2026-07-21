@@ -69,6 +69,13 @@ describe('processWikiLinks', () => {
     expect(out).toContain('class="wikilink wikilink-unresolved"')
   })
 
+  it('does not linkify a [[link]] inside a code fence', () => {
+    const md = '```\n[[Sepse]]\n```\n[[Sepse]]'
+    const out = processWikiLinks(md)
+    expect(out).toContain('```\n[[Sepse]]\n```')
+    expect(out).toContain('<a href="#" class="wikilink"')
+  })
+
   it('leaves a resolvable target unmarked', () => {
     const out = processWikiLinks('[[Sepse]]', () => true)
     expect(out).toContain('class="wikilink"')

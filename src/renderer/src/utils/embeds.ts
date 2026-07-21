@@ -4,12 +4,16 @@
 
 import { parseWikiTarget } from './linkResolver'
 import { parseFrontmatter } from './frontmatter'
+import { mapOutsideCode } from '../components/Editor/markdownTransforms'
 
 const EMBED_RE = /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
-// An `![[…]]` inside a code block is documentation — injecting a <div> there
-// would wreck the fence
-const CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g
 const MAX_DEPTH = 3
+
+// Shown when the target is missing: keep the literal `![[…]]` visible instead
+// of letting the later wikilink pass turn it into a half-broken link
+function missing(raw: string): string {
+  return `<div class="embed embed-missing">!&#91;&#91;${raw.trim()}&#93;&#93;</div>`
+}
 
 /** Markdown of a note, or null when there is no note behind the target. */
 export type EmbedResolver = (target: string) => string | null
@@ -51,29 +55,24 @@ export function expandEmbeds(
   seen: Set<string> = new Set(),
 ): string {
   if (depth >= MAX_DEPTH) return md
-  return md.split(CODE_RE).map((part, i) => {
-    if (i % 2 === 1) return part
-    return expandChunk(part, resolve, depth, seen)
-  }).join('')
-}
-
-function expandChunk(md: string, resolve: EmbedResolver, depth: number, seen: Set<string>): string {
-  return md.replace(EMBED_RE, (whole, raw: string) => {
+  // An `![[…]]` inside a code block is documentation — injecting a <div>
+  // there would wreck the fence
+  return mapOutsideCode(md, (chunk) => chunk.replace(EMBED_RE, (_, raw: string) => {
     const { target, hash } = parseWikiTarget(raw)
     const key = raw.trim().toLowerCase()
-    if (seen.has(key)) return `<div class="embed embed-missing">${whole}</div>`
+    if (seen.has(key)) return missing(raw)
 
     const resolved = resolve(target)
-    if (resolved === null) return `<div class="embed embed-missing">${whole}</div>`
+    if (resolved === null) return missing(raw)
 
     // The embedded note is no longer at the top of the document, so its own
     // frontmatter would render as a setext heading — drop it here
     const source = parseFrontmatter(resolved).body
     const body = hash && !hash.startsWith('^') ? extractSection(source, hash) : source
-    if (!body.trim()) return `<div class="embed embed-missing">${whole}</div>`
+    if (!body.trim()) return missing(raw)
 
     const inner = expandEmbeds(body, resolve, depth + 1, new Set([...seen, key]))
     const title = `<div class="embed-source"><a href="#" class="wikilink" data-target="${raw.trim()}">${raw.trim()}</a></div>`
     return `\n\n<div class="embed">\n${title}\n\n${inner}\n\n</div>\n\n`
-  })
+  }))
 }
