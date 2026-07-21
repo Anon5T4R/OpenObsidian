@@ -5,6 +5,7 @@ import {
   addHeadingIds,
   processWikiLinks,
   processTags,
+  stripComments,
   toggleCheckbox,
   decodeMermaidCode,
   slugify,
@@ -97,6 +98,29 @@ describe('processWikiLinks', () => {
     const out = processWikiLinks('[[Sepse]]', () => true)
     expect(out).toContain('class="wikilink"')
     expect(out).not.toContain('unresolved')
+  })
+})
+
+describe('stripComments', () => {
+  it('removes an inline comment', () => {
+    expect(stripComments('antes %%nota privada%% depois')).toBe('antes  depois')
+  })
+
+  it('removes a comment spanning several lines', () => {
+    expect(stripComments('a\n%%\nlixo\n%%\nb')).toBe('a\n\nb')
+  })
+
+  it('removes more than one comment', () => {
+    expect(stripComments('%%a%%x%%b%%')).toBe('x')
+  })
+
+  it('leaves a comment inside a code block alone', () => {
+    const md = '```\n%%exemplo%%\n```'
+    expect(stripComments(md)).toBe(md)
+  })
+
+  it('leaves a lone percent sign alone', () => {
+    expect(stripComments('50% de 100%')).toBe('50% de 100%')
   })
 })
 

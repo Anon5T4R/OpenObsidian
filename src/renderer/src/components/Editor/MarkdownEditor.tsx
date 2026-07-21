@@ -106,13 +106,17 @@ function buildThemeExtensions(theme: Theme): Extension[] {
 
 // ── WikiLink autocomplete ──────────────────────────────────────────────────
 
-function makeWikilinkCompletion(filesRef: React.MutableRefObject<NoteFile[]>) {
+function makeWikilinkCompletion(
+  filesRef: React.MutableRefObject<NoteFile[]>,
+  aliasesRef: React.MutableRefObject<{ alias: string; note: string }[]>,
+) {
   return (context: CompletionContext): CompletionResult | null => {
     const match = context.matchBefore(/\[\[[^\]]*/)
     if (!match) return null
-    const query = match.text.slice(2)
-    const options = filesRef.current
-      .filter((f) => f.name.toLowerCase().includes(query.toLowerCase()))
+    const query = match.text.slice(2).toLowerCase()
+
+    const notes = filesRef.current
+      .filter((f) => f.name.toLowerCase().includes(query))
       .slice(0, 30)
       .map((f) => ({
         label: f.name,
@@ -120,9 +124,23 @@ function makeWikilinkCompletion(filesRef: React.MutableRefObject<NoteFile[]>) {
         type: 'text',
         detail: f.relativePath.includes('/') || f.relativePath.includes('\\')
           ? f.relativePath.split(/[/\\]/)[0] : 'note',
-        boost: f.name.toLowerCase().startsWith(query.toLowerCase()) ? 1 : 0
+        boost: f.name.toLowerCase().startsWith(query) ? 1 : 0
       }))
-    return { from: match.from + 2, options, filter: false }
+
+    // An alias inserts `[[Note|alias]]`: the link keeps pointing at the real
+    // note (so it survives the alias being removed) and still reads as the alias
+    const aliases = aliasesRef.current
+      .filter((a) => a.alias.toLowerCase().includes(query))
+      .slice(0, 15)
+      .map((a) => ({
+        label: a.alias,
+        apply: `${a.note}|${a.alias}]]`,
+        type: 'keyword',
+        detail: a.note,
+        boost: a.alias.toLowerCase().startsWith(query) ? 1 : 0
+      }))
+
+    return { from: match.from + 2, options: [...notes, ...aliases], filter: false }
   }
 }
 
@@ -193,6 +211,8 @@ interface MarkdownEditorProps {
   onWikiLinkClick: (noteName: string) => void
   vaultPath: string | null
   files: NoteFile[]
+  /** Frontmatter aliases, offered in the [[ autocomplete */
+  aliases?: { alias: string; note: string }[]
   theme: Theme
   onStatsChange?: (stats: EditorStats) => void
   onAiExplain?: (text: string) => void
@@ -205,7 +225,7 @@ type CtxMenuState = {
 } | null
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  ({ content, onChange, onWikiLinkClick, vaultPath, files, theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
+  ({ content, onChange, onWikiLinkClick, vaultPath, files, aliases = [], theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
     const t               = useT()
     const editorRef       = useRef<HTMLDivElement>(null)
     const viewRef         = useRef<EditorView | null>(null)
@@ -213,6 +233,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     const onWikiLinkRef   = useRef(onWikiLinkClick)
     const vaultPathRef    = useRef(vaultPath)
     const filesRef        = useRef(files)
+    const aliasesRef      = useRef(aliases)
     const onStatsRef      = useRef(onStatsChange)
     const onAiExplainRef  = useRef(onAiExplain)
     const onAiNeedModelRef = useRef(onAiNeedModel)
@@ -224,6 +245,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     useEffect(() => { onWikiLinkRef.current = onWikiLinkClick },     [onWikiLinkClick])
     useEffect(() => { vaultPathRef.current = vaultPath },            [vaultPath])
     useEffect(() => { filesRef.current = files },                    [files])
+    useEffect(() => { aliasesRef.current = aliases },                [aliases])
     useEffect(() => { onStatsRef.current = onStatsChange },          [onStatsChange])
     useEffect(() => { onAiExplainRef.current = onAiExplain },        [onAiExplain])
     useEffect(() => { onAiNeedModelRef.current = onAiNeedModel },    [onAiNeedModel])
@@ -349,7 +371,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         wikilinkPlugin,
         EditorView.lineWrapping,
         autocompletion({
-          override: [makeWikilinkCompletion(filesRef), slashCompletion],
+          override: [makeWikilinkCompletion(filesRef, aliasesRef), slashCompletion],
           closeOnBlur: true,
           activateOnTyping: true,
           icons: true

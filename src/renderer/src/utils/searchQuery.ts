@@ -62,6 +62,8 @@ export interface SearchableNote {
   relativePath: string
   content: string
   tags: string[]
+  /** Frontmatter aliases — `file:iam` should find the note called SCA */
+  aliases?: string[]
 }
 
 export interface NoteMatch {
@@ -89,7 +91,9 @@ export function matchNote(
   }
   const relative = note.relativePath.replace(/\\/g, '/').toLowerCase()
   if (!includesAll(relative, q.paths)) return null
-  if (!includesAll(note.name.toLowerCase(), q.files)) return null
+  // `file:` matches the file name or any of its aliases
+  const names = [note.name.toLowerCase(), ...(note.aliases ?? []).map((a) => a.toLowerCase())]
+  if (!q.files.every((needle) => names.some((n) => n.includes(needle)))) return null
 
   const needles = textNeedles(q)
   if (!regex && !includesAll(lowerContent, needles)) return null

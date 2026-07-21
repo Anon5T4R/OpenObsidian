@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useT, formatDailyDate } from '../../i18n'
 import type { TranslationKey, Locale } from '../../i18n'
 import { useSettings } from '../../hooks/useSettings'
+import { useVaultStore } from '../../store/vaultStore'
+import { expandTemplateVars, isTemplatePath, TEMPLATES_DIR } from '../../utils/templateVars'
 import { X } from 'lucide-react'
 import { useModalA11y } from '../../hooks/useModalA11y'
 import './TemplateModal.css'
@@ -73,17 +75,34 @@ export default function TemplateModal({ onConfirm, onCancel, folderHint }: Templ
   const t = useT()
   const { settings } = useSettings()
   const templates = buildTemplates(t, settings.locale)
+  const files = useVaultStore((s) => s.files)
 
   const [name,     setName]     = useState('')
   const [selected, setSelected] = useState('blank')
   const dialogRef = useModalA11y<HTMLDivElement>(onCancel)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // The user's own templates: any note under `_templates/`, same convention as
+  // `_attachments/`. No new IPC — they are already in the vault index.
+  const userTemplates = useMemo(
+    () => files.filter((f) => isTemplatePath(f.relativePath))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [files],
+  )
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
+
+    const user = userTemplates.find((f) => f.path === selected)
+    if (user) {
+      let raw: string
+      try { raw = await window.api.readFile(user.path) } catch { raw = '' }
+      onConfirm(trimmed, expandTemplateVars(raw, { title: trimmed }))
+      return
+    }
     const tpl = templates.find((tp) => tp.id === selected) ?? templates[0]
-    onConfirm(trimmed, tpl.content(trimmed))
+    onConfirm(trimmed, expandTemplateVars(tpl.content(trimmed), { title: trimmed }))
   }
 
   return (
@@ -125,6 +144,22 @@ export default function TemplateModal({ onConfirm, onCancel, folderHint }: Templ
                 <span className="tpl-item-name">{t(tpl.nameKey)}</span>
               </button>
             ))}
+            {userTemplates.map((file) => (
+              <button
+                key={file.path}
+                type="button"
+                className={`tpl-item ${selected === file.path ? 'selected' : ''}`}
+                onClick={() => setSelected(file.path)}
+                title={file.relativePath}
+              >
+                <span className="tpl-item-icon">⭐</span>
+                <span className="tpl-item-name">{file.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="tpl-hint">
+            {t('tplUserHint', { folder: TEMPLATES_DIR })}
           </div>
 
           <div className="tpl-actions">

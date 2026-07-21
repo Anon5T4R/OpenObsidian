@@ -14,6 +14,7 @@ import {
   decodeMermaidCode,
   processWikiLinks,
   processTags,
+  stripComments,
   toggleCheckbox,
 } from './markdownTransforms'
 import { useT } from '../../i18n'
@@ -120,7 +121,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
   const html = useMemo(() => {
     // Embeds first: the inlined markdown must go through the whole pipeline too
     const withEmbeds = resolveEmbed ? expandEmbeds(deferredContent, resolveEmbed) : deferredContent
-    const withLinks = processWikiLinks(withEmbeds, linkExists)
+    const withLinks = processWikiLinks(stripComments(withEmbeds), linkExists)
     // remarkFrontmatter turns the leading `---` block into a yaml node that
     // remark-html drops — without it CommonMark reads it as a setext heading
     const result = remark()

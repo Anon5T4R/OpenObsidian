@@ -117,3 +117,11 @@
   padding: 10px 16px 14px;
   border-top: 1px solid var(--border);
 }
+
+/* Hint about user templates */
+.tpl-hint {
+  padding: 0 16px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}

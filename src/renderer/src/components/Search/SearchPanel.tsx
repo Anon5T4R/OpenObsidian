@@ -1,6 +1,6 @@
 import React, { MutableRefObject, useState, useEffect, useMemo, useRef } from 'react'
 import { useVaultStore, NoteFile, extractTags, expandTagHierarchy } from '../../store/vaultStore'
-import { parseFrontmatter, frontmatterTags } from '../../utils/frontmatter'
+import { parseFrontmatter, frontmatterTags, frontmatterAliases } from '../../utils/frontmatter'
 import {
   parseQuery, isEmptyQuery, matchNote, compileRegex, textNeedles, NoteMatch,
 } from '../../utils/searchQuery'
@@ -55,7 +55,10 @@ export default function SearchPanel({ onFileSelect, onClose, contentsRef }: Sear
         if (cancelled) return
         const { data } = parseFrontmatter(content)
         const tags = expandTagHierarchy([...extractTags(content), ...frontmatterTags(data)])
-        const matches = matchNote({ name: file.name, relativePath: file.relativePath, content, tags }, parsed, regex)
+        const matches = matchNote(
+          { name: file.name, relativePath: file.relativePath, content, tags, aliases: frontmatterAliases(data) },
+          parsed, regex,
+        )
         if (matches) found.push({ file, matches })
       }
       if (cancelled) return

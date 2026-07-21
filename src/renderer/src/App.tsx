@@ -24,13 +24,13 @@ import DocxViewer from './components/Docx/DocxViewer'
 import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import PreviewFind from './components/Find/PreviewFind'
-import BrokenLinksPanel from './components/Diagnostics/BrokenLinksPanel'
+import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
 import CommandPalette, { Command } from './components/CommandPalette/CommandPalette'
 import type { PluginInfo } from '../../preload/index'
-import { parseWikiTarget, resolveNote, noteExists } from './utils/linkResolver'
+import { parseWikiTarget, resolveNote, noteExists, buildAliasIndex, listAliases } from './utils/linkResolver'
 import { slugify } from './components/Editor/markdownTransforms'
 import './styles/app.css'
 
@@ -203,31 +203,40 @@ export default function App() {
     await handleFileSelect(history[index + 1], true)
   }, [handleFileSelect])
 
+  // Aliases from the frontmatter, so [[IAM]] opens the note that declares it
+  const aliasIndex = useMemo(() => buildAliasIndex(store.frontmatter), [store.frontmatter])
+
+  // Same data shaped for the [[ autocomplete
+  const aliasOptions = useMemo(
+    () => listAliases(store.frontmatter, store.files),
+    [store.frontmatter, store.files],
+  )
+
   // Receives the raw wikilink target: `Nota`, `Nota#Seção`, `Pasta/Nota`, `#Seção`
   const handleFileSelectByName = useCallback(async (rawTarget: string) => {
     const { target, hash } = parseWikiTarget(rawTarget)
     const fromPath = useVaultStore.getState().activeFile?.path
     if (target) {
-      const file = resolveNote(store.files, target, fromPath)
+      const file = resolveNote(store.files, target, fromPath, aliasIndex)
       if (!file) return // dead link — the preview already renders it as such
       if (file.path !== fromPath) await handleFileSelect(file)
     }
     // `#^bloco` has no counterpart in the render yet — opening the note is all we can do
     if (hash && !hash.startsWith('^')) scrollToHeadingId(slugify(hash), hash)
-  }, [store.files, handleFileSelect])
+  }, [store.files, handleFileSelect, aliasIndex])
 
   const linkExists = useCallback(
-    (target: string) => noteExists(store.files, target, store.activeFile?.path),
-    [store.files, store.activeFile?.path],
+    (target: string) => noteExists(store.files, target, store.activeFile?.path, aliasIndex),
+    [store.files, store.activeFile?.path, aliasIndex],
   )
 
   // The content cache already holds every note of the vault (filled on open),
   // so an embed resolves synchronously — no IPC round-trip while rendering
   const resolveEmbed = useCallback((target: string): string | null => {
-    const file = resolveNote(store.files, target, store.activeFile?.path)
+    const file = resolveNote(store.files, target, store.activeFile?.path, aliasIndex)
     if (!file) return null
     return contentCacheRef.current[file.path] ?? null
-  }, [store.files, store.activeFile?.path])
+  }, [store.files, store.activeFile?.path, aliasIndex])
 
   // A rename (and the link rewrite that follows) changed files on disk behind
   // the content cache — refresh the touched entries and rebuild the indexes
@@ -314,6 +323,13 @@ export default function App() {
   const handleTocJump = useCallback((id: string) => {
     scrollToHeadingId(id, '')
   }, [])
+
+  // Spaced-repetition by hand: jump somewhere you were not looking for
+  const handleRandomNote = useCallback(() => {
+    const pool = store.files.filter((f) => f.path !== store.activeFile?.path)
+    if (pool.length === 0) return
+    handleFileSelect(pool[Math.floor(Math.random() * pool.length)])
+  }, [store.files, store.activeFile?.path, handleFileSelect])
 
   // Reading view has no CodeMirror, so it gets its own find bar
   const handleOpenFind = useCallback(() => {
@@ -481,12 +497,15 @@ export default function App() {
     { id: 'daily',    icon: '📅', label: t('cmdDailyNote'),     run: handleDailyNote },
     { id: 'search',   icon: '🔍', label: t('cmdSearch'),        run: () => store.setSearchOpen(true) },
     { id: 'graph',    icon: '◎',  label: t('cmdGraph'),         run: () => setGraphOpen((o) => !o) },
-    { id: 'broken',   icon: '🔗', label: t('cmdBrokenLinks'),   run: () => { store.setSearchOpen(false); setBrokenOpen(true) } },
+    { id: 'diag',     icon: '🩺', label: t('cmdDiagnostics'),   run: () => { store.setSearchOpen(false); setBrokenOpen(true) } },
+    { id: 'random',   icon: '🎲', label: t('cmdRandomNote'),    run: handleRandomNote },
     { id: 'settings', icon: '⚙',  label: t('cmdSettings'),      run: () => setSettingsOpen(true) },
     { id: 'backup',   icon: '💾', label: t('cmdBackup'),        run: handleBackup },
     { id: 'help',     icon: '?',  label: t('cmdHelp'),          run: () => setHelpOpen(true) },
     { id: 'sidebar',  icon: '▤',  label: t('cmdToggleSidebar'), run: () => setSidebarCollapsed((c) => !c) },
-  ], [t, handleNewNote, handleDailyNote, handleBackup])
+    // handleRandomNote closes over the file list — a stale one would keep
+    // drawing from the vault as it was when the palette first rendered
+  ], [t, handleNewNote, handleDailyNote, handleBackup, handleRandomNote])
 
   // ── Stable callbacks for memoized children (FileTree, BacklinksPanel, GraphView) ──
   const handleSortChange      = useCallback((s: SidebarSort) => setSettings({ sidebarSort: s }), [setSettings])
@@ -528,7 +547,7 @@ export default function App() {
       {/* Main */}
       <main className="main">
         {brokenOpen ? (
-          <BrokenLinksPanel
+          <VaultDiagnosticsPanel
             onFileSelect={(file) => { setBrokenOpen(false); handleFileSelect(file) }}
             onClose={() => setBrokenOpen(false)}
           />
@@ -648,6 +667,7 @@ export default function App() {
                           onWikiLinkClick={handleFileSelectByName}
                           vaultPath={store.vaultPath}
                           files={store.files}
+                          aliases={aliasOptions}
                           theme={settings.theme}
                           onStatsChange={setEditorStats}
                           onAiExplain={handleAiExplain}

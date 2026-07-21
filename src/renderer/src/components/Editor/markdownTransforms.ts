@@ -89,6 +89,17 @@ export function processHighlights(html: string): string {
   }).join('')
 }
 
+// ── Private comments %%…%% ────────────────────────────────────────────────
+
+/**
+ * `%%text%%` is an annotation for the author only: it stays in the file but is
+ * not rendered. Runs on raw markdown so a comment can also swallow block
+ * syntax (a whole paragraph, a heading) without leaving debris behind.
+ */
+export function stripComments(md: string): string {
+  return mapOutsideCode(md, (chunk) => chunk.replace(/%%[\s\S]*?%%/g, ''))
+}
+
 // ── Inline tags ───────────────────────────────────────────────────────────
 
 // Same shape as extractTags in the store, so what is rendered as a tag and
