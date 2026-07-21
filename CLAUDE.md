@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **0.9.0**
+Current version: **0.10.0**
 
 ---
 
@@ -52,7 +52,11 @@ src/
       Backlinks/BacklinksPanel.tsx  ← Capped at 38% of the sidebar, collapsible
       Search/SearchPanel.tsx        ← Vault search with operators (see utils/searchQuery)
       Find/PreviewFind.tsx + .css   ← Ctrl+F for the reading view (CSS Highlight API)
-      Diagnostics/BrokenLinksPanel.tsx + .css  ← Link targets with no note behind them
+      Diagnostics/VaultDiagnosticsPanel.tsx     ← Broken links, orphan notes, duplicate names
+      Review/ReviewPanel.tsx                    ← Flashcard session (keyboard-only flow)
+      Review/ReviewStatsPanel.tsx               ← Retention, 14-day forecast
+      Review/AnkiImportModal.tsx                ← Confirmation before writing an imported deck
+      Calendar/CalendarPopover.tsx + .css        ← Month grid over the daily notes
       Graph/GraphView.tsx           ← D3 knowledge graph
       Insert/InsertMenu.tsx         ← Toolbar insert menu (table, heading, etc.)
       Settings/SettingsModal.tsx
@@ -62,14 +66,20 @@ src/
       linkResolver.ts        ← Wikilink target → note; unresolved-link list
       frontmatter.ts         ← YAML header → fields + body (js-yaml)
       embeds.ts              ← ![[Note]] / ![[Note#Section]] expansion
-      searchQuery.ts         ← Search grammar and note matching
+      searchQuery.ts         ← Search grammar, note matching and relevance score
       textRanges.ts          ← Text → Ranges, for the preview find bar
+      cards.ts               ← Flashcards found in a note (callouts + cloze)
+      noteQuery.ts           ← ```query block: parse, match, sort
+      calendar.ts            ← Month grid maths for the daily-note calendar
+      templateVars.ts        ← {{title}} / {{date}} / {{time}} expansion
+      aiPrompts.ts           ← Ready-to-paste prompts for any AI chat
 resources/               ← App icons (icon.ico, icon.icns, icons/)
 scripts/generate-icons.js
 ```
 
 `src/main/` also holds pure, tested modules: `link-rewrite.ts` (rename → rewrite
-`[[links]]`) and `odt.ts` (ODF XML → HTML).
+`[[links]]`), `odt.ts` (ODF XML → HTML), `srs.ts` (SM-2 scheduling + Anki text
+exchange) and `apkg.ts` (Anki package → cards).
 
 ---
 
@@ -95,6 +105,7 @@ Key state:
 - `activeContent: string` — current markdown content in editor
 - `isDirty: boolean` — unsaved changes
 - `backlinks: Record<string, string[]>` — name → list of files that link to it
+- `srsStats` — card counters, so the toolbar badge does not have to ask the main process
 - `searchOpen: boolean`
 - `pinnedPaths: string[]`
 
@@ -152,14 +163,15 @@ Processing order:
 8. `processMath(html)` — `$$..$$` / `$...$` / `\[..\]` / `\(..\)` → KaTeX
 9. `addHeadingIds(html)` — adds `id="..."` to h1/h2/h3 for TOC and `[[Note#Section]]` scrolling
 10. Mermaid code block wrap → `<div class="mermaid-block"><pre class="mermaid">…`
-11. Resolve relative image paths to `file:///` URLs (for Electron)
-12. `renderProperties(...)` prepends the frontmatter strip
+11. ```query blocks → a live list of wikilinks (`renderQueryBlock`)
+12. Resolve relative image paths to `file:///` URLs (for Electron)
+13. `renderProperties(...)` prepends the frontmatter strip
 
 **Code is always skipped**: steps 5–8 split the HTML on `CODE_BLOCK_RE`; steps 1–2 work on raw markdown and use `mapOutsideCode` / `MD_CODE_RE` instead. Both live in `markdownTransforms.ts` — a transform that forgets this will happily rewrite a documented example inside a fence.
 
 ---
 
-## Since v0.5.2 → v0.9.0 (summary)
+## Since v0.5.2 → v0.10.0 (summary)
 
 - **AI chat panel** (local GGUF via node-llama-cpp or remote API) + **AI text actions** (v0.5.x)
 - **Community plugin system** with GitHub starter plugin; plugin exec bridge with `neutralLocale` flag
@@ -167,6 +179,97 @@ Processing order:
 - v0.7.x: cleanup pass, sidebar lists files before folders, folder move with contents, graph stability/perf (no async camera movement), render/index/search optimizations
 - v0.8.x: i18n (EN/PT/ES, typed against `en`), CI on node24
 - **v0.9.0 — vault integrity + search.** See the section below.
+- **v0.10.0 — study features.** Flashcards with spaced repetition, calendar,
+  query blocks, `.apkg` import, aliases and vault diagnostics. See below.
+
+---
+
+## v0.10.0 — Study features
+
+Built in four passes on top of v0.9.0. Same rule as before: additive, and the
+notes stay plain Markdown.
+
+### Flashcards (`src/main/srs.ts`, `utils/cards.ts`, `components/Review/`)
+
+A card is a callout, so it renders anywhere and degrades into prose:
+
+```markdown
+> [!card]- Question
+> Answer
+
+> [!card] Title
+> sentence with ==highlights==     ← one cloze card per highlight
+
+> [!mnemonic]? Title               ← reviewable; without `?` it is decoration
+```
+
+- **SM-2** (the Anki algorithm) in `srs.ts` — pure, no mutation, 50+ tests.
+  A scheduling bug here ruins months of study silently.
+- State lives in `.openobsidian/srs.json`, written with write-then-rename.
+  **Never inside the notes**: scheduling changes on every review and would
+  dirty the diff of every note.
+- `cardId` = FNV-1a over `relativePath::question`. Editing the **answer** keeps
+  the schedule; editing the **question** creates a new card.
+- Cards sync on vault open (`srs:sync-all`) *and* on save. Syncing only on save
+  meant a card existed only after you happened to edit its note.
+- The review panel reads the answer from the note at review time, so fixing the
+  note fixes the card with no re-sync.
+- End of session: replay the session as **practice** (writes nothing — grading
+  the same cards again would punish the schedule for extra study) or pull the
+  next 7 days.
+
+### Anki import (`src/main/apkg.ts`)
+
+Reads `.apkg` directly — no Anki Desktop needed.
+
+- `.apkg` is a ZIP with a SQLite collection, read with **sql.js** (WASM, no
+  native module, so the CI matrix is untouched). `sql-wasm.wasm` is in
+  `asarUnpack`; verify with `electron-builder --dir` after touching packaging.
+- Anki 2.1.50+ compresses the collection with zstd → **fzstd** (pure JS;
+  Electron's Node has no zstd). Detection is by magic bytes, not file name.
+- Cloze notes are detected by `{{c1::}}` in the text, not by the note-type
+  table, whose format changed between Anki versions. **They have no answer
+  field — requiring one silently threw every cloze note away.**
+- `{{c1::x}}` → `==x==`, `[$]x[/$]` → `$x$`, `A::B` tags → `#A/B`.
+- A deck lands as a folder, 100 cards per note: one note of 2000 cards takes
+  ~900ms to render (remark 513ms + DOM 391ms), at 100 it is ~45ms.
+
+### Query blocks (`utils/noteQuery.ts`)
+
+````markdown
+```query
+tag: sis-cardio
+tipo: patologia      ← any frontmatter field
+sort: modificado desc
+limit: 20
+```
+````
+
+An unreadable line is shown above the results rather than ignored, and a spec
+with no filter returns nothing instead of the whole vault.
+
+### Everything else
+
+- **Calendar** (`utils/calendar.ts`): month grid, days with a note marked, any
+  day opens or creates. Six weeks always, local dates (not UTC, which shifts
+  the day), `31/01 + 1 month` clamps to the 28th/29th.
+- **Aliases**: `[[IAM]]` resolves through the frontmatter; a real file name
+  always wins over an alias.
+- **Vault diagnostics**: broken links, orphan notes, duplicate names.
+- **User templates** in `_templates/` with `{{title}}`, `{{date}}`, `{{time}}`.
+- **AI prompts** (`utils/aiPrompts.ts`): copies a ready-made prompt to the
+  clipboard. Nothing is sent anywhere.
+- **Search ranking**: exact title 100, exact alias 80, heading 12, body with
+  diminishing returns — counting each mention linearly let a long note beat a
+  note actually about the subject.
+
+### Invariants added here
+
+- Scheduling never goes in a note; note content never goes in `srs.json`.
+- Anything keyed by `relativePath` must get it from `store.files`, never build
+  it — the file tree once handed out an absolute path there and broke
+  flashcards, decks, and anything else keyed that way.
+- A parser that cannot read a line says so; it never guesses silently.
 
 ---
 

@@ -60,12 +60,24 @@ Android version: <https://github.com/Anon5T4R/OpenObsidianAndroid/releases>
   Each `==highlight==` becomes its own gap-fill card.
 
 - Review panel with a keyboard-only flow, decks by tag or note, suspend, statistics
-  (retention, 14-day forecast) and Anki text import/export
+  (retention, 14-day forecast), and a practice round that does not touch the schedule
+- **Imports an Anki `.apkg` directly** — no Anki Desktop needed. Cloze notes become
+  gap-fill cards, `A::B` tags become `#A/B`, and a big deck lands as a folder of notes
 - Scheduling lives in `.openobsidian/srs.json` — never inside your notes
 
 ### Everything else
 
 - Calendar with daily notes: days that have a note are marked, any day can be opened or created
+- **Query blocks** that keep an index derived from the notes instead of typed by hand:
+
+  ````markdown
+  ```query
+  tag: cardio
+  tipo: patologia
+  sort: modificado desc
+  ```
+  ````
+
 - Your own templates in `_templates/`, with `{{title}}`, `{{date}}` and `{{time}}`
 - Reads `.pdf`, `.docx`, `.epub` and `.odt`; converts `.docx`/`.odt` to Markdown
 - Local AI chat (GGUF via node-llama-cpp) or a remote API — plus a command that copies a
