@@ -149,11 +149,13 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000)
   }, [])
 
+  const clearChatTrigger = useCallback(() => setChatTrigger(undefined), [])
+
   const refreshPlugins = useCallback(() => {
     window.api.pluginList().then(setPlugins)
   }, [])
 
-  useEffect(() => { refreshPlugins() }, [])
+  useEffect(() => { refreshPlugins() }, [refreshPlugins])
 
   // ── Reset nav on vault switch ─────────────────────────────────────────────
   const resetNav = useCallback(() => {
@@ -194,7 +196,7 @@ export default function App() {
       setNavCanBack(navRef.current.index > 0)
       setNavCanForward(false)
     }
-  }, [])
+  }, [contentCacheRef])
 
   // ── Nav back / forward ────────────────────────────────────────────────────
   const handleNavBack = useCallback(async () => {
@@ -277,7 +279,7 @@ export default function App() {
     const file = resolveNote(store.files, target, store.activeFile?.path, aliasIndex)
     if (!file) return null
     return contentCacheRef.current[file.path] ?? null
-  }, [store.files, store.activeFile?.path, aliasIndex])
+  }, [store.files, store.activeFile?.path, aliasIndex, contentCacheRef])
 
   // A rename (and the link rewrite that follows) changed files on disk behind
   // the content cache — refresh the touched entries and rebuild the indexes
@@ -299,12 +301,16 @@ export default function App() {
       s.setActiveContent(cache[newPath] ?? s.activeContent)
     }
     s.buildBacklinks(s.files, cache)
-  }, [])
+  }, [contentCacheRef])
 
+  // Read through getState instead of closing over `store`: this is handed to
+  // the memoized FileTree, and a new identity on every store change would make
+  // the whole tree re-render for nothing
   const handleFileDeleted = useCallback((path: string) => {
-    if (store.activeFile?.path === path) {
-      store.setActiveFile(null)
-      store.setActiveContent('')
+    const s = useVaultStore.getState()
+    if (s.activeFile?.path === path) {
+      s.setActiveFile(null)
+      s.setActiveContent('')
     }
     const { history, index } = navRef.current
     const newHistory = history.filter((f) => f.path !== path)
@@ -312,7 +318,7 @@ export default function App() {
     navRef.current = { history: newHistory, index: newIndex }
     setNavCanBack(newIndex > 0)
     setNavCanForward(newIndex < newHistory.length - 1)
-  }, [store.activeFile?.path])
+  }, [])
 
   // ── Feature hooks ─────────────────────────────────────────────────────────
   const { handleOpenCompanionNote, handleConvertToMd, handleOpenInApp, isConverting } =
@@ -472,7 +478,7 @@ export default function App() {
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [sidebarCollapsed, sidebarWidth])
+  }, [sidebarCollapsed, sidebarWidth, setSettings])
 
   // ── Split resize ──────────────────────────────────────────────────────────
   const onSplitResizeStart = useCallback((e: React.MouseEvent) => {
@@ -561,7 +567,7 @@ export default function App() {
       if (reloadTimer) clearTimeout(reloadTimer)
       if (staleTimer) clearTimeout(staleTimer)
     }
-  }, [store.vaultPath])
+  }, [store.vaultPath, contentCacheRef])
 
   // Card counter needs a value before the first save of the session
   useEffect(() => {
@@ -579,7 +585,7 @@ export default function App() {
     const u4 = window.api.onMenuToggleSidebar(() => setSidebarCollapsed((c) => !c))
     const u5 = window.api.onMenuBackup(handleBackup)
     return () => { u1(); u2(); u3(); u4(); u5() }
-  }, [handleOpenVault, handleNewNote, handleBackup])
+  }, [handleOpenVault, handleNewNote, handleBackup, store.toggleSearch])
 
   // ── Mouse back / forward buttons ──────────────────────────────────────────
   useEffect(() => {
@@ -595,7 +601,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey
-      if (ctrl && e.shiftKey && e.key === 'F') { e.preventDefault(); store.toggleSearch() }
+      if (ctrl && e.shiftKey && e.key === 'F') { e.preventDefault(); useVaultStore.getState().toggleSearch() }
       if (ctrl && e.key === 'n')               { e.preventDefault(); handleNewNote() }
       if (ctrl && e.key === '\\')              { e.preventDefault(); setSidebarCollapsed((c) => !c) }
       if (ctrl && e.shiftKey && e.key === 'B') { e.preventDefault(); handleBackup() }
@@ -614,22 +620,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
     // handleOpenFind must be here: it closes over viewMode, and a stale
     // listener would keep routing Ctrl+F to an editor the reading view has no
-  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward, handleOpenFind])
+  }, [handleNewNote, handleBackup, settings.fontSize, handleNavBack, handleNavForward, handleOpenFind,
+      setSettings])
 
   // ── Command palette commands ──────────────────────────────────────────────
   const paletteCommands: Command[] = useMemo(() => [
     { id: 'new-note', icon: '📝', label: t('cmdNewNote'),       run: () => handleNewNote() },
     { id: 'daily',    icon: '📅', label: t('cmdDailyNote'),     run: handleDailyNote },
-    { id: 'search',   icon: '🔍', label: t('cmdSearch'),        run: () => store.setSearchOpen(true) },
+    { id: 'search',   icon: '🔍', label: t('cmdSearch'),        run: () => useVaultStore.getState().setSearchOpen(true) },
     { id: 'graph',    icon: '◎',  label: t('cmdGraph'),         run: () => setGraphOpen((o) => !o) },
-    { id: 'diag',     icon: '🩺', label: t('cmdDiagnostics'),   run: () => { store.setSearchOpen(false); setBrokenOpen(true) } },
+    { id: 'diag',     icon: '🩺', label: t('cmdDiagnostics'),   run: () => { useVaultStore.getState().setSearchOpen(false); setBrokenOpen(true) } },
     { id: 'random',   icon: '🎲', label: t('cmdRandomNote'),    run: handleRandomNote },
-    { id: 'review',   icon: '🃏', label: t('cmdReview'),        run: () => { store.setSearchOpen(false); setReviewDeck({ kind: 'all' }) } },
+    { id: 'review',   icon: '🃏', label: t('cmdReview'),        run: () => { useVaultStore.getState().setSearchOpen(false); setReviewDeck({ kind: 'all' }) } },
     { id: 'reviewN',  icon: '🃏', label: t('cmdReviewNote'),    run: () => {
       const active = useVaultStore.getState().activeFile
-      if (active) { store.setSearchOpen(false); setReviewDeck({ kind: 'note', path: active.relativePath }) }
+      if (active) { useVaultStore.getState().setSearchOpen(false); setReviewDeck({ kind: 'note', path: active.relativePath }) }
     } },
-    { id: 'reviewS',  icon: '📊', label: t('cmdReviewStats'),   run: () => { store.setSearchOpen(false); setStatsOpen(true) } },
+    { id: 'reviewS',  icon: '📊', label: t('cmdReviewStats'),   run: () => { useVaultStore.getState().setSearchOpen(false); setStatsOpen(true) } },
     { id: 'aiCards',  icon: '🤖', label: t('cmdAiFlashcards'),  run: () => copyAiPrompt('flashcards') },
     { id: 'aiSum',    icon: '🤖', label: t('cmdAiSummary'),     run: () => copyAiPrompt('summary') },
     { id: 'aiTpl',    icon: '🤖', label: t('cmdAiTemplate'),    run: () => copyAiPrompt('template') },
@@ -695,8 +702,8 @@ export default function App() {
           />
         ) : store.searchOpen ? (
           <SearchPanel
-            onFileSelect={(file) => { store.setSearchOpen(false); handleFileSelect(file) }}
-            onClose={() => store.setSearchOpen(false)}
+            onFileSelect={(file) => { useVaultStore.getState().setSearchOpen(false); handleFileSelect(file) }}
+            onClose={() => useVaultStore.getState().setSearchOpen(false)}
             contentsRef={contentCacheRef}
           />
         ) : noVault ? (
@@ -911,7 +918,7 @@ export default function App() {
           vaultFileNames={store.files.map((f) => f.name)}
           onInsertAtCursor={(text) => editorRef.current?.insertText(text)}
           triggerMessage={chatTrigger}
-          onTriggerConsumed={() => setChatTrigger(undefined)}
+          onTriggerConsumed={clearChatTrigger}
         />
       )}
       {activePluginId && (() => {

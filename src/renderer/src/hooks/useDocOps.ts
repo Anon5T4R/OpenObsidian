@@ -23,7 +23,7 @@ export function useDocOps(
     const result = await window.api.createFile(store.vaultPath, noteName, dir || store.vaultPath)
     if (result.error && !result.path) { notify(result.error); return }
     const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    useVaultStore.getState().setTree(tree)
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
@@ -32,7 +32,7 @@ export function useDocOps(
       await window.api.writeFile(newFile.path, initialContent)
       await handleFileSelect(newFile)
     }
-  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify])
+  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify, contentCacheRef])
 
   const handleConvertToMd = useCallback(async () => {
     if (!store.activeFile || !store.vaultPath) return
@@ -67,7 +67,7 @@ export function useDocOps(
       await window.api.writeFile(result.path!, markdown)
 
       const tree = await window.api.listTree(store.vaultPath)
-      store.setTree(tree)
+      useVaultStore.getState().setTree(tree)
       const files = flattenTree(tree)
       const newFile = files.find((f) => f.path === result.path)
       if (newFile) {
@@ -78,7 +78,7 @@ export function useDocOps(
     } finally {
       setIsConverting(false)
     }
-  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify, settings.locale])
+  }, [store.activeFile, store.vaultPath, store.files, handleFileSelect, notify, settings.locale, contentCacheRef])
 
   const handleOpenInApp = useCallback(async () => {
     if (!store.activeFile) return

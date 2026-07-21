@@ -31,7 +31,7 @@ export function useFileOps(
     const result = await window.api.createFile(store.vaultPath, today)
     if (result.error && !result.path) { notify(result.error); return }
     const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    useVaultStore.getState().setTree(tree)
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
@@ -67,7 +67,7 @@ export function useFileOps(
       await window.api.writeFile(newFile.path, initialContent)
       await handleFileSelect(newFile)
     }
-  }, [store.vaultPath, store.files, handleFileSelect, notify, settings.locale])
+  }, [store.vaultPath, store.files, handleFileSelect, notify, settings.locale, contentCacheRef])
 
   const handleDailyNote = useCallback(() => handleDailyNoteFor(todayISO()), [handleDailyNoteFor])
 
@@ -84,22 +84,23 @@ export function useFileOps(
     if (result.error) { alert(result.error); return }
     if (result.path) await window.api.writeFile(result.path, content)
     const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    const s = useVaultStore.getState()
+    s.setTree(tree)
     const files = flattenTree(tree)
     const newFile = files.find((f) => f.path === result.path)
     if (newFile) {
       contentCacheRef.current[newFile.path] = content
-      store.setActiveFile(newFile)
-      store.setActiveContent(content)
+      s.setActiveFile(newFile)
+      s.setActiveContent(content)
     }
-  }, [store.vaultPath, templateFolder])
+  }, [store.vaultPath, templateFolder, contentCacheRef])
 
   const handleNewFolder = useCallback(async (parentPath?: string, name?: string) => {
     if (!store.vaultPath || !name?.trim()) return
     const result = await window.api.createFolder(parentPath ?? store.vaultPath, name.trim())
     if (result.error) { notify(result.error); return }
     const tree = await window.api.listTree(store.vaultPath)
-    store.setTree(tree)
+    useVaultStore.getState().setTree(tree)
   }, [store.vaultPath, notify])
 
   return {

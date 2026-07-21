@@ -97,7 +97,7 @@ export default function ChatPanel({
     setGenerating(true)
     setLastWasContinue(false)
     window.api.llmGenerate([userMsg])
-  }, [triggerMessage, status.status])
+  }, [triggerMessage, status.status, onTriggerConsumed])
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: 'smooth' })

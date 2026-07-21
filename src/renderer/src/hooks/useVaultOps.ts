@@ -23,7 +23,7 @@ export function useVaultOps(
   const openVaultPath = useCallback(async (vaultPath: string) => {
     resetNav()
     const tree = await window.api.listTree(vaultPath)
-    store.setVault(vaultPath, tree)
+    useVaultStore.getState().setVault(vaultPath, tree)
     await window.api.watchVault(vaultPath)
     await window.api.setLastVault(vaultPath)
     setLastVault({ path: vaultPath, name: vaultPath.split(/[/\\]/).pop() ?? vaultPath })
@@ -52,7 +52,7 @@ export function useVaultOps(
     }
 
     contentCacheRef.current = contents
-    store.buildBacklinks(files, contents)
+    useVaultStore.getState().buildBacklinks(files, contents)
 
     const entries: Record<string, { mtime: number; content: string }> = {}
     for (const file of files) {
@@ -78,7 +78,7 @@ export function useVaultOps(
     window.api.srsSyncAll(vaultPath, notes)
       .then((r) => useVaultStore.getState().setSrsStats(r.stats))
       .catch(() => { /* review state must never block opening a vault */ })
-  }, [resetNav])
+  }, [resetNav, contentCacheRef, notify, settings.locale])
 
   const handleOpenVault = useCallback(async () => {
     const vaultPath = await window.api.openVault()

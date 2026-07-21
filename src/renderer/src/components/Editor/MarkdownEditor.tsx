@@ -412,7 +412,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
       viewRef.current = view
       emitStats(state)
 
-      editorRef.current.addEventListener('click', handleClick)
+      editorRef.current.addEventListener('click', handleClick)  // removed via `host` below
 
       const onPaste = (e: ClipboardEvent) => {
         if (!e.clipboardData?.items) return
@@ -436,17 +436,25 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         })
       }
 
-      editorRef.current.addEventListener('paste', onPaste)
-      editorRef.current.addEventListener('drop', onDrop)
-      editorRef.current.addEventListener('contextmenu', onContextMenu)
+      // Held in a local: by cleanup time the ref may already point elsewhere,
+      // and the listeners would then be removed from the wrong element
+      const host = editorRef.current
+      host.addEventListener('paste', onPaste)
+      host.addEventListener('drop', onDrop)
+      host.addEventListener('contextmenu', onContextMenu)
 
       return () => {
-        editorRef.current?.removeEventListener('click', handleClick)
-        editorRef.current?.removeEventListener('paste', onPaste)
-        editorRef.current?.removeEventListener('drop', onDrop)
-        editorRef.current?.removeEventListener('contextmenu', onContextMenu)
+        host.removeEventListener('click', handleClick)
+        host.removeEventListener('paste', onPaste)
+        host.removeEventListener('drop', onDrop)
+        host.removeEventListener('contextmenu', onContextMenu)
         view.destroy()
       }
+      // Runs once on purpose. `content` is the initial document, `theme` is
+      // swapped through a compartment in the effect below, and the handlers are
+      // read through refs — listing them here would tear down and rebuild the
+      // whole editor on every keystroke.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {

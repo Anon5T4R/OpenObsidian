@@ -339,7 +339,7 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
         svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
       }
     }
-  }, [files, backlinks, activeFile, localMode, search, theme, posKey, t])
+  }, [files, backlinks, activeFile, localMode, search, theme, posKey, t, isDark, onNodeClick])
 
   // Changing the visible subset is a deliberate action — reset the camera so
   // the new subset gets auto-fitted (declared before the render effect below).
@@ -350,7 +350,7 @@ function GraphView({ onNodeClick, onClose }: GraphViewProps) {
     if (subsetMountRef.current) { subsetMountRef.current = false; return }
     zoomTransformRef.current = null
     savedTransforms.delete(posKey)
-  }, [localMode, search])
+  }, [localMode, search, posKey])
 
   useEffect(() => {
     render()
