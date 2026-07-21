@@ -491,7 +491,13 @@ export const en = {
 
   hlpSecSearch:  'Full-text search',
   hlpSearchPre:  'Press',
-  hlpSearchPost: 'to open the search panel. It searches the content of every note in the vault in real time. Results show the matching line with context. Click a result to open that note.',
+  hlpSearchPost: 'to open the search panel. It searches the content of every note in the vault in real time. Results show the matching line with context. Click a result to open that note. Operators can be combined:',
+  hlpSearchTag:      'only notes with that tag (a parent tag also finds its children).',
+  hlpSearchPathFile: 'filter by folder or by file name.',
+  hlpSearchPhrase:   'the words in that exact order.',
+  hlpSearchExclude:  'drop notes containing the term.',
+  hlpSearchRegex:    'the toggle next to the box turns the query into a regular expression.',
+  hlpSearchBroken:   'Nothing is hidden: each note shows five lines and a "+N occurrences" button for the rest. The command palette (Ctrl+P) also has "Broken links", which lists every [[link]] with no note behind it.',
 
   hlpSecBackup:  'Vault backup',
   hlpBackupPre:  'Press',
@@ -1042,7 +1048,13 @@ const ptBR: typeof en = {
 
   hlpSecSearch:  'Busca de texto completo',
   hlpSearchPre:  'Pressione',
-  hlpSearchPost: 'para abrir o painel de busca. Ele busca o conteúdo de cada nota do vault em tempo real. Os resultados mostram a linha correspondente com contexto. Clique num resultado para abrir aquela nota.',
+  hlpSearchPost: 'para abrir o painel de busca. Ele busca o conteúdo de cada nota do vault em tempo real. Os resultados mostram a linha correspondente com contexto. Clique num resultado para abrir aquela nota. Os operadores podem ser combinados:',
+  hlpSearchTag:      'só as notas com aquela tag (a tag pai também acha as filhas).',
+  hlpSearchPathFile: 'filtra por pasta ou por nome de arquivo.',
+  hlpSearchPhrase:   'as palavras exatamente nessa ordem.',
+  hlpSearchExclude:  'descarta as notas que contêm o termo.',
+  hlpSearchRegex:    'o botão ao lado da caixa transforma a busca em expressão regular.',
+  hlpSearchBroken:   'Nada fica escondido: cada nota mostra cinco linhas e um botão "+N ocorrências" para o resto. A paleta de comandos (Ctrl+P) também tem "Links quebrados", que lista todo [[link]] sem nota por trás.',
 
   hlpSecBackup:  'Backup do vault',
   hlpBackupPre:  'Pressione',
@@ -1593,7 +1605,13 @@ const esLatam: typeof en = {
 
   hlpSecSearch:  'Búsqueda de texto completo',
   hlpSearchPre:  'Presiona',
-  hlpSearchPost: 'para abrir el panel de búsqueda. Busca el contenido de cada nota del vault en tiempo real. Los resultados muestran la línea coincidente con contexto. Haz clic en un resultado para abrir esa nota.',
+  hlpSearchPost: 'para abrir el panel de búsqueda. Busca el contenido de cada nota del vault en tiempo real. Los resultados muestran la línea coincidente con contexto. Haz clic en un resultado para abrir esa nota. Los operadores se pueden combinar:',
+  hlpSearchTag:      'solo las notas con esa etiqueta (la etiqueta padre también encuentra las hijas).',
+  hlpSearchPathFile: 'filtra por carpeta o por nombre de archivo.',
+  hlpSearchPhrase:   'las palabras exactamente en ese orden.',
+  hlpSearchExclude:  'descarta las notas que contienen el término.',
+  hlpSearchRegex:    'el botón junto a la caja convierte la búsqueda en expresión regular.',
+  hlpSearchBroken:   'Nada queda oculto: cada nota muestra cinco líneas y un botón "+N coincidencias" para el resto. La paleta de comandos (Ctrl+P) también tiene "Enlaces rotos", que lista todo [[enlace]] sin nota detrás.',
 
   hlpSecBackup:  'Copia de seguridad del vault',
   hlpBackupPre:  'Presiona',

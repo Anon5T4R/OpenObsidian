@@ -225,6 +225,14 @@ function FeaturesTab() {
         <p className="help-para">
           {t('hlpSearchPre')} <kbd>Ctrl+Shift+F</kbd> {t('hlpSearchPost')}
         </p>
+        <ul className="help-list">
+          <li><code>tag:cardio</code> — {t('hlpSearchTag')}</li>
+          <li><code>path:emergencia</code> · <code>file:sepse</code> — {t('hlpSearchPathFile')}</li>
+          <li><code>&quot;frase exata&quot;</code> — {t('hlpSearchPhrase')}</li>
+          <li><code>-termo</code> — {t('hlpSearchExclude')}</li>
+          <li><code>.*</code> — {t('hlpSearchRegex')}</li>
+        </ul>
+        <p className="help-para">{t('hlpSearchBroken')}</p>
       </Section>
 
       <Section title={t('hlpSecBackup')}>
