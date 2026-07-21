@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { noteRowToCard, isApkg, deckNameFor } from './apkg'
+import { noteRowToCard, isApkg, deckNameFor, findCollection } from './apkg'
 
 // Anki joins a note's fields with the unit separator
 const F = (...fields: string[]) => fields.join(String.fromCharCode(0x1f))
@@ -39,6 +39,41 @@ describe('noteRowToCard', () => {
 
   it('drops a non-cloze note with no answer', () => {
     expect(noteRowToCard(F('P', ''), '')).toBeNull()
+  })
+})
+
+describe('findCollection', () => {
+  const sqlite = Buffer.concat([Buffer.from('SQLite format 3\0'), Buffer.alloc(16)])
+  const zip = (entries: Record<string, Buffer>) => ({
+    getEntry: (name: string) =>
+      entries[name] ? ({ getData: () => entries[name] } as never) : null,
+  })
+
+  it('prefers the newest layout when several are present', () => {
+    const older = Buffer.concat([Buffer.from('SQLite format 3\0'), Buffer.from([0xaa])])
+    const found = findCollection(zip({ 'collection.anki21': sqlite, 'collection.anki2': older }))
+    expect(found?.equals(sqlite)).toBe(true)
+  })
+
+  it('reads a plain collection', () => {
+    expect(findCollection(zip({ 'collection.anki2': sqlite }))).not.toBeNull()
+  })
+
+  it('returns null when nothing inside is a collection', () => {
+    expect(findCollection(zip({ media: Buffer.from('{}') }))).toBeNull()
+  })
+
+  it('does not mistake random bytes for a collection', () => {
+    expect(findCollection(zip({ 'collection.anki21': Buffer.from('não é sqlite') }))).toBeNull()
+  })
+
+  it('falls back to an older entry when the newest one is unreadable', () => {
+    const broken = { getData: () => { throw new Error('corrupt') } } as never
+    const z = {
+      getEntry: (name: string) =>
+        name === 'collection.anki21b' ? broken : name === 'collection.anki2' ? ({ getData: () => sqlite } as never) : null,
+    }
+    expect(findCollection(z)).not.toBeNull()
   })
 })
 

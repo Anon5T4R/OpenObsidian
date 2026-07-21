@@ -9,6 +9,7 @@ import fs from 'fs'
 import path from 'path'
 import AdmZip from 'adm-zip'
 import initSqlJs from 'sql.js'
+import { decompress as zstdDecompress } from 'fzstd'
 import { AnkiCard, ankiFieldToMarkdown } from './srs'
 
 /** Anki joins a note's fields with the unit separator. */
@@ -44,15 +45,31 @@ export function noteRowToCard(flds: string, tags: string): AnkiCard | null {
 
 const MEDIA_RE = /<img\b[^>]*>|\[sound:[^\]]*\]/i
 
-/** The SQLite entry inside the archive, newest format first. */
-function findCollection(zip: AdmZip): Buffer | null {
-  const names = ['collection.anki21', 'collection.anki2']
-  for (const name of names) {
+const SQLITE_MAGIC = 'SQLite format 3'
+// Zstandard frame magic 0xFD2FB528, little endian on disk
+const ZSTD_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
+
+const isSqlite = (b: Buffer) => b.subarray(0, 15).toString('latin1') === SQLITE_MAGIC
+const isZstd   = (b: Buffer) => b.subarray(0, 4).equals(ZSTD_MAGIC)
+
+/**
+ * The SQLite collection inside the archive, newest layout first.
+ * Anki 2.1.50+ writes `collection.anki21b` compressed with zstd. Electron's
+ * Node has no zstd, so it is decompressed in pure JS.
+ */
+export function findCollection(zip: Pick<AdmZip, 'getEntry'>): Buffer | null {
+  for (const name of ['collection.anki21b', 'collection.anki21', 'collection.anki2']) {
     const entry = zip.getEntry(name)
     if (!entry) continue
-    const data = entry.getData()
-    // "SQLite format 3\0" — anything else is compressed and not readable here
-    if (data.subarray(0, 15).toString('latin1') === 'SQLite format 3') return data
+    let data: Buffer
+    try { data = entry.getData() } catch { continue }
+    if (isSqlite(data)) return data
+    if (isZstd(data)) {
+      try {
+        const plain = Buffer.from(zstdDecompress(new Uint8Array(data)))
+        if (isSqlite(plain)) return plain
+      } catch { /* fall through to the next candidate */ }
+    }
   }
   return null
 }
@@ -75,11 +92,7 @@ export async function readApkg(filePath: string): Promise<ApkgResult | { error: 
   } catch (e) {
     return { error: `could not open the .apkg: ${String(e)}` }
   }
-  if (!data) {
-    // Anki 2.1.50+ can write a zstd-compressed collection; its own exporter
-    // offers a legacy option that this reader understands
-    return { error: 'newer-format' }
-  }
+  if (!data) return { error: 'no readable collection inside the .apkg' }
 
   const SQL = await loadSql()
   let db: initSqlJs.Database

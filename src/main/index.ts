@@ -636,13 +636,7 @@ ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
   let withMedia: number
   if (isApkg(source)) {
     const read = await readApkg(source)
-    if ('error' in read) {
-      return {
-        error: read.error === 'newer-format'
-          ? 'This .apkg uses the newer compressed format. In Anki, export the deck again with "Support older Anki versions" ticked.'
-          : read.error,
-      }
-    }
+    if ('error' in read) return { error: read.error }
     cards = read.cards
     withMedia = read.withMedia
   } else {
