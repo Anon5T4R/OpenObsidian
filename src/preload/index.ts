@@ -102,6 +102,9 @@ const api = {
   docxToHtml:     (p: string): Promise<{ html: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('docx:to-html', p),
   docxToMarkdown: (p: string): Promise<{ markdown: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('docx:to-markdown', p),
 
+  // ODT conversion
+  odtToHtml:      (p: string): Promise<{ html: string; warnings: string[]; error?: string }> => ipcRenderer.invoke('odt:to-html', p),
+
   // Shell
   showItemInFolder: (p: string): Promise<void>     => ipcRenderer.invoke('shell:show-item', p),
   openInApp:        (p: string): Promise<string>   => ipcRenderer.invoke('shell:open-path', p),

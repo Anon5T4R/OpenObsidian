@@ -7,9 +7,18 @@ interface DocxViewerProps {
   onOpenInApp: () => void
   onConvertToMd: () => void
   isConverting: boolean
+  /** Word documents by default; .odt reuses this viewer with its own reader */
+  format?: 'docx' | 'odt'
 }
 
-export default function DocxViewer({ filePath, onOpenInApp, onConvertToMd, isConverting }: DocxViewerProps) {
+const READERS = {
+  docx: (p: string) => window.api.docxToHtml(p),
+  odt:  (p: string) => window.api.odtToHtml(p),
+}
+
+const ICONS = { docx: '📝', odt: '📄' }
+
+export default function DocxViewer({ filePath, onOpenInApp, onConvertToMd, isConverting, format = 'docx' }: DocxViewerProps) {
   const t = useT()
   const [html,    setHtml]    = useState('')
   const [loading, setLoading] = useState(true)
@@ -17,18 +26,18 @@ export default function DocxViewer({ filePath, onOpenInApp, onConvertToMd, isCon
 
   useEffect(() => {
     setLoading(true); setError(null); setHtml('')
-    window.api.docxToHtml(filePath).then(({ html: h, error: e }) => {
+    READERS[format](filePath).then(({ html: h, error: e }) => {
       if (e) setError(e); else setHtml(h)
       setLoading(false)
     })
-  }, [filePath])
+  }, [filePath, format])
 
   const fileName = filePath.split(/[/\\]/).pop() ?? filePath
 
   return (
     <div className="docx-viewer">
       <div className="docx-toolbar">
-        <span className="docx-title">📝 {fileName}</span>
+        <span className="docx-title">{ICONS[format]} {fileName}</span>
         <button className="docx-btn" onClick={onOpenInApp} title={t('docxOpenInAppTip')}>
           {t('docxOpenInApp')}
         </button>

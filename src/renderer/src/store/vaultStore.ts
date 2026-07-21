@@ -60,10 +60,15 @@ function savePinned(paths: string[]): void {
   localStorage.setItem(PINNED_KEY, JSON.stringify(paths))
 }
 
+// Binary formats show up in the tree but are never notes: they carry no
+// wikilinks, tags or backlinks
+const BINARY_EXTS = ['.pdf', '.docx', '.epub', '.odt']
+export const isBinaryPath = (p: string) => BINARY_EXTS.some((ext) => p.toLowerCase().endsWith(ext))
+
 export function flattenTree(nodes: TreeNode[]): NoteFile[] {
   const files: NoteFile[] = []
   function walk(node: TreeNode, prefix: string) {
-    if (node.type === 'file' && !node.path.endsWith('.pdf') && !node.path.endsWith('.docx') && !node.path.endsWith('.epub')) {
+    if (node.type === 'file' && !isBinaryPath(node.path)) {
       files.push({ name: node.name, path: node.path, relativePath: prefix ? `${prefix}/${node.name}.md` : `${node.name}.md` })
     } else if (node.type === 'directory' && node.children) {
       const p = prefix ? `${prefix}/${node.name}` : node.name

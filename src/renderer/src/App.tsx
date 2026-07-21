@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Search, List, Download, MessageCircle } from 'lucide-react'
-import { useVaultStore, NoteFile } from './store/vaultStore'
+import { useVaultStore, NoteFile, isBinaryPath } from './store/vaultStore'
 import { useSettings, SidebarSort } from './hooks/useSettings'
 import { useAutoSave } from './hooks/useAutoSave'
 import { useVaultOps } from './hooks/useVaultOps'
@@ -39,7 +39,7 @@ const MIN_SIDEBAR = 40
 const MAX_SIDEBAR = 520
 const COLLAPSED_WIDTH = 44
 
-const isDocumentFile = (p: string) => p.endsWith('.pdf') || p.endsWith('.docx') || p.endsWith('.epub')
+const isDocumentFile = isBinaryPath
 
 // Finds the heading of a [[Nota#Seção]] anchor. Falls back to matching the
 // heading text, since addHeadingIds suffixes ids when a note repeats a heading.
@@ -453,7 +453,8 @@ export default function App() {
   const isPdf   = store.activeFile?.path.endsWith('.pdf')  ?? false
   const isDocx  = store.activeFile?.path.endsWith('.docx') ?? false
   const isEpub  = store.activeFile?.path.endsWith('.epub') ?? false
-  const isDoc   = isPdf || isDocx || isEpub
+  const isOdt   = store.activeFile?.path.endsWith('.odt')  ?? false
+  const isDoc   = isPdf || isDocx || isEpub || isOdt
 
   return (
     <div className="app" onClick={() => setExportMenuOpen(false)}>
@@ -565,6 +566,14 @@ export default function App() {
               ) : isDocx ? (
                 <DocxViewer
                   filePath={store.activeFile.path}
+                  onOpenInApp={handleOpenInApp}
+                  onConvertToMd={handleConvertToMd}
+                  isConverting={isConverting}
+                />
+              ) : isOdt ? (
+                <DocxViewer
+                  filePath={store.activeFile.path}
+                  format="odt"
                   onOpenInApp={handleOpenInApp}
                   onConvertToMd={handleConvertToMd}
                   isConverting={isConverting}

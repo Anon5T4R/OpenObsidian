@@ -8,6 +8,7 @@ import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
 import mammoth from 'mammoth'
 import { rewriteLinks, countRefs } from './link-rewrite'
+import { odtToHtml } from './odt'
 
 const fsp = fs.promises
 
@@ -187,7 +188,7 @@ async function walkTree(dir: string): Promise<TreeNode[]> {
 
   const nodes: TreeNode[] = []
   const dirs  = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-  const BINARY_EXTS = ['.pdf', '.docx', '.epub']
+  const BINARY_EXTS = ['.pdf', '.docx', '.epub', '.odt']
   const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.') &&
     (e.name.endsWith('.md') || BINARY_EXTS.some((x) => e.name.endsWith(x))))
 
@@ -482,6 +483,27 @@ ipcMain.handle('docx:to-markdown', async (_, filePath: string) => {
     return { markdown: result.value, warnings: result.messages.map((m) => m.message) }
   } catch (e) {
     return { markdown: '', warnings: [], error: String(e) }
+  }
+})
+
+// ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────
+
+ipcMain.handle('odt:to-html', async (_, filePath: string) => {
+  try {
+    const AdmZip = (await import('adm-zip')).default
+    const zip = new AdmZip(filePath)
+    const content = zip.getEntry('content.xml')
+    if (!content) return { html: '', warnings: [], error: 'content.xml not found in the .odt' }
+    const styles = zip.getEntry('styles.xml')
+    return {
+      html: odtToHtml(
+        zip.readAsText(content),
+        styles ? zip.readAsText(styles) : '',
+      ),
+      warnings: [],
+    }
+  } catch (e) {
+    return { html: '', warnings: [], error: String(e) }
   }
 })
 

@@ -36,7 +36,7 @@ export function useDocOps(
 
   const handleConvertToMd = useCallback(async () => {
     if (!store.activeFile || !store.vaultPath) return
-    const baseName = store.activeFile.name.replace(/\.docx$/i, '')
+    const baseName = store.activeFile.name.replace(/\.(docx|odt)$/i, '')
     const srcPath = store.activeFile.path
     const dir = srcPath.substring(0, Math.max(srcPath.lastIndexOf('/'), srcPath.lastIndexOf('\\')))
 
@@ -49,11 +49,17 @@ export function useDocOps(
 
     setIsConverting(true)
     try {
-      const { html, error } = await window.api.docxToHtml(srcPath)
+      const { html, error } = srcPath.toLowerCase().endsWith('.odt')
+        ? await window.api.odtToHtml(srcPath)
+        : await window.api.docxToHtml(srcPath)
       if (error) { notify(t(settings.locale, 'toastConversionFailed', { err: error })); return }
 
       const TurndownService = (await import('turndown')).default
       const td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced', hr: '---' })
+      // Plain turndown has no table rule: a dose table would come out as a
+      // column of loose paragraphs
+      const { tables } = await import('turndown-plugin-gfm')
+      td.use(tables)
       const markdown = td.turndown(html)
 
       const result = await window.api.createFile(store.vaultPath, baseName, dir || store.vaultPath)
