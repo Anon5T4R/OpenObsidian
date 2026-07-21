@@ -30,6 +30,7 @@ import ReviewStatsPanel from './components/Review/ReviewStatsPanel'
 import AnkiImportModal from './components/Review/AnkiImportModal'
 import CalendarPopover from './components/Calendar/CalendarPopover'
 import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
+import { parseQueryBlock, runQuery, isEmptySpec, QueryNote } from './utils/noteQuery'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
@@ -239,6 +240,31 @@ export default function App() {
     (target: string) => noteExists(store.files, target, store.activeFile?.path, aliasIndex),
     [store.files, store.activeFile?.path, aliasIndex],
   )
+
+  // Everything a ```query block needs, derived from indexes that already exist
+  const queryNotes = useMemo<QueryNote[]>(() => {
+    const byName = new Map<string, string[]>()
+    for (const [tag, names] of Object.entries(store.tags)) {
+      for (const name of names) {
+        const key = name.toLowerCase()
+        const list = byName.get(key)
+        if (list) list.push(tag)
+        else byName.set(key, [tag])
+      }
+    }
+    return store.files.map((file) => ({
+      file,
+      tags: byName.get(file.name.toLowerCase()) ?? [],
+      frontmatter: store.frontmatter[file.path] ?? null,
+    }))
+  }, [store.files, store.tags, store.frontmatter])
+
+  const runNoteQuery = useCallback((source: string) => {
+    const spec = parseQueryBlock(source)
+    // An empty spec would list the whole vault, which is never the intent
+    if (isEmptySpec(spec)) return { names: [], unknown: spec.unknown }
+    return { names: runQuery(queryNotes, spec).map((n) => n.file.name), unknown: spec.unknown }
+  }, [queryNotes])
 
   // The content cache already holds every note of the vault (filled on open),
   // so an embed resolves synchronously — no IPC round-trip while rendering
@@ -815,6 +841,7 @@ export default function App() {
                           linkExists={linkExists}
                           resolveEmbed={resolveEmbed}
                           onTagClick={(tag) => store.setTagFilter(tag)}
+                          runNoteQuery={runNoteQuery}
                         />
                       </div>
                     )}

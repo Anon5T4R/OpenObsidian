@@ -116,6 +116,43 @@ export function matchNote(
   return matches
 }
 
+/**
+ * How well a note answers the query, so the answer is not buried under
+ * alphabetical order. A hit in the title means the note is *about* the term;
+ * a hit in a heading means a section is; a hit in the body is just a mention.
+ */
+export function scoreNote(note: SearchableNote, q: ParsedQuery, matches: NoteMatch[]): number {
+  const needles = textNeedles(q)
+  if (needles.length === 0) return matches.length
+
+  const name = note.name.toLowerCase()
+  const aliases = (note.aliases ?? []).map((a) => a.toLowerCase())
+  let score = 0
+
+  for (const needle of needles) {
+    if (name === needle) score += 100                 // the note *is* the term
+    else if (name.includes(needle)) score += 40
+    if (aliases.some((a) => a === needle)) score += 80
+    else if (aliases.some((a) => a.includes(needle))) score += 30
+  }
+
+  let headingHits = 0
+  let bodyHits = 0
+  for (const m of matches) {
+    const text = m.text.toLowerCase()
+    if (!needles.some((n) => text.includes(n))) continue
+    // A heading hit outranks a body hit — headings are the note's own outline
+    if (/^#{1,6}\s/.test(m.text)) headingHits++
+    else bodyHits++
+  }
+
+  // Both grow with diminishing returns. Counting each mention linearly let a
+  // long note win on sheer repetition over a note actually about the subject.
+  score += Math.min(48, headingHits * 12)
+  score += Math.log2(1 + bodyHits) * 6
+  return score
+}
+
 /** Compiles the free-text part as a regex; invalid patterns yield null. */
 export function compileRegex(raw: string): RegExp | null {
   try {

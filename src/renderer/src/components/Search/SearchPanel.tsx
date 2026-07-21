@@ -2,7 +2,7 @@ import React, { MutableRefObject, useState, useEffect, useMemo, useRef } from 'r
 import { useVaultStore, NoteFile, extractTags, expandTagHierarchy } from '../../store/vaultStore'
 import { parseFrontmatter, frontmatterTags, frontmatterAliases } from '../../utils/frontmatter'
 import {
-  parseQuery, isEmptyQuery, matchNote, compileRegex, textNeedles, NoteMatch,
+  parseQuery, isEmptyQuery, matchNote, compileRegex, textNeedles, scoreNote, NoteMatch,
 } from '../../utils/searchQuery'
 import { useT } from '../../i18n'
 import './SearchPanel.css'
@@ -10,6 +10,7 @@ import './SearchPanel.css'
 interface SearchResult {
   file: NoteFile
   matches: NoteMatch[]
+  score: number
 }
 
 interface SearchPanelProps {
@@ -55,13 +56,17 @@ export default function SearchPanel({ onFileSelect, onClose, contentsRef }: Sear
         if (cancelled) return
         const { data } = parseFrontmatter(content)
         const tags = expandTagHierarchy([...extractTags(content), ...frontmatterTags(data)])
-        const matches = matchNote(
-          { name: file.name, relativePath: file.relativePath, content, tags, aliases: frontmatterAliases(data) },
-          parsed, regex,
-        )
-        if (matches) found.push({ file, matches })
+        const note = {
+          name: file.name, relativePath: file.relativePath, content, tags,
+          aliases: frontmatterAliases(data),
+        }
+        const matches = matchNote(note, parsed, regex)
+        if (matches) found.push({ file, matches, score: scoreNote(note, parsed, matches) })
       }
       if (cancelled) return
+      // Most relevant first: alphabetical order buried the note the query was
+      // actually about under every note that merely mentions the word
+      found.sort((a, b) => b.score - a.score || a.file.name.localeCompare(b.file.name))
       setResults(found)
       setExpanded(new Set())
       setSearching(false)

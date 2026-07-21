@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseQuery, isEmptyQuery, matchNote, compileRegex, SearchableNote } from './searchQuery'
+import { parseQuery, isEmptyQuery, matchNote, compileRegex, scoreNote, SearchableNote } from './searchQuery'
 
 const note = (over: Partial<SearchableNote> = {}): SearchableNote => ({
   name: 'Sepse',
@@ -116,6 +116,42 @@ describe('matchNote', () => {
   it('does not get stuck on a global regex between lines', () => {
     const m = matchNote(note(), parseQuery('lactato'), new RegExp('lactato', 'gi'))
     expect(m).toHaveLength(2)
+  })
+})
+
+describe('scoreNote', () => {
+  const score = (over: Partial<SearchableNote>, query: string) => {
+    const n = note(over)
+    const q = parseQuery(query)
+    return scoreNote(n, q, matchNote(n, q) ?? [])
+  }
+
+  it('ranks a note whose title is the term above one that only mentions it', () => {
+    const titled = score({ name: 'Lactato', content: 'Texto qualquer com lactato.' }, 'lactato')
+    const mention = score({ name: 'Sepse', content: 'Repetir lactato em 2h.' }, 'lactato')
+    expect(titled).toBeGreaterThan(mention)
+  })
+
+  it('ranks a heading hit above a body hit', () => {
+    const heading = score({ name: 'A', content: '## Lactato\n\ntexto' }, 'lactato')
+    const body = score({ name: 'B', content: 'texto\n\nfalando de lactato' }, 'lactato')
+    expect(heading).toBeGreaterThan(body)
+  })
+
+  it('counts an exact alias almost like a title', () => {
+    const byAlias = score({ name: 'Síndrome Coronariana', aliases: ['IAM'], content: 'nada aqui de i a m: IAM' }, 'iam')
+    const mention = score({ name: 'Outra', content: 'menciona IAM uma vez' }, 'iam')
+    expect(byAlias).toBeGreaterThan(mention)
+  })
+
+  it('does not let sheer repetition beat relevance', () => {
+    const repeated = score({ name: 'Longa', content: Array(200).fill('lactato').join('\n') }, 'lactato')
+    const titled = score({ name: 'Lactato', content: 'uma menção de lactato' }, 'lactato')
+    expect(titled).toBeGreaterThan(repeated)
+  })
+
+  it('falls back to the match count when the query has no free text', () => {
+    expect(score({ tags: ['uti'] }, 'tag:uti')).toBe(0)
   })
 })
 

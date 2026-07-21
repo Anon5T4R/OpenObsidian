@@ -124,6 +124,8 @@ export const en = {
 
   ttReview:        'Review flashcards',
   ttReviewDue:     '{count} cards due',
+  queryResults:   '{count} results',
+
   // Anki import
   ankiTitle:      'Import from Anki',
   ankiCards:      'cards found',
@@ -517,6 +519,12 @@ export const en = {
   hlpTplIdeaD:     'The idea, why it matters, how to explore and related links.',
 
   // Help — own templates, aliases, diagnostics, comments
+  hlpSecQuery:      'Query blocks',
+  hlpQueryIntro:    'A manual index goes stale, and a stale index is worse than none because you trust it. A query block keeps the list derived from what the notes already say:',
+  hlpQueryTag:      'tag: and path: filter by tag (a parent finds its children) and by folder.',
+  hlpQueryField:    'any other key is a frontmatter field — tipo: patologia. Use has: field to require only that it exists.',
+  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, with desc to reverse; limit: caps the list.',
+  hlpQueryUnknown:  'a line it cannot read is shown above the results instead of being ignored.',
   hlpSecCalendar:   'Calendar and daily notes',
   hlpCalIntro:      'The calendar button in the toolbar opens a month grid instead of jumping straight into today.',
   hlpCalDot:        'a dot under a day means a note already exists for it.',
@@ -807,6 +815,7 @@ const ptBR: typeof en = {
 
   ttReview:        'Revisar flashcards',
   ttReviewDue:     '{count} cartões a revisar',
+  queryResults:   '{count} resultados',
   ankiTitle:      'Importar do Anki',
   ankiCards:      'cartões encontrados',
   ankiDeckName:   'Nome do baralho',
@@ -1185,6 +1194,12 @@ const ptBR: typeof en = {
   hlpTplBookD:     'Autor, avaliação, resumo, ideias principais e citações.',
   hlpTplIdeaD:     'A ideia, por que importa, como explorar e links relacionados.',
 
+  hlpSecQuery:      'Blocos de consulta',
+  hlpQueryIntro:    'Índice manual desatualiza, e índice desatualizado é pior que nenhum, porque você confia nele. Um bloco de consulta mantém a lista derivada do que as notas já dizem:',
+  hlpQueryTag:      'tag: e path: filtram por tag (a tag pai acha as filhas) e por pasta.',
+  hlpQueryField:    'qualquer outra chave é um campo do frontmatter — tipo: patologia. Use has: campo para exigir só que ele exista.',
+  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, com desc para inverter; limit: corta a lista.',
+  hlpQueryUnknown:  'linha que ele não entende aparece acima dos resultados, em vez de ser ignorada.',
   hlpSecCalendar:   'Calendário e notas diárias',
   hlpCalIntro:      'O botão de calendário na barra abre uma grade do mês, em vez de pular direto para hoje.',
   hlpCalDot:        'um ponto embaixo do dia significa que já existe nota para ele.',
@@ -1475,6 +1490,7 @@ const esLatam: typeof en = {
 
   ttReview:        'Repasar flashcards',
   ttReviewDue:     '{count} tarjetas por repasar',
+  queryResults:   '{count} resultados',
   ankiTitle:      'Importar de Anki',
   ankiCards:      'tarjetas encontradas',
   ankiDeckName:   'Nombre del mazo',
@@ -1853,6 +1869,12 @@ const esLatam: typeof en = {
   hlpTplBookD:     'Autor, calificación, resumen, ideas clave y citas.',
   hlpTplIdeaD:     'La idea, por qué importa, cómo explorarla y enlaces relacionados.',
 
+  hlpSecQuery:      'Bloques de consulta',
+  hlpQueryIntro:    'Un índice manual se desactualiza, y un índice desactualizado es peor que ninguno, porque confías en él. Un bloque de consulta mantiene la lista derivada de lo que las notas ya dicen:',
+  hlpQueryTag:      'tag: y path: filtran por etiqueta (la padre encuentra las hijas) y por carpeta.',
+  hlpQueryField:    'cualquier otra clave es un campo del frontmatter — tipo: patologia. Usa has: campo para exigir solo que exista.',
+  hlpQuerySort:     'sort: titulo | modificado | criado | caminho, con desc para invertir; limit: corta la lista.',
+  hlpQueryUnknown:  'una línea que no entiende se muestra sobre los resultados, en vez de ser ignorada.',
   hlpSecCalendar:   'Calendario y notas diarias',
   hlpCalIntro:      'El botón de calendario en la barra abre una cuadrícula del mes, en vez de saltar directo a hoy.',
   hlpCalDot:        'un punto bajo el día significa que ya existe una nota para él.',

@@ -171,6 +171,25 @@ function FeaturesTab() {
         </ul>
       </Section>
 
+      <Section title={t('hlpSecQuery')}>
+        <p className="help-para">{t('hlpQueryIntro')}</p>
+        <pre className="help-code-block">{[
+          '```query',
+          'tag: sis-cardio',
+          'path: Patologias',
+          'tipo: patologia',
+          'sort: modificado desc',
+          'limit: 20',
+          '```',
+        ].join('\n')}</pre>
+        <ul className="help-list">
+          <li>{t('hlpQueryTag')}</li>
+          <li>{t('hlpQueryField')}</li>
+          <li>{t('hlpQuerySort')}</li>
+          <li>{t('hlpQueryUnknown')}</li>
+        </ul>
+      </Section>
+
       <Section title={t('hlpSecCalendar')}>
         <p className="help-para">{t('hlpCalIntro')}</p>
         <ul className="help-list">

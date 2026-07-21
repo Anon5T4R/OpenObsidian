@@ -376,3 +376,40 @@
   width: 14px;
   height: 14px;
 }
+
+/* Query block — a list derived from the vault, not typed by hand */
+.markdown-preview .query-block {
+  margin: 1em 0;
+  padding: 10px 14px;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+
+.markdown-preview .query-head {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+
+.markdown-preview .query-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.markdown-preview .query-list li { margin: 2px 0; }
+
+.markdown-preview .query-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* An unreadable line must be visible, not silently ignored */
+.markdown-preview .query-warn {
+  font-size: 11px;
+  color: #f59e0b;
+  margin-bottom: 6px;
+  font-family: var(--editor-font, monospace);
+}

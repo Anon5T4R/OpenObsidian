@@ -75,6 +75,25 @@ function renderProperties(data: FrontmatterData | null): string {
   return `<div class="note-properties">${rows.join('')}</div>`
 }
 
+// ── Query blocks ───────────────────────────────────────────────────────────
+
+function renderQueryBlock(
+  source: string,
+  run: (source: string) => { names: string[]; unknown: string[] },
+  countLabel: (n: number) => string,
+): string {
+  const { names, unknown } = run(source)
+  const warn = unknown.length > 0
+    ? `<div class="query-warn">? ${unknown.map(escapeHtml).join(' · ')}</div>`
+    : ''
+  const body = names.length === 0
+    ? '<div class="query-empty">—</div>'
+    : `<ul class="query-list">${names.map((name) =>
+        `<li><a href="#" class="wikilink" data-target="${escapeHtml(name)}">${escapeHtml(name)}</a></li>`,
+      ).join('')}</ul>`
+  return `<div class="query-block"><div class="query-head">${escapeHtml(countLabel(names.length))}</div>${warn}${body}</div>`
+}
+
 // ── Mermaid diagram support ────────────────────────────────────────────────
 
 function getMermaidTheme() {
@@ -91,9 +110,11 @@ interface MarkdownPreviewProps {
   /** Markdown behind an ![[embed]] target, or null when there is no such note */
   resolveEmbed?: (target: string) => string | null
   onTagClick?: (tag: string) => void
+  /** Runs a ```query block against the vault; returns the note names it found */
+  runNoteQuery?: (source: string) => { names: string[]; unknown: string[] }
 }
 
-export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists, resolveEmbed, onTagClick }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, onWikiLinkClick, onChange, vaultPath, linkExists, resolveEmbed, onTagClick, runNoteQuery }: MarkdownPreviewProps) {
   const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -142,6 +163,15 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
       (_, code) => `<div class="mermaid-block"><pre class="mermaid">${decodeMermaidCode(code)}</pre></div>`
     )
+    // ```query blocks → a live list of links. Done on the HTML so the code
+    // fence has already been isolated by remark.
+    if (runNoteQuery) {
+      h = h.replace(
+        /<pre><code class="language-query">([\s\S]*?)<\/code><\/pre>/g,
+        (_, code) => renderQueryBlock(decodeMermaidCode(code), runNoteQuery, (n) => t('queryResults', { count: n })),
+      )
+    }
+
     // Resolve relative image paths to absolute file:// URLs
     if (vaultPath) {
       const base = 'file:///' + vaultPath.replace(/\\/g, '/')
@@ -150,7 +180,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       })
     }
     return renderProperties(parseFrontmatter(deferredContent).data) + h
-  }, [deferredContent, vaultPath, linkExists, resolveEmbed])
+  }, [deferredContent, vaultPath, linkExists, resolveEmbed, runNoteQuery, t])
 
   // Render mermaid diagrams after HTML is injected into the DOM
   useEffect(() => {
