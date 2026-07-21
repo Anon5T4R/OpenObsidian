@@ -2,7 +2,7 @@
 
 Open-source Obsidian-like markdown knowledge base built with Electron + React + TypeScript.
 Repo: https://github.com/Anon5T4R/OpenObsidian
-Current version: **1.1.0**
+Current version: **1.2.0**
 
 ---
 
@@ -74,6 +74,7 @@ src/
       templateVars.ts        ← {{title}} / {{date}} / {{time}} expansion
       aiPrompts.ts           ← Ready-to-paste prompts for any AI chat
       insertables.ts         ← THE catalogue of everything the editor can insert
+      tagComplete.ts         ← `#` autocomplete: ranking + when the menu may open
 resources/               ← App icons (icon.ico, icon.icns, icons/)
 scripts/generate-icons.js
 ```
@@ -184,6 +185,32 @@ Processing order:
   query blocks, `.apkg` import, aliases and vault diagnostics. See below.
 
 ---
+
+## v1.2.0 — Filling the block in, not just inserting it
+
+`/query` was easy to reach and hard to finish: the block arrives with an empty
+`tag:` and nothing anywhere tells you which tags the vault has. A mistyped tag
+does not fail — it quietly creates a new tag with one note in it.
+
+- **`#` autocomplete** (`utils/tagComplete.ts`), the third completion source
+  next to `[[` and `/`. Ranked by use, note count shown. It works inside a
+  `query` block for free because `parseQueryBlock` already strips a leading `#`
+  from the value, so `tag: #sis-cardio` reads the same as `tag: sis-cardio`.
+- **`matchTagQuery` decides when the menu may open, and lives in `utils/`** so
+  the one case that would make the feature hated — a menu popping up on every
+  `# Heading` — is covered by a test rather than by hope. Requiring at least one
+  tag character after the `#` is what rules headings out: a heading is `#` plus
+  a space, so no special case is needed.
+- **`/indice`** inserts an index scaffold whose hint line starts with `#`, which
+  `parseQueryBlock` already treats as a comment — the syntax is taught inside
+  the block at no render cost. Asserted against the real parser.
+- `examples/templates/Index.md` is linked from the README and **parsed by a
+  test**, so the documented grammar cannot drift from the implemented one.
+
+Three snippet carets were wrong and two were destructive (`/card` opened at
+`Questi|on`, `/queryfield` inside `s|ort`). The bounds test passed on all three.
+The rule that found them: **a caret between two word characters is always a
+miscount** — every real slot sits next to punctuation or a newline.
 
 ## v1.1.0 — Discoverability
 

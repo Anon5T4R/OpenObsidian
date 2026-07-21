@@ -106,6 +106,10 @@ export const INSERTABLES: Insertable[] = [
   { id: 'frontmatter', category: 'data', slash: ['frontmatter', 'yaml'], icon: '---', labelKey: 'insFrontmatter', descKey: 'insFrontmatterDesc', snippet: '---\ntipo: \naliases:\n  - \ntags:\n  - \n---\n', cursor: -22, block: true },
   { id: 'tag', category: 'data', slash: ['tag'], icon: '#', labelKey: 'insTag', descKey: 'insTagDesc', snippet: '#tag', cursor: 0 },
   { id: 'queryTag', category: 'data', slash: ['query'], icon: '🔎', labelKey: 'insQueryTag', descKey: 'insQueryTagDesc', snippet: '```query\ntag: \nsort: titulo\n```\n', cursor: -18, block: true },
+  // Two sections, so the shape to repeat is visible, and a hint line inside the
+  // block: `#` at the start of a line is already a comment to the query parser,
+  // so the syntax can be taught where it is needed at no cost.
+  { id: 'indexNote', category: 'data', slash: ['index', 'indice', 'índice'], icon: '🗂', labelKey: 'insIndex', descKey: 'insIndexDesc', snippet: '## Section\n\n```query\n# fields: tag, path, has, sort, limit — a line starting with # is a comment\ntag: \nsort: titulo\n```\n\n## Another section\n\n```query\ntag: \nsort: titulo\n```\n', cursor: -71, block: true },
   { id: 'queryField', category: 'data', slash: ['queryfield'], icon: '🔍', labelKey: 'insQueryField', descKey: 'insQueryFieldDesc', snippet: '```query\ntipo: \nsort: modificado desc\nlimit: 20\n```\n', cursor: -37, block: true },
   { id: 'today', category: 'data', slash: ['date', 'today'], icon: '📅', labelKey: 'insToday', descKey: 'insTodayDesc', snippet: '' },
   { id: 'now', category: 'data', slash: ['time', 'now'], icon: '🕐', labelKey: 'insNow', descKey: 'insNowDesc', snippet: '' },

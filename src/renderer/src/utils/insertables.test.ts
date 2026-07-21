@@ -3,6 +3,7 @@ import {
   INSERTABLES, CATEGORY_ORDER, CATEGORY_LABEL,
   resolve, searchInsertables, primarySlash,
 } from './insertables'
+import { parseQueryBlock } from './noteQuery'
 
 describe('the catalogue itself', () => {
   it('gives every slash command to exactly one item', () => {
@@ -93,6 +94,34 @@ describe('the catalogue itself', () => {
     // End of the placeholder, so the question is edited in place
     expect(caret('cardQa').before.endsWith('Question')).toBe(true)
     expect(caret('cardQa').after.startsWith('\n')).toBe(true)
+
+    // The index scaffold opens on its *first* tag slot, not the second
+    expect(caret('indexNote').before.endsWith('tag: ')).toBe(true)
+    expect(caret('indexNote').after.startsWith('\nsort:')).toBe(true)
+  })
+
+  it('teaches the query syntax with a line the real parser ignores', () => {
+    // Asserted against parseQueryBlock itself, not against the shape of the
+    // line: the hint sits inside a live query block, and if the parser ever
+    // stopped treating `#` as a comment, every index built from this scaffold
+    // would grow a spurious warning above its results.
+    const index = INSERTABLES.find((i) => i.id === 'indexNote')!
+    const block = index.snippet.split('```query\n')[1].split('```')[0]
+
+    // The hint line is invisible to the parser...
+    expect(parseQueryBlock(block).unknown).not.toContain(
+      '# fields: tag, path, has, sort, limit — a line starting with # is a comment',
+    )
+    // ...but the unfilled `tag:` is reported, and that is correct: an empty
+    // filter is an unfinished query, and the app says so rather than rendering
+    // a silent blank list that reads as "there are no notes about this".
+    expect(parseQueryBlock(block).unknown).toEqual(['tag:'])
+
+    // Once filled, it is a clean query with no warnings left
+    const filled = parseQueryBlock(block.replace('tag: ', 'tag: exemplo'))
+    expect(filled.tags).toEqual(['exemplo'])
+    expect(filled.unknown).toEqual([])
+    expect(filled.sort).toBe('titulo')
   })
 
   it('inserts something for every item', () => {

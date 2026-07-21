@@ -17,6 +17,7 @@ import { Theme } from '../../hooks/useSettings'
 import { useT } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
 import { searchInsertables, primarySlash, resolve } from '../../utils/insertables'
+import { rankTags, matchTagQuery } from '../../utils/tagComplete'
 import './MarkdownEditor.css'
 
 export interface MarkdownEditorHandle {
@@ -158,6 +159,28 @@ function makeWikilinkCompletion(
   }
 }
 
+// ── Tag autocomplete ───────────────────────────────────────────────────────
+
+function makeTagCompletion(tagsRef: React.MutableRefObject<Record<string, string[]>>) {
+  return (context: CompletionContext): CompletionResult | null => {
+    // The trigger rules live in utils, where they are tested against the cases
+    // that matter — above all `# Heading`, which must never open this menu.
+    const line = context.state.doc.lineAt(context.pos)
+    const match = matchTagQuery(line.text.slice(0, context.pos - line.from))
+    if (!match) return null
+
+    const options = rankTags(tagsRef.current, match.query).map((t) => ({
+      label: `#${t.tag}`,
+      // The count is the whole reason the order looks sensible; showing it lets
+      // a typo stand out too — a tag with 1 note next to one with 40 is a clue
+      detail: String(t.count),
+      type: 'keyword',
+    }))
+    if (options.length === 0) return null
+    return { from: line.from + match.from, options, filter: false }
+  }
+}
+
 // ── Slash commands ─────────────────────────────────────────────────────────
 //
 // Reads the same catalogue as the Insert menu. There used to be a second list
@@ -201,6 +224,8 @@ interface MarkdownEditorProps {
   files: NoteFile[]
   /** Frontmatter aliases, offered in the [[ autocomplete */
   aliases?: { alias: string; note: string }[]
+  /** Tag index (tag → note names), offered in the # autocomplete */
+  tags?: Record<string, string[]>
   theme: Theme
   onStatsChange?: (stats: EditorStats) => void
   onAiExplain?: (text: string) => void
@@ -213,7 +238,7 @@ type CtxMenuState = {
 } | null
 
 const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  ({ content, onChange, onWikiLinkClick, vaultPath, files, aliases = [], theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
+  ({ content, onChange, onWikiLinkClick, vaultPath, files, aliases = [], tags = {}, theme, onStatsChange, onAiExplain, onAiNeedModel }, ref) => {
     const t               = useT()
     const editorRef       = useRef<HTMLDivElement>(null)
     const viewRef         = useRef<EditorView | null>(null)
@@ -225,6 +250,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   const trRef           = useRef<(key: TranslationKey) => string>(t)
   const filesRef        = useRef(files)
     const aliasesRef      = useRef(aliases)
+  const tagsRef         = useRef(tags)
     const onStatsRef      = useRef(onStatsChange)
     const onAiExplainRef  = useRef(onAiExplain)
     const onAiNeedModelRef = useRef(onAiNeedModel)
@@ -238,6 +264,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
     useEffect(() => { trRef.current = t },                           [t])
   useEffect(() => { filesRef.current = files },                    [files])
     useEffect(() => { aliasesRef.current = aliases },                [aliases])
+  useEffect(() => { tagsRef.current = tags },                      [tags])
     useEffect(() => { onStatsRef.current = onStatsChange },          [onStatsChange])
     useEffect(() => { onAiExplainRef.current = onAiExplain },        [onAiExplain])
     useEffect(() => { onAiNeedModelRef.current = onAiNeedModel },    [onAiNeedModel])
@@ -363,7 +390,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
         wikilinkPlugin,
         EditorView.lineWrapping,
         autocompletion({
-          override: [makeWikilinkCompletion(filesRef, aliasesRef), makeSlashCompletion(trRef)],
+          override: [makeWikilinkCompletion(filesRef, aliasesRef), makeTagCompletion(tagsRef), makeSlashCompletion(trRef)],
           closeOnBlur: true,
           activateOnTyping: true,
           icons: true

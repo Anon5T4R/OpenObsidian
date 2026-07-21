@@ -73,22 +73,71 @@ with right-click → *Open*, or run `xattr -dr com.apple.quarantine
 ### Everything else
 
 - Calendar with daily notes: days that have a note are marked, any day can be opened or created
-- **Query blocks** that keep an index derived from the notes instead of typed by hand:
-
-  ````markdown
-  ```query
-  tag: cardio
-  tipo: patologia
-  sort: modificado desc
-  ```
-  ````
-
+- **Query blocks** that keep an index derived from the notes instead of typed by hand —
+  see [Indexes that maintain themselves](#indexes-that-maintain-themselves) below
 - Your own templates in `_templates/`, with `{{title}}`, `{{date}}` and `{{time}}`
 - Reads `.pdf`, `.docx`, `.epub` and `.odt`; converts `.docx`/`.odt` to Markdown
 - Local AI chat (GGUF via node-llama-cpp) or a remote API — plus a command that copies a
   ready-made prompt for whichever AI chat you already use
 - Export to HTML and PDF, vault backup, community plugins
 - Interface in English, Portuguese and Spanish
+
+---
+
+## Indexes that maintain themselves
+
+A hand-written index goes stale, and a stale index is worse than none, because
+you trust it. A `query` block lists the notes that match, recomputed every time
+the note is rendered — so a note you write tomorrow shows up on its own.
+
+Type `/indice` (or `/index`) in the editor and you get the scaffold:
+
+````markdown
+## Cardiology
+
+```query
+# fields: tag, path, has, sort, limit — a line starting with # is a comment
+tag: cardio
+sort: titulo
+```
+````
+
+Inside the block, type `#` and the first letters of a tag: the editor completes
+from the tags **your vault actually has**, most-used first, with the note count
+next to each. That matters more than it sounds — a mistyped tag does not fail,
+it quietly creates a new tag with one note in it.
+
+**What you can filter on**
+
+| | |
+|---|---|
+| `tag:` | a tag. A parent tag finds its children, so `tag: sistema` matches `#sistema/cardio` |
+| `path:` / `pasta:` | notes whose path contains this |
+| `has:` / `tem:` | notes where a frontmatter field is present |
+| any other name | a frontmatter field: `tipo: patologia` |
+| `sort:` / `ordenar:` | `titulo`, `modificado`, `criado`, `caminho` — add `desc` to reverse |
+| `limit:` / `limite:` | how many at most |
+
+Two conditions in one block **add up** — this is protocols *and* intensive care:
+
+````markdown
+```query
+tag: protocolo
+tag: uti
+sort: titulo
+limit: 30
+```
+````
+
+For "either one", use two blocks. A line the parser cannot read is shown above
+the results instead of being ignored, and a block with no filter returns
+nothing rather than your whole vault.
+
+**Turning it into a template.** Once an index has the shape you want, save it as
+`_templates/Index.md`. `Ctrl+N` then offers it, with `{{title}}` and `{{date}}`
+filled in — so every new index starts from the version you already tuned. There
+is a complete one, with a section explaining each field, in
+[`examples/templates/Index.md`](examples/templates/Index.md).
 
 ---
 

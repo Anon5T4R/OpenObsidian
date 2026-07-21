@@ -852,6 +852,7 @@ export default function App() {
                           vaultPath={store.vaultPath}
                           files={store.files}
                           aliases={aliasOptions}
+                          tags={store.tags}
                           theme={settings.theme}
                           onStatsChange={setEditorStats}
                           onAiExplain={handleAiExplain}
