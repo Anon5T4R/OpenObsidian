@@ -3,11 +3,7 @@ import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
 import remarkFrontmatter from 'remark-frontmatter'
-import mermaid from 'mermaid'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
 import {
-  CODE_BLOCK_RE,
   processCallouts,
   processHighlights,
   addHeadingIds,
@@ -16,6 +12,8 @@ import {
   processTags,
   stripComments,
   toggleCheckbox,
+  hasMath,
+  processMath,
 } from './markdownTransforms'
 import { useT } from '../../i18n'
 import { parseFrontmatter, asList, FrontmatterData } from '../../utils/frontmatter'
@@ -24,35 +22,20 @@ import './MarkdownPreview.css'
 
 // ── Math (KaTeX) ───────────────────────────────────────────────────────────
 
-function processMath(html: string): string {
-  const parts = html.split(CODE_BLOCK_RE)
-  return parts.map((part, i) => {
-    if (i % 2 === 1) return part // inside a code block — skip
-    // Block math: $$...$$ and \[...\]
-    part = part.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
-      try {
-        return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`
-      } catch { return `<span class="math-error">$$${tex}$$</span>` }
-    })
-    part = part.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => {
-      try {
-        return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`
-      } catch { return `<span class="math-error">\\[${tex}\\]</span>` }
-    })
-    // Inline math: $...$ (requires non-space after opening $)
-    part = part.replace(/\$(?!\s)([^$\n<>]+?)(?<!\s)\$/g, (_, tex) => {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })
-      } catch { return `<span class="math-error">$${tex}$</span>` }
-    })
-    // Inline math: \(...\)
-    part = part.replace(/\\\((.+?)\\\)/g, (_, tex) => {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })
-      } catch { return `<span class="math-error">\\(${tex}\\)</span>` }
-    })
-    return part
-  }).join('')
+// KaTeX is 480 kB, the largest thing left in the eager bundle, and a note with
+// no formula never needs it. Loaded on first sight of math, then cached for the
+// rest of the session.
+type Katex = typeof import('katex').default
+
+let katexCache: Katex | null = null
+let katexLoading: Promise<Katex> | null = null
+
+function loadKatex(): Promise<Katex> {
+  if (!katexLoading) {
+    katexLoading = Promise.all([import('katex'), import('katex/dist/katex.min.css')])
+      .then(([mod]) => { katexCache = mod.default; return katexCache })
+  }
+  return katexLoading
 }
 
 // ── Frontmatter properties strip ───────────────────────────────────────────
@@ -120,6 +103,8 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
 
   // ── Mermaid zoom modal ────────────────────────────────────────────────────
   type ZoomModal = { html: string; w: number; h: number }
+  // Held in state so the memo below re-runs the moment KaTeX arrives
+  const [katex, setKatex] = useState<Katex | null>(katexCache)
   const [zoomModal, setZoomModal] = useState<ZoomModal | null>(null)
   const [zoom, setZoom]           = useState(1)
 
@@ -156,7 +141,7 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
     h = processCallouts(h)
     h = processHighlights(h)
     h = processTags(h)
-    h = processMath(h)
+    h = processMath(h, katex)
     h = addHeadingIds(h)
     // Wrap mermaid code blocks
     h = h.replace(
@@ -180,16 +165,31 @@ export default function MarkdownPreview({ content, onWikiLinkClick, onChange, va
       })
     }
     return renderProperties(parseFrontmatter(deferredContent).data) + h
-  }, [deferredContent, vaultPath, linkExists, resolveEmbed, runNoteQuery, t])
+  }, [deferredContent, vaultPath, linkExists, resolveEmbed, runNoteQuery, t, katex])
 
-  // Render mermaid diagrams after HTML is injected into the DOM
+  // Fetch KaTeX the first time a note actually has a formula
+  useEffect(() => {
+    if (katex || !hasMath(html)) return
+    let alive = true
+    loadKatex().then((mod) => { if (alive) setKatex(() => mod) }).catch(console.error)
+    return () => { alive = false }
+  }, [html, katex])
+
+  // Render mermaid diagrams after HTML is injected into the DOM.
+  // Loaded on demand: mermaid and its dependencies are the single biggest thing
+  // in the bundle, and most notes have no diagram at all.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const nodes = Array.from(el.querySelectorAll<HTMLElement>('pre.mermaid'))
     if (nodes.length === 0) return
-    mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme(), securityLevel: 'loose' })
-    mermaid.run({ nodes }).catch(console.error)
+    let cancelled = false
+    import('mermaid').then(({ default: mermaid }) => {
+      if (cancelled) return
+      mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme(), securityLevel: 'loose' })
+      mermaid.run({ nodes }).catch(console.error)
+    }).catch(console.error)
+    return () => { cancelled = true }
   }, [html])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {

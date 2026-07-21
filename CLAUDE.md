@@ -397,6 +397,14 @@ with no error — a rendering wart had turned into silent data loss.
 - **DOCX images**: mammoth drops embedded images during conversion (they don't appear in the .md output).
 - **Math false positives**: `$...$` inline math regex skips `$` followed by whitespace to reduce currency false positives (`$10 and $20` won't match).
 - **Mermaid + Vite**: needs `optimizeDeps: { include: ['mermaid', 'katex'] }` in `electron.vite.config.ts`.
+- **Heavy dependencies load on demand**, and must stay that way — the eager
+  bundle went from 4.5 MB to 2.2 MB by doing it. Mermaid (973 kB) and KaTeX
+  (481 kB) are `await import`ed the first time a note actually has a diagram or
+  a formula; `GraphView` (d3) and `EpubViewer` (epub.js + jszip) are
+  `React.lazy`. A plain top-level `import` of any of them puts it back in the
+  main chunk with no warning — check the build output after touching them.
+  `hasMath` decides whether KaTeX is ever fetched: get it wrong and the formula
+  never renders at all, hence its tests.
 - **`file:rename` IPC**: preserves original extension. Renaming `report.pdf` to `quarterly` → `quarterly.pdf`.
 - **Nav history**: uses `useRef` (not `useState`) to avoid stale closure issues in `handleNavBack`/`handleNavForward`.
 - **PDF files** are displayed but content is never read as text (`store.setActiveContent('')`).

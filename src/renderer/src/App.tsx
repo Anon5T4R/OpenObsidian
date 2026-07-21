@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useCallback, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { ChevronLeft, ChevronRight, Search, List, Download, MessageCircle } from 'lucide-react'
 import { useVaultStore, NoteFile, isBinaryPath } from './store/vaultStore'
 import { useSettings, SidebarSort } from './hooks/useSettings'
@@ -16,12 +16,10 @@ import BacklinksPanel from './components/Backlinks/BacklinksPanel'
 import SearchPanel from './components/Search/SearchPanel'
 import InsertMenu from './components/Insert/InsertMenu'
 import SettingsModal from './components/Settings/SettingsModal'
-import GraphView from './components/Graph/GraphView'
 import HelpModal from './components/Help/HelpModal'
 import TemplateModal from './components/Templates/TemplateModal'
 import PdfViewer from './components/Pdf/PdfViewer'
 import DocxViewer from './components/Docx/DocxViewer'
-import EpubViewer from './components/Epub/EpubViewer'
 import TocPanel from './components/Toc/TocPanel'
 import PreviewFind from './components/Find/PreviewFind'
 import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
@@ -40,6 +38,11 @@ import type { PluginInfo, AnkiPreview } from '../../preload/index'
 import { parseWikiTarget, resolveNote, noteExists, buildAliasIndex, listAliases } from './utils/linkResolver'
 import { slugify } from './components/Editor/markdownTransforms'
 import './styles/app.css'
+
+// Split out of the main bundle: d3 and epub.js are only needed once you open
+// the graph or an .epub, which most sessions never do
+const GraphView  = lazy(() => import('./components/Graph/GraphView'))
+const EpubViewer = lazy(() => import('./components/Epub/EpubViewer'))
 
 type ViewMode = 'edit' | 'preview' | 'split'
 
@@ -730,7 +733,7 @@ export default function App() {
               />
             </div>
             {graphOpen
-              ? <GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} />
+              ? <Suspense fallback={null}><GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} /></Suspense>
               : <EmptyState onNewNote={() => handleNewNote()} onOpenGraph={() => setGraphOpen(true)} hasNotes={store.files.length > 0} />
             }
           </div>
@@ -799,7 +802,11 @@ export default function App() {
             </div>
 
             <div className="editor-content">
-              {graphOpen && <GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} />}
+              {graphOpen && (
+                <Suspense fallback={null}>
+                  <GraphView onNodeClick={handleGraphNodeClick} onClose={handleGraphClose} />
+                </Suspense>
+              )}
 
               {isPdf ? (
                 <PdfViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
@@ -819,7 +826,9 @@ export default function App() {
                   isConverting={isConverting}
                 />
               ) : isEpub ? (
-                <EpubViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
+                <Suspense fallback={null}>
+                  <EpubViewer filePath={store.activeFile.path} onOpenNotes={handleOpenCompanionNote} />
+                </Suspense>
               ) : (
                 <>
                   <div className="editor-split-row">

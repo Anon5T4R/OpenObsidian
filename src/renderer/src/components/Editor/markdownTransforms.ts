@@ -1,6 +1,7 @@
 // Pure HTML/markdown string transforms used by the preview pipeline.
 // Kept free of heavy imports (katex / mermaid / CSS) so they are unit-testable
-// in isolation. Math rendering (which needs katex) stays in MarkdownPreview.
+// in isolation. Math rendering takes the KaTeX module as an argument, so the
+// heavy dependency stays with the caller.
 
 // ── Callout / admonition support ───────────────────────────────────────────
 
@@ -257,4 +258,50 @@ export function toggleCheckbox(markdown: string, index: number): string {
     }
     return match
   })
+}
+
+// ── Math ──────────────────────────────────────────────────────────────────
+
+/**
+ * Only the slice of KaTeX used here. Declaring it instead of importing keeps
+ * this module free of heavy dependencies — the caller passes the real thing
+ * once it has been fetched.
+ */
+export interface MathRenderer {
+  renderToString(tex: string, opts: { displayMode: boolean; throwOnError: boolean }): string
+}
+
+// One source of truth per pattern: detection and rendering must never drift.
+// `$...$` skips a `$` followed by whitespace, so `$10 and $20` is not a formula.
+const MATH_PATTERNS = [
+  { src: '\\$\\$([\\s\\S]+?)\\$\\$',              block: true,  wrap: (tex: string) => `$$${tex}$$` },
+  { src: '\\\\\\[([\\s\\S]+?)\\\\\\]',            block: true,  wrap: (tex: string) => `\\[${tex}\\]` },
+  { src: '\\$(?!\\s)([^$\\n<>]+?)(?<!\\s)\\$',    block: false, wrap: (tex: string) => `$${tex}$` },
+  { src: '\\\\\\((.+?)\\\\\\)',                   block: false, wrap: (tex: string) => `\\(${tex}\\)` },
+]
+
+/**
+ * Whether the HTML holds anything processMath would render. Saying "no math"
+ * here means KaTeX is never fetched and the formula never renders at all —
+ * worse than rendering it a moment late. Hence the shared patterns.
+ */
+export function hasMath(html: string): boolean {
+  return MATH_PATTERNS.some((p) => new RegExp(p.src).test(html))
+}
+
+export function processMath(html: string, k: MathRenderer | null): string {
+  if (!k) return html // not loaded yet; the effect below re-renders once it is
+  const parts = html.split(CODE_BLOCK_RE)
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part // inside a code block — skip
+    for (const { src, block, wrap } of MATH_PATTERNS) {
+      part = part.replace(new RegExp(src, 'g'), (_, tex: string) => {
+        try {
+          const rendered = k.renderToString(tex.trim(), { displayMode: block, throwOnError: false })
+          return block ? `<div class="math-block">${rendered}</div>` : rendered
+        } catch { return `<span class="math-error">${wrap(tex)}</span>` }
+      })
+    }
+    return part
+  }).join('')
 }

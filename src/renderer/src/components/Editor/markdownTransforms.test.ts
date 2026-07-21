@@ -9,6 +9,8 @@ import {
   toggleCheckbox,
   decodeMermaidCode,
   slugify,
+  hasMath,
+  processMath,
 } from './markdownTransforms'
 
 describe('processHighlights', () => {
@@ -210,5 +212,58 @@ describe('toggleCheckbox', () => {
 describe('decodeMermaidCode', () => {
   it('decodes HTML entities', () => {
     expect(decodeMermaidCode('A --&gt; B &amp; C')).toBe('A --> B & C')
+  })
+})
+
+// hasMath decides whether KaTeX is ever fetched. A false negative does not make
+// the formula render late — it never renders at all.
+describe('hasMath', () => {
+  it('sees the four supported forms', () => {
+    expect(hasMath('<p>$$x^2$$</p>')).toBe(true)
+    expect(hasMath('<p>\\[x^2\\]</p>')).toBe(true)
+    expect(hasMath('<p>o valor $x^2$ aqui</p>')).toBe(true)
+    expect(hasMath('<p>o valor \\(x^2\\) aqui</p>')).toBe(true)
+  })
+
+  it('sees block math spanning several lines', () => {
+    expect(hasMath('<p>$$\n\\frac{a}{b}\n$$</p>')).toBe(true)
+  })
+
+  it('does not take prices for formulas', () => {
+    expect(hasMath('<p>custa $10 e depois $20</p>')).toBe(false)
+    expect(hasMath('<p>sem matematica nenhuma</p>')).toBe(false)
+  })
+
+  it('gives the same answer twice — no leftover regex state', () => {
+    const html = '<p>$a$ e $b$</p>'
+    expect(hasMath(html)).toBe(true)
+    expect(hasMath(html)).toBe(true)
+  })
+})
+
+describe('processMath', () => {
+  const fake = { renderToString: (tex: string, o: { displayMode: boolean }) =>
+    `<${o.displayMode ? 'BLOCK' : 'INLINE'}>${tex}</${o.displayMode ? 'BLOCK' : 'INLINE'}>` }
+
+  it('leaves the markup untouched while KaTeX has not arrived', () => {
+    const html = '<p>$$x^2$$</p>'
+    expect(processMath(html, null)).toBe(html)
+  })
+
+  it('renders block and inline in their own modes', () => {
+    expect(processMath('<p>$$x^2$$</p>', fake))
+      .toBe('<p><div class="math-block"><BLOCK>x^2</BLOCK></div></p>')
+    expect(processMath('<p>vale $x^2$ aqui</p>', fake))
+      .toBe('<p>vale <INLINE>x^2</INLINE> aqui</p>')
+  })
+
+  it('never touches math inside a code block', () => {
+    const html = '<pre><code>$$x^2$$</code></pre>'
+    expect(processMath(html, fake)).toBe(html)
+  })
+
+  it('keeps the source when the renderer throws', () => {
+    const bad = { renderToString: () => { throw new Error('nope') } }
+    expect(processMath('<p>$x^2$</p>', bad)).toBe('<p><span class="math-error">$x^2$</span></p>')
   })
 })
