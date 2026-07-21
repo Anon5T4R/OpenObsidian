@@ -619,7 +619,12 @@ ipcMain.handle('srs:export-anki', async (_, cards: { q: string; a: string }[]) =
 // is opened; at this size it is ~45ms.
 const ANKI_CHUNK = 100
 
-ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
+// Parsing is kept between the preview and the write so a 4000-card deck is
+// not read twice
+let ankiPending: { source: string; deck: string; cards: srs.AnkiCard[] } | null = null
+
+/** Picks a file and reports what it holds — writes nothing. */
+ipcMain.handle('srs:anki-pick', async () => {
   const picked = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
@@ -647,25 +652,26 @@ ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
   if (cards.length === 0) return { error: 'no cards found in that file' }
 
   const deck = deckNameFor(source)
-  const chunks = srs.chunkCards(cards, ANKI_CHUNK)
+  ankiPending = { source, deck, cards }
+  return {
+    source,
+    deck,
+    count: cards.length,
+    notes: srs.chunkCards(cards, ANKI_CHUNK).length,
+    perNote: ANKI_CHUNK,
+    withMedia,
+  }
+})
 
-  // Tell the user what is about to land in the vault before writing anything
-  const confirm = await dialog.showMessageBox(mainWindow, {
-    type: 'question',
-    buttons: ['Import', 'Cancel'],
-    defaultId: 0,
-    cancelId: 1,
-    message: `Import ${cards.length} cards from "${deck}"?`,
-    detail: [
-      chunks.length === 1
-        ? `They go into a single note: ${deck}.md`
-        : `They go into ${chunks.length} notes inside the folder ${deck}/, ${ANKI_CHUNK} cards each.`,
-      withMedia > 0
-        ? `\n${withMedia} cards reference images or audio. Anki's text export does not carry media, so those references are dropped.`
-        : '',
-    ].filter(Boolean).join('\n'),
-  })
-  if (confirm.response !== 0) return null
+/** Writes the deck picked above. The confirmation happens in the renderer, in
+ *  the user's own language. */
+ipcMain.handle('srs:anki-write', async (_, vaultPath: string, source: string, deckName?: string) => {
+  if (!ankiPending || ankiPending.source !== source) return { error: 'nothing to import' }
+  const cards = ankiPending.cards
+  const deck = (deckName ?? ankiPending.deck).trim() || ankiPending.deck
+  ankiPending = null
+
+  const chunks = srs.chunkCards(cards, ANKI_CHUNK)
 
   const written: string[] = []
   if (chunks.length === 1) {
@@ -686,7 +692,7 @@ ipcMain.handle('srs:import-anki', async (_, vaultPath: string) => {
       written.push(target)
     }
   }
-  return { path: written[0], count: cards.length, notes: written.length, withMedia }
+  return { path: written[0], count: cards.length, notes: written.length }
 })
 
 // ── ODT conversion (adm-zip + content.xml) ─────────────────────────────────

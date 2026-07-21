@@ -6,10 +6,9 @@ import './ReviewPanel.css'
 
 interface ReviewStatsPanelProps {
   onClose: () => void
-  onNotify: (msg: string) => void
 }
 
-export default function ReviewStatsPanel({ onClose, onNotify }: ReviewStatsPanelProps) {
+export default function ReviewStatsPanel({ onClose }: ReviewStatsPanelProps) {
   const vaultPath = useVaultStore((s) => s.vaultPath)
   const t = useT()
   const [data, setData] = useState<SrsReport | null>(null)
@@ -19,14 +18,6 @@ export default function ReviewStatsPanel({ onClose, onNotify }: ReviewStatsPanel
     window.api.srsReport(vaultPath).then(setData).catch(() => setData(null))
   }, [vaultPath])
 
-  const importAnki = async () => {
-    if (!vaultPath) return
-    const r = await window.api.srsImportAnki(vaultPath)
-    if (!r) return
-    if (r.error) { onNotify(r.error); return }
-    onNotify(t('reviewImported', { count: r.count ?? 0, notes: r.notes ?? 1 }))
-  }
-
   const peak = Math.max(1, ...(data?.forecast.map((f) => f.count) ?? [1]))
 
   return (
@@ -34,7 +25,6 @@ export default function ReviewStatsPanel({ onClose, onNotify }: ReviewStatsPanel
       <div className="review-header">
         <span className="review-title">📊 {t('reviewStatsTitle')}</span>
         <span className="review-progress" />
-        <button className="review-close" onClick={importAnki}>{t('reviewImportAnki')}</button>
         <button className="review-close" onClick={onClose}>{t('searchClose')}</button>
       </div>
 

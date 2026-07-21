@@ -27,13 +27,14 @@ import PreviewFind from './components/Find/PreviewFind'
 import VaultDiagnosticsPanel from './components/Diagnostics/VaultDiagnosticsPanel'
 import ReviewPanel, { ReviewDeck } from './components/Review/ReviewPanel'
 import ReviewStatsPanel from './components/Review/ReviewStatsPanel'
+import AnkiImportModal from './components/Review/AnkiImportModal'
 import CalendarPopover from './components/Calendar/CalendarPopover'
 import { buildAiPrompt, PromptKind } from './utils/aiPrompts'
 import ChatPanel from './components/Chat/ChatPanel'
 import PluginPanel from './components/Plugins/PluginPanel'
 import { ToolbarRight } from './components/Toolbar/EditorToolbar'
 import CommandPalette, { Command } from './components/CommandPalette/CommandPalette'
-import type { PluginInfo } from '../../preload/index'
+import type { PluginInfo, AnkiPreview } from '../../preload/index'
 import { parseWikiTarget, resolveNote, noteExists, buildAliasIndex, listAliases } from './utils/linkResolver'
 import { slugify } from './components/Editor/markdownTransforms'
 import './styles/app.css'
@@ -124,6 +125,7 @@ export default function App() {
   const [statsOpen,        setStatsOpen]        = useState(false)
   const [calendarOpen,     setCalendarOpen]     = useState(false)
   const [reviewMenuOpen,   setReviewMenuOpen]   = useState(false)
+  const [ankiPreview,      setAnkiPreview]      = useState<AnkiPreview | null>(null)
   const [chatOpen,         setChatOpen]         = useState(false)
   const [chatTrigger,      setChatTrigger]      = useState<string | undefined>(undefined)
   const [plugins,          setPlugins]          = useState<PluginInfo[]>([])
@@ -349,6 +351,24 @@ export default function App() {
     notify(t('toastPromptCopied'))
   }, [notify, t, settings.locale])
 
+  // Importing had to be found inside the statistics panel, which nobody would
+  // guess; it belongs in the flashcards menu with everything else
+  const pickAnki = useCallback(async () => {
+    const r = await window.api.srsAnkiPick()
+    if (!r) return
+    if ('error' in r) { notify(r.error); return }
+    setAnkiPreview(r)
+  }, [notify])
+
+  const writeAnki = useCallback(async (deckName: string) => {
+    const preview = ankiPreview
+    setAnkiPreview(null)
+    if (!preview || !store.vaultPath) return
+    const r = await window.api.srsAnkiWrite(store.vaultPath, preview.source, deckName)
+    if (r.error) { notify(r.error); return }
+    notify(t('reviewImported', { count: r.count ?? 0, notes: r.notes ?? 1 }))
+  }, [ankiPreview, store.vaultPath, notify, t])
+
   // One entry point for everything flashcard-related, instead of the review
   // panel being the only door and the statistics hiding in the palette
   const reviewMenu = (
@@ -375,6 +395,10 @@ export default function App() {
       </button>
       <button onClick={() => { setReviewMenuOpen(false); copyAiPrompt('flashcards') }}>
         <span className="toolbar-menu-icon">🤖</span>{t('cmdAiFlashcards')}
+      </button>
+      <hr />
+      <button onClick={() => { setReviewMenuOpen(false); pickAnki() }}>
+        <span className="toolbar-menu-icon">⬆</span>{t('reviewImportAnki')}
       </button>
     </div>
   )
@@ -619,7 +643,7 @@ export default function App() {
       {/* Main */}
       <main className="main">
         {statsOpen ? (
-          <ReviewStatsPanel onClose={() => setStatsOpen(false)} onNotify={notify} />
+          <ReviewStatsPanel onClose={() => setStatsOpen(false)} />
         ) : reviewDeck ? (
           <ReviewPanel
             deck={reviewDeck}
@@ -826,6 +850,13 @@ export default function App() {
         />
       )}
       {helpOpen      && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {ankiPreview   && (
+        <AnkiImportModal
+          preview={ankiPreview}
+          onConfirm={writeAnki}
+          onCancel={() => setAnkiPreview(null)}
+        />
+      )}
       {templateOpen  && (
         <TemplateModal
           onConfirm={handleTemplateConfirm}

@@ -124,6 +124,15 @@ export const en = {
 
   ttReview:        'Review flashcards',
   ttReviewDue:     '{count} cards due',
+  // Anki import
+  ankiTitle:      'Import from Anki',
+  ankiCards:      'cards found',
+  ankiDeckName:   'Deck name',
+  ankiOneNote:    'They go into a single note: {name}.md',
+  ankiManyNotes:  'They go into {notes} notes inside the folder {folder}/, {per} cards each — one big note would be slow to open.',
+  ankiMedia:      '{count} cards reference images or audio. An Anki export does not carry media files, so those references are dropped.',
+  ankiImport:     'Import',
+
   reviewRepeat:       'Go through the {count} again',
   reviewAhead:        'Review ahead (next 7 days)',
   reviewPractice:     'practice',
@@ -798,6 +807,14 @@ const ptBR: typeof en = {
 
   ttReview:        'Revisar flashcards',
   ttReviewDue:     '{count} cartões a revisar',
+  ankiTitle:      'Importar do Anki',
+  ankiCards:      'cartões encontrados',
+  ankiDeckName:   'Nome do baralho',
+  ankiOneNote:    'Vão para uma nota só: {name}.md',
+  ankiManyNotes:  'Vão para {notes} notas dentro da pasta {folder}/, {per} cartões cada — uma nota só ficaria lenta para abrir.',
+  ankiMedia:      '{count} cartões referenciam imagens ou áudio. A exportação do Anki não carrega os arquivos de mídia, então essas referências são descartadas.',
+  ankiImport:     'Importar',
+
   reviewRepeat:       'Rever os {count} de novo',
   reviewAhead:        'Adiantar revisão (próximos 7 dias)',
   reviewPractice:     'treino',
@@ -1458,6 +1475,14 @@ const esLatam: typeof en = {
 
   ttReview:        'Repasar flashcards',
   ttReviewDue:     '{count} tarjetas por repasar',
+  ankiTitle:      'Importar de Anki',
+  ankiCards:      'tarjetas encontradas',
+  ankiDeckName:   'Nombre del mazo',
+  ankiOneNote:    'Van a una sola nota: {name}.md',
+  ankiManyNotes:  'Van a {notes} notas dentro de la carpeta {folder}/, {per} tarjetas cada una — una sola nota sería lenta de abrir.',
+  ankiMedia:      '{count} tarjetas referencian imágenes o audio. La exportación de Anki no lleva los archivos de medios, así que esas referencias se descartan.',
+  ankiImport:     'Importar',
+
   reviewRepeat:       'Repasar las {count} de nuevo',
   reviewAhead:        'Adelantar repaso (próximos 7 días)',
   reviewPractice:     'práctica',

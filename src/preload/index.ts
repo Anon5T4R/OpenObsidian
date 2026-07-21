@@ -35,6 +35,15 @@ export interface SrsStats {
   fresh: number
 }
 
+export interface AnkiPreview {
+  source: string
+  deck: string
+  count: number
+  notes: number
+  perNote: number
+  withMedia: number
+}
+
 export interface SrsReport extends SrsStats {
   learned: number
   retention: number
@@ -151,8 +160,10 @@ const api = {
   srsReport: (vault: string): Promise<SrsReport> => ipcRenderer.invoke('srs:report', vault),
   srsExportAnki: (cards: { q: string; a: string }[]): Promise<string | null> =>
     ipcRenderer.invoke('srs:export-anki', cards),
-  srsImportAnki: (vault: string): Promise<{ path?: string; count?: number; notes?: number; withMedia?: number; error?: string } | null> =>
-    ipcRenderer.invoke('srs:import-anki', vault),
+  srsAnkiPick: (): Promise<AnkiPreview | { error: string } | null> =>
+    ipcRenderer.invoke('srs:anki-pick'),
+  srsAnkiWrite: (vault: string, source: string, deck?: string): Promise<{ path?: string; count?: number; notes?: number; error?: string }> =>
+    ipcRenderer.invoke('srs:anki-write', vault, source, deck),
 
   // Shell
   showItemInFolder: (p: string): Promise<void>     => ipcRenderer.invoke('shell:show-item', p),
