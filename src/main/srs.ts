@@ -168,6 +168,8 @@ export interface AnkiCard {
   q: string
   a: string
   tags: string[]
+  /** A cloze note: the gaps are the answer, so an empty second field is normal */
+  cloze?: boolean
 }
 
 export interface AnkiImport {
@@ -220,15 +222,22 @@ export function fromAnkiText(text: string): AnkiImport {
     const tags = tagIdx > 1 ? splitTags(parts[tagIdx]) : []
     const answerParts = parts.slice(1).filter((_, i) => i + 1 !== tagIdx)
 
+    // A cloze note carries its answer inside the sentence, and its second
+    // field ("Extra") is usually empty. Requiring an answer silently threw
+    // every one of them away.
+    const cloze = /\{\{c\d+::/.test(parts[0])
     const q = ankiFieldToMarkdown(parts[0])
     const a = ankiFieldToMarkdown(answerParts.join(' '))
-    if (q && a) cards.push({ q, a, tags })
+    if (q && (a || cloze)) cards.push({ q, a, tags, ...(cloze ? { cloze } : {}) })
   }
   return { cards, withMedia }
 }
 
 function splitTags(raw: string): string[] {
-  return raw.trim().split(/\s+/).filter(Boolean).map((t) => t.replace(/^#/, ''))
+  return raw.trim().split(/\s+/).filter(Boolean).map((t) =>
+    // Anki nests tags with `::`; this app nests them with `/`
+    t.replace(/^#/, '').replace(/::/g, '/'),
+  )
 }
 
 /**
@@ -254,12 +263,23 @@ export function ankiFieldToMarkdown(s: string): string {
     .trim()
 }
 
-/** Anki cards → a Markdown note made of card callouts. */
+/**
+ * Anki cards → a Markdown note made of card callouts.
+ * A cloze note becomes `> [!card]` with the sentence in the body, which is the
+ * shape extractCards turns into one gap-fill card per `==highlight==`.
+ */
 export function ankiToMarkdown(title: string, cards: AnkiCard[]): string {
   const tags = [...new Set(cards.flatMap((c) => c.tags))]
   const header = tags.length > 0 ? `${tags.map((t) => `#${t}`).join(' ')}\n\n` : ''
   const body = cards
-    .map((c) => `> [!card]- ${c.q}\n> ${c.a.replace(/\n/g, '\n> ')}`)
+    .map((c) => {
+      const quote = (s: string) => s.replace(/\n/g, '\n> ')
+      if (c.cloze) {
+        // The Extra field, when there is one, becomes the card's title
+        return `> [!card]${c.a ? ' ' + quote(c.a) : ''}\n> ${quote(c.q)}`
+      }
+      return `> [!card]- ${c.q}\n> ${quote(c.a)}`
+    })
     .join('\n\n')
   return `# ${title}\n\n${header}${body}\n`
 }

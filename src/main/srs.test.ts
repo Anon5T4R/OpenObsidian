@@ -255,6 +255,31 @@ describe('Anki text exchange', () => {
     expect(fromAnkiText('só pergunta').cards).toEqual([])
   })
 
+  it('keeps a cloze note whose Extra field is empty', () => {
+    // The shape a real AnkiWeb deck exports: Texto / Extra / tags
+    const line = 'Mecanismos para condução de {{c1::seiva bruta}}.\t\tBOTANICA::BOTÂNICA'
+    const { cards } = fromAnkiText('#separator:tab\n#tags column:3\n' + line)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].cloze).toBe(true)
+    expect(cards[0].q).toContain('==seiva bruta==')
+  })
+
+  it('translates Anki nested tags into this app nesting', () => {
+    const { cards } = fromAnkiText('P\tR\tHISTOLOGIA::Classificação')
+    expect(cards[0].tags).toEqual(['HISTOLOGIA/Classificação'])
+  })
+
+  it('writes a cloze note in the form extractCards reads as gaps', () => {
+    const md = ankiToMarkdown('Deck', [{ q: 'A ==seiva bruta== sobe', a: '', tags: [], cloze: true }])
+    expect(md).toContain('> [!card]\n> A ==seiva bruta== sobe')
+    expect(md).not.toContain('[!card]-')
+  })
+
+  it('uses the Extra field as the title of a cloze card', () => {
+    const md = ankiToMarkdown('Deck', [{ q: 'A ==x== sobe', a: 'Botânica', tags: [], cloze: true }])
+    expect(md).toContain('> [!card] Botânica\n> A ==x== sobe')
+  })
+
   it('splits a big deck so no single note becomes unusable', () => {
     const many = Array.from({ length: 250 }, (_, i) => ({ q: `P${i}`, a: `R${i}`, tags: [] }))
     const chunks = chunkCards(many, 100)
