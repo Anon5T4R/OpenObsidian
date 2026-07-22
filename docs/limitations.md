@@ -158,13 +158,11 @@ invisible one.
 becomes available (it would have to come from the index, and would still be
 wrong after any copy).
 
-**The two apps disagree here.** Android's `NoteQuery.SortKey` is only
-`{TITLE, MODIFIED, PATH}`, so `sort: criado` is always rejected as an
-unreadable line — it never had the silent-wrong-order bug because it never
-supported the key. An index that sorts correctly on the desktop therefore shows
-a warning on the phone. Nothing in the reference vault uses it, so there is no
-impact today, but the query grammar is meant to be one grammar: either both
-accept `criado` with ISO, or both refuse it.
+**Both apps agree.** Android's `NoteQuery.SortKey` gained `CREATED` in its
+v3.3.0, with the same rule and the same warnings — the query grammar is one
+grammar, and it stays that way on purpose. Anything added to it has to land on
+both sides or the same index means two different things depending on which
+screen you read it from.
 
 ---
 
