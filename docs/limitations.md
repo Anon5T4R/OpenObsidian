@@ -14,6 +14,18 @@ lives, so a future reader can check whether it is still true.
   of the old one.
 - **Revisit if** — a named condition that would change the answer.
 
+> **An accepted limitation has a shelf life.** Item 10 of the original backlog
+> (nested callouts) was closed with a good argument: nesting is rare, and
+> rewriting `processCallouts` risked regressions across 20+ callout types. The
+> argument held exactly as long as a callout was only *appearance*. Once a
+> flashcard became a callout, `> > [!card]` inside a `> [!warning]` was dropped
+> by `extractCards` **with no error** — a rendering wart had become silent data
+> loss, and the item was reopened and done.
+>
+> So when revisiting anything here, the question is not "does this still
+> annoy?" but **"what has come to depend on it since the last decision?"**.
+> That is the question that would have caught item 10 in time.
+
 ---
 
 ## 1. Search does not fold accents or stem
@@ -145,6 +157,14 @@ invisible one.
 8601 *is* chronological order. **Revisit only if** a real creation timestamp
 becomes available (it would have to come from the index, and would still be
 wrong after any copy).
+
+**The two apps disagree here.** Android's `NoteQuery.SortKey` is only
+`{TITLE, MODIFIED, PATH}`, so `sort: criado` is always rejected as an
+unreadable line — it never had the silent-wrong-order bug because it never
+supported the key. An index that sorts correctly on the desktop therefore shows
+a warning on the phone. Nothing in the reference vault uses it, so there is no
+impact today, but the query grammar is meant to be one grammar: either both
+accept `criado` with ISO, or both refuse it.
 
 ---
 

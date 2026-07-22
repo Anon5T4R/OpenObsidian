@@ -149,12 +149,6 @@ be argued with rather than rediscovered.
 
 ---
 
-## Known limitations
-
-What the app deliberately does not do, why, and what reopening each would cost:
-[`docs/LIMITACOES.md`](docs/LIMITACOES.md) (in Portuguese).
-
----
 
 ## Development
 
