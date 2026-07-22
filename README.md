@@ -141,6 +141,14 @@ is a complete one, with a section explaining each field, in
 
 ---
 
+## What it does not do
+
+Deliberate limitations, each with why it stayed and what changing it would
+cost: [`docs/limitations.md`](docs/limitations.md). Written so the decisions can
+be argued with rather than rediscovered.
+
+---
+
 ## Development
 
 ```bash
